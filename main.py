@@ -216,6 +216,10 @@ class FaerunBot:
     def __init__(self):
         # Configuration des intents Discord
         intents = discord.Intents.default()
+        intents.message_content = True
+        intents.guilds = True
+        intents.messages = True
+        intents.members = True
         intents.message_content = True  # Nécessaire pour lire le contenu des messages
 
         # Initialisation du bot avec préfixe personnalisé
@@ -255,6 +259,32 @@ class FaerunBot:
 
     def _setup_commands(self):
         """Configure toutes les commandes du bot."""
+
+        @self.bot.command(name='mentions', help='Compte les mentions dans #recompenses au cours des 30 derniers jours')
+        async def mentions_command(ctx, membre: discord.Member = None):
+            try:
+                cible = membre or ctx.author
+                channel = discord.utils.get(ctx.guild.text_channels, name='recompenses')
+                if not channel:
+                    await ctx.send("❌ Le canal #recompenses est introuvable.")
+                    return
+
+                count = 0
+                now = datetime.utcnow()
+                thirty_days_ago = now.timestamp() - (30 * 24 * 60 * 60)
+
+                async for message in channel.history(limit=1000, after=datetime.utcfromtimestamp(thirty_days_ago)):
+                    if cible in message.mentions:
+                        count += 1
+
+                if membre:
+                    await ctx.send(f"📢 {cible.mention} a été mentionné **{count} fois** dans #recompenses au cours des 30 derniers jours.")
+                else:
+                    await ctx.send(f"📢 Vous avez été mentionné **{count} fois** dans #recompenses au cours des 30 derniers jours.")
+
+            except Exception as e:
+                logger.error(f"Erreur dans la commande mentions : {e}")
+                await ctx.send("❌ Une erreur est survenue.")
 
         @self.bot.command(name='faerun',
                           help="Affiche la date Faerûnienne complète")
