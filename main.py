@@ -201,7 +201,34 @@ class FaerunBot:
         @self.bot.command(name='faerun-festival', help="Affiche le prochain festival")
         async def next_festival(ctx):
             fest = FaerunCalendar.get_next_festival()
-            await ctx.send(f"🎊 Le prochain festival est **{fest['name']}**, le {fest['day']} {fest['month']} {fest['year']} DR.")
+            
+            # Calculer la date classique correspondante
+            today = datetime.now(timezone.utc)
+            current_day_of_year = today.timetuple().tm_yday
+            festival_day = fest['day'] if fest['day'] != 30 or fest['name'] != 'Midwinter' else 30
+            
+            # Estimer la date classique du festival
+            if fest['year'] > today.year - Config.DR_YEAR_OFFSET:
+                # Festival de l'année prochaine
+                next_year = today.year + 1
+                festival_date = datetime(next_year, 1, 30 if fest['name'] == 'Midwinter' else 1)
+            else:
+                # Festival de cette année
+                days_remaining = 0
+                for day, name in sorted(Config.FESTIVALS.items()):
+                    if name == fest['name']:
+                        days_remaining = day - current_day_of_year
+                        break
+                
+                if days_remaining > 0:
+                    from datetime import timedelta
+                    festival_date = today + timedelta(days=days_remaining)
+                else:
+                    festival_date = today
+            
+            classic_date = festival_date.strftime("%d/%m/%Y")
+            
+            await ctx.send(f"🎊 Le prochain festival est **{fest['name']}**, le {fest['day']} {fest['month']} {fest['year']} DR ({classic_date}).")
 
         @self.bot.command(name='help-faerun', aliases=['aide', 'help'], help="Affiche l'aide")
         async def help_command(ctx):
