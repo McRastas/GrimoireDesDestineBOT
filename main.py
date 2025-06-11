@@ -17,9 +17,16 @@ logger = logging.getLogger(__name__)
 # Configuration
 class Config:
     DISCORD_TOKEN = os.getenv('DISCORD_TOKEN')
-    COMMAND_PREFIX = '!'
+    COMMAND_PREFIX = os.getenv('COMMAND_PREFIX', '!')
     FLASK_HOST = '0.0.0.0'
-    FLASK_PORT = 8080
+    FLASK_PORT = int(os.getenv('FLASK_PORT', 8080))
+    
+    @classmethod
+    def validate(cls):
+        """Valide la configuration"""
+        if not cls.DISCORD_TOKEN:
+            raise ValueError("DISCORD_TOKEN manquant dans les variables d'environnement")
+        return True
 
     MONTHS_HARPTOS = [
         "Hammer", "Alturiak", "Ches", "Tarsakh", "Mirtul", "Kythorn",
@@ -156,20 +163,35 @@ class FaerunBot:
         async def on_ready():
             logger.info(f'Bot connecté : {self.bot.user}')
             logger.info(f'Serveurs connectés : {len(self.bot.guilds)}')
+            
+        @self.bot.event
+        async def on_command_error(ctx, error):
+            if isinstance(error, commands.CommandNotFound):
+                await ctx.send(f"❓ Commande inconnue. Utilisez `{Config.COMMAND_PREFIX}help-faerun` pour voir les commandes disponibles.")
+            elif isinstance(error, commands.MissingRequiredArgument):
+                await ctx.send(f"❌ Argument manquant. Utilisez `{Config.COMMAND_PREFIX}help-faerun` pour plus d'informations.")
+            else:
+                logger.error(f"Erreur de commande: {error}")
+                await ctx.send("❌ Une erreur inattendue s'est produite.")
 
     def _setup_commands(self):
         @self.bot.command(name='faerun', help="Affiche la date Faerûnienne complète")
         async def faerun_command(ctx):
-            fae = FaerunCalendar.get_faerun_date()
+            try:
+                logger.info(f"Commande faerun exécutée par {ctx.author.name}")
+                fae = FaerunCalendar.get_faerun_date()
 
-            if fae["festival"]:
-                description = f"🎉 **{fae['festival']}**, {fae['year']} DR\nSeason: {fae['season']}, Week {fae['week']}"
-            else:
-                description = f"**{fae['weekday']}, {fae['day']} {fae['month']} {fae['year']} DR**\nSeason: {fae['season']}, Week {fae['week']}"
+                if fae["festival"]:
+                    description = f"🎉 **{fae['festival']}**, {fae['year']} DR\nSeason: {fae['season']}, Week {fae['week']}"
+                else:
+                    description = f"**{fae['weekday']}, {fae['day']} {fae['month']} {fae['year']} DR**\nSeason: {fae['season']}, Week {fae['week']}"
 
-            embed = discord.Embed(title="📅 Date de Faerûn", description=description, color=0x8B4513)
-            embed.set_footer(text="Calendrier de Harptos")
-            await ctx.send(embed=embed)
+                embed = discord.Embed(title="📅 Date de Faerûn", description=description, color=0x8B4513)
+                embed.set_footer(text="Calendrier de Harptos")
+                await ctx.send(embed=embed)
+            except Exception as e:
+                logger.error(f"Erreur dans la commande faerun: {e}")
+                await ctx.send("❌ Une erreur s'est produite lors de l'affichage de la date.")
 
         @self.bot.command(name='faerun-semaine', help="Affiche le numéro de semaine Faerûnienne")
         async def week_command(ctx):
@@ -181,7 +203,7 @@ class FaerunBot:
             fest = FaerunCalendar.get_next_festival()
             await ctx.send(f"🎊 Le prochain festival est **{fest['name']}**, le {fest['day']} {fest['month']} {fest['year']} DR.")
 
-        @self.bot.command(name='help-faerun', help="Affiche l'aide")
+        @self.bot.command(name='help-faerun', aliases=['aide', 'help'], help="Affiche l'aide")
         async def help_command(ctx):
             embed = discord.Embed(title="🛡️ Commandes du Bot Faerûn", color=0x5865F2)
             embed.add_field(name=f"{Config.COMMAND_PREFIX}faerun", value="Date complète dans le calendrier de Faerûn", inline=False)
@@ -190,6 +212,41 @@ class FaerunBot:
             embed.add_field(name=f"{Config.COMMAND_PREFIX}help-faerun", value="Affiche cette aide", inline=False)
             embed.set_footer(text="Bot pour D&D Faerûn")
             await ctx.send(embed=embed)
+
+        @self.bot.command(name='faerun-saison', help="Affiche la saison actuelle")
+        async def season_command(ctx):
+            try:
+                fae = FaerunCalendar.get_faerun_date()
+                season_emoji = {"Winter": "❄️", "Spring": "🌸", "Summer": "☀️", "Autumn": "🍂"}
+                emoji = season_emoji.get(fae['season'], "🌍")
+                await ctx.send(f"{emoji} Nous sommes en **{fae['season']}** dans l'année {fae['year']} DR.")
+            except Exception as e:
+                logger.error(f"Erreur dans la commande saison: {e}")
+                await ctx.send("❌ Impossible d'afficher la saison.")
+
+        @self.bot.command(name='faerun-complet', help="Affiche toutes les informations de date")
+        async def full_info_command(ctx):
+            try:
+                fae = FaerunCalendar.get_faerun_date()
+                next_fest = FaerunCalendar.get_next_festival()
+                
+                embed = discord.Embed(title="📅 Informations complètes de Faerûn", color=0x8B4513)
+                
+                if fae["festival"]:
+                    embed.add_field(name="🎉 Festival", value=fae['festival'], inline=True)
+                else:
+                    embed.add_field(name="📅 Date", value=f"{fae['weekday']}, {fae['day']} {fae['month']}", inline=True)
+                
+                embed.add_field(name="🗓️ Année", value=f"{fae['year']} DR", inline=True)
+                embed.add_field(name="🌍 Saison", value=fae['season'], inline=True)
+                embed.add_field(name="📊 Semaine", value=f"Semaine {fae['week']}", inline=True)
+                embed.add_field(name="🎊 Prochain festival", value=f"{next_fest['name']}\n{next_fest['day']} {next_fest['month']}", inline=True)
+                
+                embed.set_footer(text="Calendrier de Harptos • Forgotten Realms")
+                await ctx.send(embed=embed)
+            except Exception as e:
+                logger.error(f"Erreur dans la commande complet: {e}")
+                await ctx.send("❌ Impossible d'afficher les informations complètes.")
 
     def run(self):
         if not Config.DISCORD_TOKEN:
@@ -202,11 +259,27 @@ class FaerunBot:
 
 
 def main():
-    logger.info("Démarrage du bot Faerûn")
-    web_server = WebServer()
-    web_server.start_in_thread()
-    bot = FaerunBot()
-    bot.run()
+    try:
+        logger.info("Démarrage de l'application Bot Faerûn")
+        
+        # Validation de la configuration
+        Config.validate()
+        
+        # Démarrage du serveur web
+        web_server = WebServer()
+        web_server.start_in_thread()
+        
+        # Démarrage du bot Discord
+        bot = FaerunBot()
+        bot.run()
+        
+    except ValueError as e:
+        logger.error(f"Erreur de configuration: {e}")
+    except KeyboardInterrupt:
+        logger.info("Arrêt du bot demandé par l'utilisateur")
+    except Exception as e:
+        logger.error(f"Erreur critique: {e}")
+        raise
 
 
 if __name__ == "__main__":

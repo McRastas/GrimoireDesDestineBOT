@@ -17,3 +17,15 @@ deploymentTarget = "cloudrun"
 [[ports]]
 localPort = 8080
 externalPort = 80
+
+[workflows]
+runButton = "Run Discord Bot"
+
+[[workflows.workflow]]
+name = "Run Discord Bot"
+author = 43730780
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python3 main.py"
