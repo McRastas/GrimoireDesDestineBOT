@@ -1,8 +1,9 @@
 import discord
 from discord.ext import commands
 from datetime import datetime, timezone, timedelta
+import os
 
-TOKEN = ''  # remplace ça par le token du bot
+TOKEN = os.getenv('DISCORD_TOKEN')  # récupère le token depuis les secrets
 GUILD_ID = 123456789012345678  # optionnel, pour le test
 
 COMMAND_PREFIX = '!'
