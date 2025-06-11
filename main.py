@@ -293,6 +293,7 @@ class FaerunBot:
             embed.add_field(name=f"{Config.COMMAND_PREFIX}faerun", value="Date complète dans le calendrier de Faerûn", inline=False)
             embed.add_field(name=f"{Config.COMMAND_PREFIX}faerun-semaine", value="Numéro de semaine actuelle", inline=False)
             embed.add_field(name=f"{Config.COMMAND_PREFIX}faerun-festival", value="Prochain festival à venir", inline=False)
+            embed.add_field(name=f"{Config.COMMAND_PREFIX}faerun-jdr <date>", value="Convertit une date (DD-MM-YYYY) en date Faerûnienne", inline=False)
             embed.add_field(name=f"{Config.COMMAND_PREFIX}help-faerun", value="Affiche cette aide", inline=False)
             embed.set_footer(text="Bot pour D&D Faerûn")
             await ctx.send(embed=embed)
@@ -336,6 +337,49 @@ class FaerunBot:
             except Exception as e:
                 logger.error(f"Erreur dans la commande complet: {e}")
                 await ctx.send("❌ Impossible d'afficher les informations complètes.")
+
+        @self.bot.command(name='faerun-jdr', help="Convertit une date (DD-MM-YYYY) en date Faerûnienne")
+        async def faerun_jdr_command(ctx, date_str: str):
+            """Affiche la date Faerûnienne correspondant à la date donnée (DD-MM-YYYY)."""
+            try:
+                # Parse de la date au format DD-MM-YYYY
+                from datetime import datetime
+                try:
+                    target_date = datetime.strptime(date_str, "%d-%m-%Y")
+                except ValueError:
+                    await ctx.send("❌ Format de date invalide. Utilisez le format DD-MM-YYYY (ex: 15-02-2023)")
+                    return
+                
+                # Calcul de l'année DR et du jour de l'année
+                year_dr = target_date.year - Config.DR_YEAR_OFFSET
+                day_of_year = target_date.timetuple().tm_yday
+                leap = FaerunCalendar.is_leap_year(target_date.year)
+                
+                # Ajustement si non-bissextile
+                day_map = day_of_year
+                if not leap and day_of_year >= 211:
+                    day_map -= 1
+
+                # Vérifie si c'est un festival
+                if day_map in Config.FESTIVALS:
+                    nom_festival = Config.FESTIVALS[day_map]
+                    saison = FaerunCalendar.get_season(day_map)
+                    semaine = (day_map - 1) // 10 + 1
+                    await ctx.send(f"🎉 Le **{date_str}** correspond à **{nom_festival}**, {year_dr} DR — Saison : {saison}, Semaine {semaine}")
+                    return
+
+                # Calcul du jour et mois normaux
+                month_index = (day_map - 1) // 30
+                day_in_month = ((day_map - 1) % 30) + 1
+                month_name = Config.MONTHS_HARPTOS[month_index]
+                weekday = Config.WEEKDAYS[(day_map - 1) % 10]
+                saison = FaerunCalendar.get_season(day_map)
+                semaine = (day_map - 1) // 10 + 1
+                
+                await ctx.send(f"📅 Le **{date_str}** correspond à **{weekday}, {day_in_month} {month_name} {year_dr} DR** — Saison : {saison}, Semaine {semaine}")
+            except Exception as e:
+                logger.error(f"Erreur dans faerun-jdr: {e}")
+                await ctx.send("❌ Une erreur est survenue lors de la conversion de la date.")
 
     def run(self):
         """Démarre le bot Discord."""
