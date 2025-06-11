@@ -345,6 +345,12 @@ class FaerunBot:
             embed.add_field(name=f"{Config.COMMAND_PREFIX}faerun-festival",
                             value="Prochain festival à venir",
                             inline=False)
+            embed.add_field(name=f"{Config.COMMAND_PREFIX}faerun-saison",
+                            value="Affiche la saison actuelle",
+                            inline=False)
+            embed.add_field(name=f"{Config.COMMAND_PREFIX}faerun-complet",
+                            value="Affiche toutes les informations de date",
+                            inline=False)
             embed.add_field(
                 name=f"{Config.COMMAND_PREFIX}faerun-jdr <date>",
                 value="Convertit une date (DD-MM-YYYY) en date Faerûnienne",
