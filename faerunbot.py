@@ -288,21 +288,25 @@ class FaerunBot(discord.Client):
             await interaction.response.send_message(embed=embed, ephemeral=True)
 
     async def on_ready(self):
-        logger.info(f'Bot connecté : {self.user}')
+        logger.info(f'Bot connecté : {self.user} (ID: {self.user.id})')
         try:
+            # Afficher les guilds où le bot est présent
+            logger.info(f"Bot présent dans {len(self.guilds)} serveur(s):")
+            for guild in self.guilds:
+                logger.info(f"  - {guild.name} (ID: {guild.id})")
+            
             if getattr(Config, "GUILD_ID", None):
                 guild = self.get_guild(Config.GUILD_ID)
-                await self.tree.sync(guild=discord.Object(id=Config.GUILD_ID))
                 if guild:
-                    logger.info(
-                        f"Slash commands synchronisées pour la guild {Config.GUILD_ID} ({guild.name})."
-                    )
+                    synced = await self.tree.sync(guild=discord.Object(id=Config.GUILD_ID))
+                    logger.info(f"Synchronisées {len(synced)} slash commands pour la guild {guild.name} (ID: {Config.GUILD_ID})")
                 else:
-                    logger.info(
-                        f"Slash commands synchronisées pour la guild {Config.GUILD_ID} (nom inconnu)."
-                    )
+                    logger.warning(f"Guild ID {Config.GUILD_ID} non trouvée. Synchronisation globale...")
+                    synced = await self.tree.sync()
+                    logger.info(f"Synchronisées {len(synced)} slash commands globalement")
             else:
-                await self.tree.sync()
-                logger.info("Slash commands synchronisées globalement.")
+                synced = await self.tree.sync()
+                logger.info(f"Synchronisées {len(synced)} slash commands globalement")
+                logger.info("💡 Conseil: Définis GUILD_ID dans les secrets pour une sync plus rapide en développement")
         except Exception as e:
-            logger.error(f"Erreur lors de la sync des slash commands : {e}")
+            logger.error(f"Erreur lors de la sync des slash commands : {e}", exc_info=True)

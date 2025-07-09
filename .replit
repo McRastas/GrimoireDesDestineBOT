@@ -19,6 +19,7 @@ localPort = 8080
 externalPort = 80
 
 [workflows]
+runButton = "Run Discord Bot"
 
 [[workflows.workflow]]
 name = "Run Discord Bot"
