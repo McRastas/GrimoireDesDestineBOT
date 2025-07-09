@@ -14,9 +14,11 @@ class Config:
 
     # ID de la guild pour la synchro rapide des slash commands (optionnel)
     try:
-        GUILD_ID = int(
-            os.getenv('GUILD_ID')) if os.getenv('GUILD_ID') else None
-    except ValueError:
+        GUILD_ID = int(os.getenv('GUILD_ID')) if os.getenv('GUILD_ID') else None
+        if GUILD_ID:
+            print(f"GUILD_ID chargé : {GUILD_ID}")
+    except ValueError as e:
+        print(f"Erreur lors du parsing de GUILD_ID : {e}")
         GUILD_ID = None
 
     # Paramètres internes pour Faerûn

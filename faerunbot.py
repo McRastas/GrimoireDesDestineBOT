@@ -20,6 +20,9 @@ class FaerunBot(discord.Client):
         self.tree = app_commands.CommandTree(self)
 
     async def setup_hook(self):
+        logger.info(f"Configuration des commandes slash...")
+        logger.info(f"GUILD_ID configuré : {getattr(Config, 'GUILD_ID', 'Non défini')}")
+        
         # /faerun : Date complète
         @self.tree.command(name="faerun",
                            description="Affiche la date Faerûnienne complète")
@@ -287,28 +290,23 @@ class FaerunBot(discord.Client):
             )
             await interaction.response.send_message(embed=embed, ephemeral=True)
         
-        logger.info("Commandes slash configurées")
-
-    async def on_ready(self):
-        logger.info(f'Bot connecté : {self.user} (ID: {self.user.id})')
+        # Synchroniser les commandes après les avoir définies
         try:
-            # Afficher les guilds où le bot est présent
-            logger.info(f"Bot présent dans {len(self.guilds)} serveur(s):")
-            for guild in self.guilds:
-                logger.info(f"  - {guild.name} (ID: {guild.id})")
-            
             if getattr(Config, "GUILD_ID", None):
-                guild = self.get_guild(Config.GUILD_ID)
-                if guild:
-                    synced = await self.tree.sync(guild=discord.Object(id=Config.GUILD_ID))
-                    logger.info(f"Synchronisées {len(synced)} slash commands pour la guild {guild.name} (ID: {Config.GUILD_ID})")
-                else:
-                    logger.warning(f"Guild ID {Config.GUILD_ID} non trouvée. Synchronisation globale...")
-                    synced = await self.tree.sync()
-                    logger.info(f"Synchronisées {len(synced)} slash commands globalement")
+                synced = await self.tree.sync(guild=discord.Object(id=Config.GUILD_ID))
+                logger.info(f"Synchronisées {len(synced)} slash commands pour la guild ID: {Config.GUILD_ID}")
             else:
                 synced = await self.tree.sync()
                 logger.info(f"Synchronisées {len(synced)} slash commands globalement")
                 logger.info("💡 Conseil: Définis GUILD_ID dans les secrets pour une sync plus rapide en développement")
         except Exception as e:
             logger.error(f"Erreur lors de la sync des slash commands : {e}", exc_info=True)
+        
+        logger.info("Commandes slash configurées et synchronisées")
+
+    async def on_ready(self):
+        logger.info(f'Bot connecté : {self.user} (ID: {self.user.id})')
+        # Afficher les guilds où le bot est présent
+        logger.info(f"Bot présent dans {len(self.guilds)} serveur(s):")
+        for guild in self.guilds:
+            logger.info(f"  - {guild.name} (ID: {guild.id})")
