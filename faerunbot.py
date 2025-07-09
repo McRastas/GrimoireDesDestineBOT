@@ -18,9 +18,8 @@ class FaerunBot(discord.Client):
         intents = discord.Intents.default()
         super().__init__(intents=intents)
         self.tree = app_commands.CommandTree(self)
-        self.setup_commands()
 
-    def setup_commands(self):
+    async def setup_hook(self):
         # /faerun : Date complète
         @self.tree.command(name="faerun",
                            description="Affiche la date Faerûnienne complète")
@@ -287,6 +286,8 @@ class FaerunBot(discord.Client):
                 color=0x3498db
             )
             await interaction.response.send_message(embed=embed, ephemeral=True)
+        
+        logger.info("Commandes slash configurées")
 
     async def on_ready(self):
         logger.info(f'Bot connecté : {self.user} (ID: {self.user.id})')
