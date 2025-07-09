@@ -18,8 +18,9 @@ class FaerunBot(discord.Client):
         intents = discord.Intents.default()
         super().__init__(intents=intents)
         self.tree = app_commands.CommandTree(self)
+        self.setup_commands()
 
-    async def setup_hook(self):
+    def setup_commands(self):
         # /faerun : Date complète
         @self.tree.command(name="faerun",
                            description="Affiche la date Faerûnienne complète")
