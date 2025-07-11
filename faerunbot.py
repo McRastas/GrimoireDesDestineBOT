@@ -1,6 +1,7 @@
 import logging
 from datetime import datetime, timezone, timedelta
 import asyncio
+import re
 
 import discord
 from discord import app_commands
@@ -47,6 +48,24 @@ class FaerunBot(discord.Client):
         @self.tree.command(name="test", description="Commande de test simple")
         async def test_command(interaction: discord.Interaction):
             await interaction.response.send_message("✅ Le bot fonctionne !",
+                                                    ephemeral=True)
+
+        # /info
+        @self.tree.command(name="info", description="Informations sur le bot")
+        async def info_command(interaction: discord.Interaction):
+            embed = discord.Embed(title="🤖 Informations du Bot",
+                                  description="Bot Faerûn - Calendrier D&D",
+                                  color=0x00ff00)
+            embed.add_field(name="Guildes",
+                            value=len(self.guilds),
+                            inline=True)
+            embed.add_field(name="Utilisateurs",
+                            value=len(self.users),
+                            inline=True)
+            embed.add_field(name="Commandes",
+                            value=len(self.tree.get_commands()),
+                            inline=True)
+            await interaction.response.send_message(embed=embed,
                                                     ephemeral=True)
 
         # /faerun
@@ -223,7 +242,7 @@ class FaerunBot(discord.Client):
         @self.tree.command(
             name="recapmj",
             description=
-            "Compte le nombre de messages dans #recompenses sur 30j où le MJ mentionne"
+            "Compte le nombre de messages dans #recompenses sur 30j où le MJ mentionne au moins 2 personnes"
         )
         @app_commands.describe(
             membre="Le membre dont on veut la stat (par défaut toi)")
@@ -300,71 +319,100 @@ class FaerunBot(discord.Client):
             for message in messages_avec_mention:
                 premiere_ligne = message.content.split('\n', 1)[0].strip()
 
-                # Chercher une date dans le message
-                import re
-                # Pattern pour JJ/MM ou JJ/MM/AAAA
-                date_match = re.search(
-                    r'(\d{1,2})[/\-](\d{1,2})(?:[/\-](\d{2,4}))?',
-                    message.content)
+                # Chercher une date dans le message avec plusieurs formats
+                date_patterns = [
+                    # JJ/MM/AAAA ou JJ-MM-AAAA
+                    r'(\d{1,2})[/\-](\d{1,2})[/\-](\d{4})',
+                    # JJ/MM/AA ou JJ-MM-AA
+                    r'(\d{1,2})[/\-](\d{1,2})[/\-](\d{2})',
+                    # JJ/MM ou JJ-MM (sans année)
+                    r'(\d{1,2})[/\-](\d{1,2})(?![/\-\d])',
+                    # JJ.MM.AAAA ou JJ.MM
+                    r'(\d{1,2})\.(\d{1,2})(?:\.(\d{2,4}))?',
+                    # JJ MM AAAA (avec espaces)
+                    r'(\d{1,2})\s+(\d{1,2})\s+(\d{4})',
+                ]
 
-                if date_match:
-                    try:
-                        jour = int(date_match.group(1))
-                        mois = int(date_match.group(2))
+                date_trouvee = False
+                for pattern in date_patterns:
+                    date_match = re.search(pattern, message.content)
+                    if date_match:
+                        try:
+                            jour = int(date_match.group(1))
+                            mois = int(date_match.group(2))
 
-                        # Validation basique
-                        if not (1 <= jour <= 31 and 1 <= mois <= 12):
-                            raise ValueError("Date invalide")
+                            # Validation basique
+                            if not (1 <= jour <= 31 and 1 <= mois <= 12):
+                                continue
 
-                        if date_match.group(3):
-                            annee = int(date_match.group(3))
-                            if annee < 100:  # Année sur 2 chiffres
-                                annee = 2000 + annee
-                        else:
-                            # Pas d'année, supposer l'année courante ou prochaine
-                            annee = now.year
-                            # Tester si la date est déjà passée cette année
-                            try:
-                                test_date = datetime(annee,
-                                                     mois,
-                                                     jour,
-                                                     tzinfo=timezone.utc)
-                                if test_date < now:
-                                    annee = now.year + 1
-                            except ValueError:
-                                annee = now.year + 1
-
-                        # Créer la date de la quête
-                        quest_date = datetime(annee,
-                                              mois,
-                                              jour,
-                                              tzinfo=timezone.utc)
-                        jours_restants = (quest_date - now).days
-
-                        # Ne garder que les quêtes futures ou d'aujourd'hui (max 60 jours)
-                        if 0 <= jours_restants <= 60:
-                            date_formatee = f"{jour:02d}/{mois:02d}/{annee}"
-
-                            if jours_restants == 0:
-                                quand = "🔴 **AUJOURD'HUI**"
-                            elif jours_restants == 1:
-                                quand = "🟠 **Demain**"
-                            elif jours_restants <= 7:
-                                quand = f"🟡 Dans {jours_restants} jours"
+                            # Gestion de l'année selon le nombre de groupes capturés
+                            if len(date_match.groups()
+                                   ) >= 3 and date_match.group(3):
+                                annee = int(date_match.group(3))
+                                if annee < 100:  # Année sur 2 chiffres
+                                    annee = 2000 + annee
                             else:
-                                quand = f"🟢 Dans {jours_restants} jours"
+                                # Pas d'année spécifiée
+                                # Logique améliorée pour gérer la fin d'année
+                                annee = now.year
 
-                            resultats_futures.append({
-                                'jours':
-                                jours_restants,
-                                'texte':
-                                f"{quand} ({date_formatee})\n└─ {premiere_ligne[:80]}{'...' if len(premiere_ligne) > 80 else ''}"
-                            })
-                    except ValueError:
-                        # Date invalide, traiter comme message sans date
-                        resultats_sans_date.append(premiere_ligne)
-                else:
-                    # Pas de date trouvée
+                                # Si on est en fin d'année (novembre/décembre) et que la date est en début d'année
+                                if now.month >= 11 and mois <= 2:
+                                    # On suppose que c'est pour l'année prochaine
+                                    annee = now.year + 1
+                                # Si on est en début d'année (janvier/février) et que la date est en fin d'année
+                                elif now.month <= 2 and mois >= 11:
+                                    # On suppose que c'est pour l'année en cours (déjà passé)
+                                    continue  # On ignore cette date car elle est passée
+                                else:
+                                    # Cas normal : on vérifie si la date est passée
+                                    try:
+                                        test_date = datetime(
+                                            annee,
+                                            mois,
+                                            jour,
+                                            tzinfo=timezone.utc)
+                                        if test_date < now:
+                                            # La date est passée cette année, on prend l'année prochaine
+                                            annee = now.year + 1
+                                    except ValueError:
+                                        # Date invalide pour cette année, essayer l'année prochaine
+                                        annee = now.year + 1
+
+                            # Créer la date de la quête
+                            quest_date = datetime(annee,
+                                                  mois,
+                                                  jour,
+                                                  tzinfo=timezone.utc)
+                            jours_restants = (quest_date - now).days
+
+                            # Ne garder que les quêtes futures ou d'aujourd'hui (max 60 jours)
+                            if 0 <= jours_restants <= 60:
+                                date_formatee = f"{jour:02d}/{mois:02d}/{annee}"
+
+                                if jours_restants == 0:
+                                    quand = "🔴 **AUJOURD'HUI**"
+                                elif jours_restants == 1:
+                                    quand = "🟠 **Demain**"
+                                elif jours_restants <= 7:
+                                    quand = f"🟡 Dans {jours_restants} jours"
+                                else:
+                                    quand = f"🟢 Dans {jours_restants} jours"
+
+                                resultats_futures.append({
+                                    'jours':
+                                    jours_restants,
+                                    'texte':
+                                    f"{quand} ({date_formatee})\n└─ {premiere_ligne[:80]}{'...' if len(premiere_ligne) > 80 else ''}"
+                                })
+                                date_trouvee = True
+                                break  # Sortir de la boucle des patterns
+                        except ValueError:
+                            # Date invalide, essayer le pattern suivant
+                            continue
+
+                if not date_trouvee:
+                    # Pas de date trouvée avec aucun pattern
                     resultats_sans_date.append(premiere_ligne)
 
             # Trier les quêtes futures par date
@@ -406,6 +454,8 @@ class FaerunBot(discord.Client):
             )
 
             await interaction.followup.send(embed=embed)
+
+        logger.info(f"Commandes ajoutées: {len(self.tree.get_commands())}")
 
     async def on_ready(self):
         """Événement déclenché quand le bot est prêt"""
@@ -492,13 +542,22 @@ class FaerunBot(discord.Client):
                 f"Commande !sync_bot par {message.author.name} ({message.author.id})"
             )
 
+            # Supprimer le message de commande
+            try:
+                await message.delete()
+            except:
+                pass
+
             # Vérification des permissions
             if not message.author.guild_permissions.administrator:
-                await message.channel.send(
+                msg = await message.channel.send(
                     "❌ Permission refusée - Administrateur requis")
+                await asyncio.sleep(5)
+                await msg.delete()
                 return
 
-            await message.channel.send("🔄 Synchronisation en cours...")
+            status_msg = await message.channel.send(
+                "🔄 Synchronisation en cours...")
 
             try:
                 # Forcer une nouvelle synchronisation
@@ -525,16 +584,27 @@ class FaerunBot(discord.Client):
                                 value=str(message.guild.id),
                                 inline=True)
 
-                await message.channel.send(embed=embed)
+                await status_msg.edit(content=None, embed=embed)
+                # Supprimer après 10 secondes
+                await asyncio.sleep(10)
+                await status_msg.delete()
 
             except Exception as e:
                 logger.error(f"Erreur sync manuelle: {e}")
-                await message.channel.send(f"❌ Erreur: {e}")
+                await status_msg.edit(content=f"❌ Erreur: {e}")
+                await asyncio.sleep(10)
+                await status_msg.delete()
 
         # Commande de debug
         elif message.content.strip() == "!debug_bot":
             if not message.author.guild_permissions.administrator:
                 return
+
+            # Supprimer le message de commande
+            try:
+                await message.delete()
+            except:
+                pass
 
             embed = discord.Embed(title="🔍 Debug Bot", color=0xff9900)
             embed.add_field(name="Commandes dans tree",
@@ -563,16 +633,21 @@ class FaerunBot(discord.Client):
             except:
                 pass
 
-            await message.channel.send(embed=embed)
+            msg = await message.channel.send(embed=embed)
+            # Supprimer après 15 secondes
+            await asyncio.sleep(15)
+            await msg.delete()
 
-        # Ajouter ceci dans la méthode on_message, après la commande !debug_bot
-
-        # Commande de purge des commandes
+        # Commande de purge
         elif message.content.strip() == "!purge_commands":
             if not message.author.guild_permissions.administrator:
-                await message.channel.send(
-                    "❌ Permission refusée - Administrateur requis")
                 return
+
+            # Supprimer le message de commande
+            try:
+                await message.delete()
+            except:
+                pass
 
             embed = discord.Embed(title="🧹 Purge des commandes",
                                   description="Nettoyage en cours...",
@@ -580,41 +655,21 @@ class FaerunBot(discord.Client):
             status_msg = await message.channel.send(embed=embed)
 
             try:
-                # Purger les commandes globales
-                global_commands = await self.tree.fetch_commands()
-                if global_commands:
-                    embed.add_field(
-                        name="🌍 Commandes globales trouvées",
-                        value=f"{len(global_commands)} commande(s)",
-                        inline=True)
-                    for cmd in global_commands:
-                        await cmd.delete()
-                    embed.add_field(name="✅ Globales supprimées",
-                                    value="Toutes supprimées",
-                                    inline=True)
-
                 # Purger les commandes de la guild actuelle
                 guild_commands = await self.tree.fetch_commands(
                     guild=message.guild)
                 if guild_commands:
-                    embed.add_field(name="🏠 Commandes de guild trouvées",
-                                    value=f"{len(guild_commands)} commande(s)",
-                                    inline=True)
                     for cmd in guild_commands:
                         await cmd.delete()
-                    embed.add_field(name="✅ Guild supprimées",
-                                    value="Toutes supprimées",
-                                    inline=True)
 
                 # Vider le tree local
-                self.tree.clear_commands(guild=None)  # Clear global
-                self.tree.clear_commands(guild=message.guild)  # Clear guild
+                self.tree.clear_commands(guild=message.guild)
 
                 # Re-ajouter les commandes
                 await self.add_commands()
 
                 # Resynchroniser
-                await asyncio.sleep(1)  # Petit délai
+                await asyncio.sleep(1)
                 synced = await self.tree.sync(guild=message.guild)
 
                 embed.color = 0x00ff00
@@ -625,32 +680,45 @@ class FaerunBot(discord.Client):
                     inline=False)
 
                 await status_msg.edit(embed=embed)
+                await asyncio.sleep(10)
+                await status_msg.delete()
 
             except Exception as e:
                 embed.color = 0xff0000
                 embed.description = f"❌ Erreur lors de la purge: {str(e)}"
                 await status_msg.edit(embed=embed)
+                await asyncio.sleep(10)
+                await status_msg.delete()
 
-        # Alternative plus simple : purge sans resync
+        # Commande clear simple
         elif message.content.strip() == "!clear_commands":
             if not message.author.guild_permissions.administrator:
                 return
 
+            # Supprimer le message de commande
+            try:
+                await message.delete()
+            except:
+                pass
+
             try:
                 # Supprimer toutes les commandes de la guild
-                await self.tree.sync(guild=message.guild
-                                     )  # S'assurer qu'on a les dernières
                 commands = await self.tree.fetch_commands(guild=message.guild)
 
                 if commands:
                     for cmd in commands:
                         await cmd.delete()
-                    await message.channel.send(
+                    msg = await message.channel.send(
                         f"✅ {len(commands)} commande(s) supprimée(s) de ce serveur"
                     )
                 else:
-                    await message.channel.send(
+                    msg = await message.channel.send(
                         "❌ Aucune commande trouvée sur ce serveur")
 
+                await asyncio.sleep(10)
+                await msg.delete()
+
             except Exception as e:
-                await message.channel.send(f"❌ Erreur: {e}")
+                msg = await message.channel.send(f"❌ Erreur: {e}")
+                await asyncio.sleep(10)
+                await msg.delete()
