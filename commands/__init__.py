@@ -5,6 +5,7 @@ from .info import InfoCommand
 from .faerun import FaerunCommand, FaerunFestivalCommand, FaerunCompletCommand, FaerunJdrCommand
 from .mentions import MentionSomeoneCommand, MentionListCommand, RecapMjCommand
 from .quetes import MesQuetesCommand
+from .pnj_generator import PnjGeneratorCommand
 
 # Liste de toutes les commandes disponibles
 ALL_COMMANDS = [
@@ -18,6 +19,7 @@ ALL_COMMANDS = [
     MentionListCommand,
     RecapMjCommand,
     MesQuetesCommand,
+    PnjGeneratorCommand,
 ]
 
 __all__ = ['ALL_COMMANDS']
