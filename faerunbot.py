@@ -6,9 +6,10 @@ from discord import app_commands
 
 from config import Config
 from commands import ALL_COMMANDS
+from utils.permissions import has_admin_role, send_permission_denied  # NOUVEAU IMPORT
 
 # Configuration du niveau de log global
-LOG_LEVEL = logging.INFO  # ← Changez juste cette ligne !
+LOG_LEVEL = logging.INFO
 
 # Configuration des logs
 logging.basicConfig(level=LOG_LEVEL,
@@ -101,12 +102,9 @@ class FaerunBot(discord.Client):
             except:
                 pass
 
-            # Vérification des permissions
-            if not message.author.guild_permissions.administrator:
-                msg = await message.channel.send(
-                    "❌ Permission refusée - Administrateur requis")
-                await asyncio.sleep(5)
-                await msg.delete()
+            # Vérification des permissions MODIFIÉE
+            if not has_admin_role(message.author):
+                await send_permission_denied(message.channel)
                 return
 
             status_msg = await message.channel.send(
@@ -136,6 +134,11 @@ class FaerunBot(discord.Client):
                 embed.add_field(name="ID Serveur",
                                 value=str(message.guild.id),
                                 inline=True)
+                embed.add_field(
+                    name="Utilisateur",
+                    value=
+                    f"{message.author.mention} ({Config.ADMIN_ROLE_NAME})",
+                    inline=True)
 
                 await status_msg.edit(content=None, embed=embed)
                 # Supprimer après 10 secondes
@@ -148,9 +151,10 @@ class FaerunBot(discord.Client):
                 await asyncio.sleep(10)
                 await status_msg.delete()
 
-        # Commande de debug
+        # Commande de debug MODIFIÉE
         elif message.content.strip() == "!debug_bot":
-            if not message.author.guild_permissions.administrator:
+            if not has_admin_role(message.author):
+                await send_permission_denied(message.channel)
                 return
 
             # Supprimer le message de commande
@@ -169,6 +173,9 @@ class FaerunBot(discord.Client):
             embed.add_field(name="Synced", value=self.synced, inline=True)
             embed.add_field(name="Instances chargées",
                             value=len(self.command_instances),
+                            inline=True)
+            embed.add_field(name="Rôle Admin",
+                            value=f"`{Config.ADMIN_ROLE_NAME}`",
                             inline=True)
 
             # Lister les commandes
@@ -189,14 +196,32 @@ class FaerunBot(discord.Client):
             except:
                 pass
 
+            # Afficher les membres avec le rôle admin
+            admin_role = discord.utils.get(message.guild.roles,
+                                           name=Config.ADMIN_ROLE_NAME)
+            if admin_role:
+                admin_members = [
+                    member.mention for member in admin_role.members[:5]
+                ]  # Limiter à 5
+                if admin_members:
+                    embed.add_field(name=f"Membres {Config.ADMIN_ROLE_NAME}",
+                                    value="\n".join(admin_members),
+                                    inline=False)
+            else:
+                embed.add_field(
+                    name="⚠️ Rôle Admin",
+                    value=f"Rôle `{Config.ADMIN_ROLE_NAME}` introuvable",
+                    inline=False)
+
             msg = await message.channel.send(embed=embed)
             # Supprimer après 15 secondes
             await asyncio.sleep(15)
             await msg.delete()
 
-        # Commande de rechargement des commandes
+        # Commande de rechargement des commandes MODIFIÉE
         elif message.content.strip() == "!reload_commands":
-            if not message.author.guild_permissions.administrator:
+            if not has_admin_role(message.author):
+                await send_permission_denied(message.channel)
                 return
 
             # Supprimer le message de commande
@@ -229,6 +254,11 @@ class FaerunBot(discord.Client):
                     value=
                     f"{len(self.command_instances)} instance(s) créée(s)\n{len(synced)} commande(s) synchronisée(s)",
                     inline=False)
+                embed.add_field(
+                    name="Utilisateur",
+                    value=
+                    f"{message.author.mention} ({Config.ADMIN_ROLE_NAME})",
+                    inline=True)
 
                 await status_msg.edit(embed=embed)
                 await asyncio.sleep(10)

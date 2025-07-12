@@ -6,9 +6,6 @@ class Config:
     DISCORD_TOKEN = os.getenv('DISCORD_TOKEN')
     CLIENT_ID = os.getenv('CLIENT_ID')
 
-    # Préfixe des commandes (non utilisé avec les slash commands)
-    COMMAND_PREFIX = os.getenv('COMMAND_PREFIX', '!')
-
     # Paramètres du serveur Flask
     FLASK_HOST = os.getenv('FLASK_HOST', '0.0.0.0')
     FLASK_PORT = int(os.getenv('FLASK_PORT', 8080))
@@ -25,6 +22,9 @@ class Config:
     except (ValueError, TypeError) as e:
         print(f"Erreur lors du parsing de GUILD_ID : {e}")
         GUILD_ID = None
+
+    # Configuration du rôle admin - NOUVEAU
+    ADMIN_ROLE_NAME = os.getenv('ADMIN_ROLE_NAME', 'Façonneur')
 
     # Paramètres internes pour Faerûn
     DR_YEAR_OFFSET = 628
@@ -53,5 +53,6 @@ class Config:
         print(
             f"  - GUILD_ID: {cls.GUILD_ID if cls.GUILD_ID else '✗ Non défini'}"
         )
+        print(f"  - ADMIN_ROLE_NAME: {cls.ADMIN_ROLE_NAME}")
 
         return True

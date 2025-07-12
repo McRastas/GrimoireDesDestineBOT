@@ -44,6 +44,9 @@ class PnjGeneratorCommand(BaseCommand):
             app_commands.Choice(name="Elfe", value="elfe"),
             app_commands.Choice(name="Nain", value="nain"),
             app_commands.Choice(name="Halfelin", value="halfelin"),
+            app_commands.Choice(name="Halfelin", value="halfelin"),
+            app_commands.Choice(name="Demi-Elfe", value="demi-elfe"),
+            app_commands.Choice(name="Tieffelin", value="tieffelin"),
             app_commands.Choice(name="Aléatoire", value="aleatoire")
         ])
         async def pnj_generator_command(interaction: discord.Interaction,
