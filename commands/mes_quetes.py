@@ -1,4 +1,21 @@
-"""Commandes liées aux quêtes."""
+"""
+Commande Discord : /mesquetes [membre]
+
+DESCRIPTION:
+    Liste les quêtes où un joueur est mentionné dans #départ-à-l-aventure avec dates futures
+
+FONCTIONNEMENT:
+    - Paramètre optionnel : membre à rechercher (par défaut l'auteur)
+    - Recherche dans #départ-à-l-aventure les mentions sur 30 jours
+    - Analyse chaque message pour extraire des dates avec regex multiples
+    - Filtre pour ne garder que les dates futures (0-60 jours)
+    - Classe par urgence : aujourd'hui, demain, cette semaine, plus tard
+    - Gère les années manquantes avec logique de transition fin/début d'année
+
+UTILISATION:
+    /mesquetes
+    /mesquetes membre:@Aventurier
+"""
 
 import discord
 from discord import app_commands
@@ -89,8 +106,7 @@ class MesQuetesCommand(BaseCommand):
                             continue
 
                         # Gestion de l'année selon le nombre de groupes capturés
-                        if len(date_match.groups()) >= 3 and date_match.group(
-                                3):
+                        if len(date_match.groups()) >= 3 and date_match.group(3):
                             annee = int(date_match.group(3))
                             if annee < 100:  # Année sur 2 chiffres
                                 annee = 2000 + annee
