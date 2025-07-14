@@ -24,6 +24,14 @@ from .pnj_generator import PnjGeneratorCommand
 # Configuration
 from .config_channels import ConfigChannelsCommand
 
+# Import conditionnel pour les nouvelles commandes
+try:
+    from .test_logs import TestLogsCommand
+    TEST_LOGS_AVAILABLE = True
+except ImportError:
+    print("⚠️ test_logs.py non trouvé - commande /test-logs non disponible")
+    TEST_LOGS_AVAILABLE = False
+
 # Liste de toutes les commandes disponibles
 ALL_COMMANDS = [
     TestCommand,
@@ -39,5 +47,9 @@ ALL_COMMANDS = [
     PnjGeneratorCommand,
     ConfigChannelsCommand,
 ]
+
+# Ajouter les commandes optionnelles si disponibles
+if TEST_LOGS_AVAILABLE:
+    ALL_COMMANDS.append(TestLogsCommand)
 
 __all__ = ['ALL_COMMANDS']
