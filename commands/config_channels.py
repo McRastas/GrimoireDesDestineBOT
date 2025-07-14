@@ -1,18 +1,20 @@
 """
-Commande Discord : /config-channels
+Commande Discord : /config-channels (ADMIN SEULEMENT)
 
 DESCRIPTION:
     Affiche et gère la configuration générique des canaux du bot
+    VISIBLE UNIQUEMENT pour les membres avec le rôle admin configuré
 
 FONCTIONNEMENT:
+    - Commande invisible pour les utilisateurs normaux
+    - Visible seulement pour les Façonneurs (ou rôle admin configuré)
     - Affiche tous les canaux configurés et leur statut
     - Permet de lister les canaux du serveur
     - Teste la connectivité des canaux configurés
     - Guide de configuration avec exemples et suggestions automatiques
-    - Réservé aux administrateurs
 
 UTILISATION:
-    /config-channels [action]
+    /config-channels [action] (Façonneurs seulement)
 """
 
 import discord
@@ -31,10 +33,10 @@ class ConfigChannelsCommand(BaseCommand):
 
     @property
     def description(self) -> str:
-        return "Gère la configuration des canaux du bot"
+        return "Gère la configuration des canaux du bot (Façonneurs seulement)"
 
     def register(self, tree: app_commands.CommandTree):
-        """Enregistrement avec paramètres optionnels."""
+        """Enregistrement avec restriction de permissions."""
 
         @tree.command(name=self.name, description=self.description)
         @app_commands.describe(action="Action à effectuer")
@@ -46,16 +48,36 @@ class ConfigChannelsCommand(BaseCommand):
                                 value="suggest"),
             app_commands.Choice(name="Guide de configuration", value="guide")
         ])
+        # RESTRICTION : Commande visible seulement pour les admin
+        @app_commands.check(self._is_admin)
         async def config_channels_command(interaction: discord.Interaction,
                                           action: str = "show"):
             await self.callback(interaction, action)
 
+        # Gérer l'erreur de permission
+        @config_channels_command.error
+        async def config_channels_error(interaction: discord.Interaction,
+                                        error: app_commands.AppCommandError):
+            if isinstance(error, app_commands.CheckFailure):
+                await interaction.response.send_message(
+                    f"❌ Cette commande est réservée aux membres avec le rôle `{Config.ADMIN_ROLE_NAME}`.",
+                    ephemeral=True)
+
+    async def _is_admin(self, interaction: discord.Interaction) -> bool:
+        """
+        Vérifie si l'utilisateur a les permissions admin.
+        Cette fonction détermine si la commande est visible.
+        """
+        return has_admin_role(interaction.user)
+
     async def callback(self,
                        interaction: discord.Interaction,
                        action: str = "show"):
-        # Vérifier les permissions
+        # Double vérification des permissions (sécurité)
         if not has_admin_role(interaction.user):
-            await send_permission_denied(interaction.channel)
+            await interaction.response.send_message(
+                f"❌ Accès refusé. Rôle `{Config.ADMIN_ROLE_NAME}` requis.",
+                ephemeral=True)
             return
 
         if action == "show":
@@ -77,7 +99,8 @@ class ConfigChannelsCommand(BaseCommand):
 
         embed = discord.Embed(
             title="🔧 Configuration des Canaux",
-            description="Configuration actuelle de tous les canaux du bot",
+            description=
+            f"Configuration actuelle de tous les canaux du bot\n*Commande réservée aux {Config.ADMIN_ROLE_NAME}*",
             color=0x3498db)
 
         # Canaux configurés
@@ -138,7 +161,7 @@ class ConfigChannelsCommand(BaseCommand):
 
         embed.set_footer(
             text=
-            f"Serveur: {interaction.guild.name} | Redémarrage requis après modification"
+            f"Serveur: {interaction.guild.name} | Accès: {Config.ADMIN_ROLE_NAME} seulement | Redémarrage requis après modification"
         )
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
@@ -148,7 +171,7 @@ class ConfigChannelsCommand(BaseCommand):
         embed = discord.Embed(
             title="📋 Canaux du Serveur",
             description=
-            f"Liste des canaux texte disponibles sur {interaction.guild.name}",
+            f"Liste des canaux texte disponibles sur {interaction.guild.name}\n*Réservé aux {Config.ADMIN_ROLE_NAME}*",
             color=0x2ecc71)
 
         # Utiliser la méthode du helper
@@ -174,6 +197,7 @@ class ConfigChannelsCommand(BaseCommand):
             "Utilisez l'ID du canal pour une configuration plus fiable (ne change pas si le canal est renommé)",
             inline=False)
 
+        embed.set_footer(text=f"Accès réservé aux {Config.ADMIN_ROLE_NAME}")
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
     async def _test_config(self, interaction: discord.Interaction):
@@ -183,7 +207,8 @@ class ConfigChannelsCommand(BaseCommand):
 
         embed = discord.Embed(
             title="🧪 Test de Configuration",
-            description="Résultat des tests de connectivité des canaux",
+            description=
+            f"Résultat des tests de connectivité des canaux\n*Diagnostic réservé aux {Config.ADMIN_ROLE_NAME}*",
             color=0x2ecc71 if rapport['manquants'] == 0 else 0xe74c3c)
 
         # Canaux fonctionnels
@@ -239,6 +264,10 @@ class ConfigChannelsCommand(BaseCommand):
                 inline=False)
 
         embed.add_field(name="📊 Résultat", value=status, inline=False)
+        embed.set_footer(
+            text=
+            f"Test effectué par {interaction.user.display_name} ({Config.ADMIN_ROLE_NAME})"
+        )
 
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
@@ -248,7 +277,7 @@ class ConfigChannelsCommand(BaseCommand):
         embed = discord.Embed(
             title="💡 Suggestions de Configuration",
             description=
-            "Configuration automatique basée sur les canaux existants",
+            f"Configuration automatique basée sur les canaux existants\n*Analyse réservée aux {Config.ADMIN_ROLE_NAME}*",
             color=0xf39c12)
 
         # Utiliser la méthode du helper
@@ -273,6 +302,8 @@ class ConfigChannelsCommand(BaseCommand):
             "Si les suggestions ne conviennent pas, utilisez `/config-channels action:guide`",
             inline=False)
 
+        embed.set_footer(
+            text=f"Suggestions générées pour {interaction.user.display_name}")
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
     async def _show_guide(self, interaction: discord.Interaction):
@@ -280,7 +311,8 @@ class ConfigChannelsCommand(BaseCommand):
 
         embed = discord.Embed(
             title="📖 Guide de Configuration des Canaux",
-            description="Guide complet pour configurer les canaux du bot",
+            description=
+            f"Guide complet pour configurer les canaux du bot\n*Documentation pour les {Config.ADMIN_ROLE_NAME}*",
             color=0x9b59b6)
 
         embed.add_field(
@@ -330,6 +362,8 @@ class ConfigChannelsCommand(BaseCommand):
             inline=False)
 
         embed.set_footer(
-            text="Redémarrez le bot après modification de la configuration")
+            text=
+            f"Guide consulté par {interaction.user.display_name} | Redémarrez le bot après modification"
+        )
 
         await interaction.response.send_message(embed=embed, ephemeral=True)
