@@ -2,11 +2,11 @@
 Commande Discord : /mesquetes [membre]
 
 DESCRIPTION:
-    Liste les quêtes où un joueur est mentionné dans #départ-à-l-aventure avec dates futures
+    Liste les quêtes où un joueur est mentionné dans le canal quêtes avec dates futures
 
 FONCTIONNEMENT:
     - Paramètre optionnel : membre à rechercher (par défaut l'auteur)
-    - Recherche dans #départ-à-l-aventure les mentions sur 30 jours
+    - Recherche dans le canal quêtes configuré les mentions sur 30 jours
     - Analyse avec MAXIMUM de formats de dates possibles (MJ ne sont pas des ordis !)
     - LOGIQUE D'ANNÉE INTELLIGENTE pour dates sans année
     - Classification en 3 catégories : futures, passées, sans date détectable
@@ -22,6 +22,7 @@ from datetime import datetime, timezone, timedelta
 import re
 import logging
 from .base import BaseCommand
+from utils.channels import ChannelHelper
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +35,7 @@ class MesQuetesCommand(BaseCommand):
 
     @property
     def description(self) -> str:
-        return "Liste les quêtes où tu es mentionné dans #départ-à-l-aventure (dates futures)"
+        return "Liste les quêtes où tu es mentionné dans le canal quêtes (dates futures)"
 
     def register(self, tree: app_commands.CommandTree):
         """Enregistrement spécial pour cette commande avec paramètre optionnel."""
@@ -260,12 +261,13 @@ class MesQuetesCommand(BaseCommand):
         await interaction.response.defer(ephemeral=True)
 
         cible = membre or interaction.user
-        channel = discord.utils.get(interaction.guild.text_channels,
-                                    name='départ-à-l-aventure')
 
+        # Utiliser le système de canaux configurables
+        channel = ChannelHelper.get_quetes_channel(interaction.guild)
         if not channel:
-            await interaction.followup.send(
-                "❌ Le canal #départ-à-l-aventure est introuvable.")
+            error_msg = ChannelHelper.get_channel_error_message(
+                ChannelHelper.QUETES)
+            await interaction.followup.send(error_msg)
             return
 
         now = datetime.now(timezone.utc)
@@ -399,14 +401,14 @@ class MesQuetesCommand(BaseCommand):
         if not resultats_futures and not resultats_passes and not resultats_sans_date:
             embed.add_field(
                 name="❌ Aucune mention trouvée",
-                value="Aucune mention dans #départ-à-l-aventure sur 30 jours",
+                value=f"Aucune mention dans {channel.mention} sur 30 jours",
                 inline=False)
 
         # Footer avec statistiques
         total_dates_detectees = len(resultats_futures) + len(resultats_passes)
         embed.set_footer(
             text=
-            f"Analysé {messages_parcourus} messages | {len(messages_avec_mention)} mentions | {total_dates_detectees} dates détectées | Multi-format activé"
+            f"Analysé {messages_parcourus} messages | {len(messages_avec_mention)} mentions | {total_dates_detectees} dates détectées | Canal: #{channel.name}"
         )
 
         await interaction.followup.send(embed=embed)

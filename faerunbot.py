@@ -6,7 +6,8 @@ from discord import app_commands
 
 from config import Config
 from commands import ALL_COMMANDS
-from utils.permissions import has_admin_role, send_permission_denied  # NOUVEAU IMPORT
+from utils.permissions import has_admin_role, send_permission_denied
+from utils.discord_logger import init_discord_logger, get_discord_logger
 
 # Configuration du niveau de log global
 LOG_LEVEL = logging.INFO
@@ -32,6 +33,9 @@ class FaerunBot(discord.Client):
         self.synced = False
         self.command_instances = []
 
+        # Initialiser le système de logs Discord
+        self.discord_logger = init_discord_logger(self)
+
     async def setup_hook(self):
         """Méthode appelée lors du démarrage du bot pour configurer les commandes."""
         logger.info("Chargement des commandes...")
@@ -56,6 +60,15 @@ class FaerunBot(discord.Client):
         logger.info(
             f"Bot connecté: {self.user} sur {len(self.guilds)} serveur(s)")
 
+        # Marquer le logger Discord comme prêt
+        self.discord_logger.set_ready()
+
+        # Log de démarrage dans Discord
+        self.discord_logger.bot_event(
+            "Démarrage",
+            f"Bot connecté avec succès ! Serveurs: {len(self.guilds)}, Commandes: {len(self.tree.get_commands())}"
+        )
+
         # Synchroniser les commandes avec Discord
         if not self.synced:
             await self.sync_commands()
@@ -67,6 +80,8 @@ class FaerunBot(discord.Client):
             commands_count = len(self.tree.get_commands())
             if commands_count == 0:
                 logger.error("Aucune commande à synchroniser")
+                self.discord_logger.error(
+                    "Synchronisation impossible - Aucune commande chargée")
                 return
 
             if Config.GUILD_ID:
@@ -76,15 +91,86 @@ class FaerunBot(discord.Client):
                 logger.info(
                     f"✅ {len(synced)} commandes synchronisées (guild: {Config.GUILD_ID})"
                 )
+                self.discord_logger.info(
+                    f"Commandes synchronisées avec succès sur le serveur de test",
+                    guild=f"Test Server ({Config.GUILD_ID})",
+                    command=f"{len(synced)} commandes")
             else:
                 synced = await self.tree.sync()
                 logger.info(
                     f"✅ {len(synced)} commandes synchronisées (global)")
+                self.discord_logger.info(
+                    f"Commandes synchronisées globalement",
+                    command=f"{len(synced)} commandes")
 
         except discord.HTTPException as e:
             logger.error(f"Erreur HTTP synchronisation: {e.status}")
+            self.discord_logger.error(
+                f"Erreur HTTP lors de la synchronisation des commandes",
+                error=f"Status {e.status}: {e.text}")
         except Exception as e:
             logger.error(f"Erreur synchronisation: {e}")
+            self.discord_logger.error_with_traceback(
+                "Erreur critique lors de la synchronisation des commandes", e)
+
+    async def on_app_command_error(self, interaction: discord.Interaction,
+                                   error: app_commands.AppCommandError):
+        """Gère les erreurs des commandes slash."""
+        logger.error(
+            f"Erreur commande {interaction.command.name if interaction.command else 'inconnue'}: {error}"
+        )
+
+        # Log dans Discord
+        command_name = interaction.command.name if interaction.command else "inconnue"
+        self.discord_logger.error(
+            f"Erreur lors de l'exécution d'une commande",
+            user=f"{interaction.user.display_name} ({interaction.user.id})",
+            guild=f"{interaction.guild.name} ({interaction.guild.id})"
+            if interaction.guild else "DM",
+            command=f"/{command_name}",
+            error=str(error))
+
+        # Répondre à l'utilisateur
+        error_message = "❌ Une erreur inattendue s'est produite lors de l'exécution de cette commande."
+
+        try:
+            if not interaction.response.is_done():
+                await interaction.response.send_message(error_message,
+                                                        ephemeral=True)
+            else:
+                await interaction.followup.send(error_message, ephemeral=True)
+        except:
+            pass  # Si on ne peut pas répondre, tant pis
+
+    async def on_app_command_completion(self, interaction: discord.Interaction,
+                                        command: app_commands.Command):
+        """Log les commandes exécutées avec succès."""
+        logger.info(
+            f"Commande /{command.name} exécutée par {interaction.user.name}")
+
+        # Log dans Discord seulement pour les commandes admin
+        if command.name in [
+                'config-channels', 'sync_bot', 'debug_bot', 'reload_commands'
+        ]:
+            self.discord_logger.command_used(interaction,
+                                             command.name,
+                                             success=True)
+
+    async def on_guild_join(self, guild: discord.Guild):
+        """Log quand le bot rejoint un serveur."""
+        logger.info(f"Bot ajouté au serveur: {guild.name} ({guild.id})")
+        self.discord_logger.bot_event(
+            "Nouveau Serveur",
+            f"Bot ajouté au serveur **{guild.name}** ({guild.member_count} membres)",
+            guild=f"{guild.name} ({guild.id})")
+
+    async def on_guild_remove(self, guild: discord.Guild):
+        """Log quand le bot quitte un serveur."""
+        logger.info(f"Bot retiré du serveur: {guild.name} ({guild.id})")
+        self.discord_logger.bot_event(
+            "Serveur Quitté",
+            f"Bot retiré du serveur **{guild.name}**",
+            guild=f"{guild.name} ({guild.id})")
 
     async def on_message(self, message: discord.Message):
         if message.author.bot or not message.guild:
@@ -106,6 +192,11 @@ class FaerunBot(discord.Client):
             if not has_admin_role(message.author):
                 await send_permission_denied(message.channel)
                 return
+
+            # Log de l'action admin
+            self.discord_logger.admin_action("Synchronisation Manuelle",
+                                             message.author,
+                                             "Commande !sync_bot utilisée")
 
             status_msg = await message.channel.send(
                 "🔄 Synchronisation en cours...")
@@ -141,6 +232,13 @@ class FaerunBot(discord.Client):
                     inline=True)
 
                 await status_msg.edit(content=None, embed=embed)
+
+                # Log de succès
+                self.discord_logger.info(
+                    f"Synchronisation manuelle réussie - {len(synced)} commandes",
+                    user=f"{message.author.display_name} ({message.author.id})",
+                    guild=f"{message.guild.name} ({message.guild.id})")
+
                 # Supprimer après 10 secondes
                 await asyncio.sleep(10)
                 await status_msg.delete()
@@ -148,6 +246,14 @@ class FaerunBot(discord.Client):
             except Exception as e:
                 logger.error(f"Erreur sync manuelle: {e}")
                 await status_msg.edit(content=f"❌ Erreur: {e}")
+
+                # Log de l'erreur
+                self.discord_logger.error_with_traceback(
+                    "Erreur lors de la synchronisation manuelle",
+                    e,
+                    user=f"{message.author.display_name} ({message.author.id})",
+                    guild=f"{message.guild.name} ({message.guild.id})")
+
                 await asyncio.sleep(10)
                 await status_msg.delete()
 
@@ -156,6 +262,10 @@ class FaerunBot(discord.Client):
             if not has_admin_role(message.author):
                 await send_permission_denied(message.channel)
                 return
+
+            # Log de l'action admin
+            self.discord_logger.admin_action("Debug Système", message.author,
+                                             "Commande !debug_bot utilisée")
 
             # Supprimer le message de commande
             try:
@@ -202,7 +312,7 @@ class FaerunBot(discord.Client):
             if admin_role:
                 admin_members = [
                     member.mention for member in admin_role.members[:5]
-                ]  # Limiter à 5
+                ]
                 if admin_members:
                     embed.add_field(name=f"Membres {Config.ADMIN_ROLE_NAME}",
                                     value="\n".join(admin_members),
@@ -223,6 +333,11 @@ class FaerunBot(discord.Client):
             if not has_admin_role(message.author):
                 await send_permission_denied(message.channel)
                 return
+
+            # Log de l'action admin
+            self.discord_logger.admin_action(
+                "Rechargement Commandes", message.author,
+                "Commande !reload_commands utilisée")
 
             # Supprimer le message de commande
             try:
@@ -261,6 +376,13 @@ class FaerunBot(discord.Client):
                     inline=True)
 
                 await status_msg.edit(embed=embed)
+
+                # Log de succès
+                self.discord_logger.info(
+                    f"Rechargement des commandes réussi - {len(synced)} commandes",
+                    user=f"{message.author.display_name} ({message.author.id})",
+                    guild=f"{message.guild.name} ({message.guild.id})")
+
                 await asyncio.sleep(10)
                 await status_msg.delete()
 
@@ -268,5 +390,61 @@ class FaerunBot(discord.Client):
                 embed.color = 0xff0000
                 embed.description = f"❌ Erreur lors du rechargement: {str(e)}"
                 await status_msg.edit(embed=embed)
+
+                # Log de l'erreur
+                self.discord_logger.error_with_traceback(
+                    "Erreur lors du rechargement des commandes",
+                    e,
+                    user=f"{message.author.display_name} ({message.author.id})",
+                    guild=f"{message.guild.name} ({message.guild.id})")
+
                 await asyncio.sleep(10)
                 await status_msg.delete()
+
+        # Nouvelle commande de test des logs
+        elif message.content.strip() == "!test_logs":
+            if not has_admin_role(message.author):
+                await send_permission_denied(message.channel)
+                return
+
+            # Supprimer le message de commande
+            try:
+                await message.delete()
+            except:
+                pass
+
+            # Test du système de logs
+            result = await self.discord_logger.test_logging(message.guild)
+
+            embed = discord.Embed(title="🧪 Test du Système de Logs",
+                                  color=0x3498db)
+
+            if result['channel_found']:
+                embed.add_field(name="📍 Canal Admin",
+                                value=f"#{result['channel_name']}",
+                                inline=True)
+                embed.add_field(name="✅ Permissions",
+                                value="✅" if result['can_send'] else "❌",
+                                inline=True)
+                embed.add_field(name="📨 Test Envoyé",
+                                value="✅" if result['test_sent'] else "❌",
+                                inline=True)
+
+                if result['test_sent']:
+                    embed.description = "✅ Système de logs opérationnel !"
+                    embed.color = 0x00ff00
+                else:
+                    embed.description = "⚠️ Problème de permissions ou de configuration"
+                    embed.color = 0xff9900
+            else:
+                embed.description = "❌ Canal admin non configuré"
+                embed.color = 0xff0000
+                embed.add_field(
+                    name="💡 Solution",
+                    value=
+                    "Configurez la variable CHANNEL_ADMIN_NAME ou CHANNEL_ADMIN_ID",
+                    inline=False)
+
+            msg = await message.channel.send(embed=embed)
+            await asyncio.sleep(10)
+            await msg.delete()

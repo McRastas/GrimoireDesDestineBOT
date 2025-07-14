@@ -20,6 +20,7 @@ import discord
 from discord import app_commands
 from datetime import datetime, timezone, timedelta
 from .base import BaseCommand
+from utils.channels import ChannelHelper
 
 
 class RecapMjCommand(BaseCommand):
@@ -30,7 +31,7 @@ class RecapMjCommand(BaseCommand):
 
     @property
     def description(self) -> str:
-        return "Liste les messages dans #recompenses où le MJ mentionne 2+ personnes"
+        return "Liste les messages dans le canal récompenses où le MJ mentionne 2+ personnes"
 
     def register(self, tree: app_commands.CommandTree):
         """Enregistrement spécial pour cette commande avec paramètre optionnel."""
@@ -50,12 +51,13 @@ class RecapMjCommand(BaseCommand):
         await interaction.response.defer(ephemeral=True)
 
         cible = membre or interaction.user
-        channel = discord.utils.get(interaction.guild.text_channels,
-                                    name='recompenses')
 
+        # Utiliser le système de canaux configurables
+        channel = ChannelHelper.get_recompenses_channel(interaction.guild)
         if not channel:
-            await interaction.followup.send(
-                "❌ Le canal #recompenses est introuvable.")
+            error_msg = ChannelHelper.get_channel_error_message(
+                ChannelHelper.RECOMPENSES)
+            await interaction.followup.send(error_msg)
             return
 
         now = datetime.now(timezone.utc)
@@ -133,7 +135,7 @@ class RecapMjCommand(BaseCommand):
         embed = discord.Embed(
             title=f"📋 Posts multi-mentions de {cible.display_name}",
             description=
-            f"**{len(posts_multi_mentions)} posts de récompense** avec 2+ mentions sur 30 jours",
+            f"**{len(posts_multi_mentions)} posts de récompense** avec 2+ mentions sur 30 jours dans {channel.mention}",
             color=0x7289DA)
 
         if posts_multi_mentions:
@@ -184,11 +186,13 @@ class RecapMjCommand(BaseCommand):
             embed.add_field(
                 name="❌ Aucun post multi-mention trouvé",
                 value=
-                "Aucun message avec 2+ mentions dans #recompenses sur 30 jours",
+                f"Aucun message avec 2+ mentions dans {channel.mention} sur 30 jours",
                 inline=False)
 
         # Footer avec infos de recherche
         embed.set_footer(
-            text=f"Analysé {messages_parcourus} messages sur 30 jours")
+            text=
+            f"Analysé {messages_parcourus} messages sur 30 jours dans #{channel.name}"
+        )
 
         await interaction.followup.send(embed=embed)

@@ -19,6 +19,7 @@ import discord
 from datetime import datetime, timezone, timedelta
 import logging
 from .base import BaseCommand
+from utils.channels import ChannelHelper
 
 logger = logging.getLogger(__name__)
 
@@ -31,20 +32,26 @@ class MentionListCommand(BaseCommand):
 
     @property
     def description(self) -> str:
-        return "Compte les mentions de tous les posteurs de ce salon dans #recompenses (30 derniers jours)"
+        return "Compte les mentions de tous les posteurs de ce salon dans le canal récompenses (30 derniers jours)"
 
     async def callback(self, interaction: discord.Interaction):
         try:
-            recompenses_channel = discord.utils.get(
-                interaction.guild.text_channels, name='recompenses')
+            # Utiliser le système de canaux configurables
+            recompenses_channel = ChannelHelper.get_recompenses_channel(
+                interaction.guild)
             if not recompenses_channel:
-                await interaction.response.send_message(
-                    "❌ Le canal #recompenses est introuvable.", ephemeral=True)
+                error_msg = ChannelHelper.get_channel_error_message(
+                    ChannelHelper.RECOMPENSES)
+                await interaction.response.send_message(error_msg,
+                                                        ephemeral=True)
                 return
 
             now = datetime.now(timezone.utc)
             thirty_days_ago = now - timedelta(days=30)
             auteurs = {}
+
+            # Defer pour éviter le timeout
+            await interaction.response.defer(ephemeral=True)
 
             async for msg in interaction.channel.history(limit=1000,
                                                          oldest_first=True):
@@ -57,7 +64,7 @@ class MentionListCommand(BaseCommand):
                 auteurs.pop(interaction.channel.owner_id, None)
 
             if not auteurs:
-                await interaction.response.send_message(
+                await interaction.followup.send(
                     "Aucun utilisateur actif trouvé dans ce canal.",
                     ephemeral=True)
                 return
@@ -79,16 +86,26 @@ class MentionListCommand(BaseCommand):
 
             description = "\n".join(
                 lignes) if lignes else "Aucune donnée trouvée."
+
             embed = discord.Embed(
-                title="📊 Mentions dans #recompenses (30 derniers jours)",
+                title=
+                f"📊 Mentions dans {recompenses_channel.mention} (30 derniers jours)",
                 description=description,
                 color=0x00b0f4)
-            await interaction.response.send_message(embed=embed,
-                                                    ephemeral=True)
+
+            embed.set_footer(
+                text=
+                f"Canal source: #{interaction.channel.name} | Canal récompenses: #{recompenses_channel.name}"
+            )
+
+            await interaction.followup.send(embed=embed)
 
         except Exception as e:
-            logger.error(f"Erreur dans la commande /mention_list : {e}",
+            logger.error(f"Erreur dans la commande /mentionlist : {e}",
                          exc_info=True)
             if not interaction.response.is_done():
                 await interaction.response.send_message(
+                    "❌ Une erreur inattendue est survenue.", ephemeral=True)
+            else:
+                await interaction.followup.send(
                     "❌ Une erreur inattendue est survenue.", ephemeral=True)
