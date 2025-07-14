@@ -8,7 +8,7 @@ FONCTIONNEMENT:
     - Affiche tous les canaux configurés et leur statut
     - Permet de lister les canaux du serveur
     - Teste la connectivité des canaux configurés
-    - Guide de configuration avec exemples
+    - Guide de configuration avec exemples et suggestions automatiques
     - Réservé aux administrateurs
 
 UTILISATION:
@@ -41,7 +41,10 @@ class ConfigChannelsCommand(BaseCommand):
         @app_commands.choices(action=[
             app_commands.Choice(name="Voir configuration", value="show"),
             app_commands.Choice(name="Lister canaux serveur", value="list"),
-            app_commands.Choice(name="Tester configuration", value="test")
+            app_commands.Choice(name="Tester configuration", value="test"),
+            app_commands.Choice(name="Suggestion automatique",
+                                value="suggest"),
+            app_commands.Choice(name="Guide de configuration", value="guide")
         ])
         async def config_channels_command(interaction: discord.Interaction,
                                           action: str = "show"):
@@ -61,6 +64,10 @@ class ConfigChannelsCommand(BaseCommand):
             await self._list_server_channels(interaction)
         elif action == "test":
             await self._test_config(interaction)
+        elif action == "suggest":
+            await self._suggest_config(interaction)
+        elif action == "guide":
+            await self._show_guide(interaction)
 
     async def _show_config(self, interaction: discord.Interaction):
         """Affiche la configuration actuelle des canaux."""
@@ -75,9 +82,14 @@ class ConfigChannelsCommand(BaseCommand):
 
         # Canaux configurés
         configured_text = []
+        working_count = 0
+
         for channel_key, info in all_channels.items():
             config = info['config']
             status = "✅" if info['found'] else "❌"
+
+            if info['found']:
+                working_count += 1
 
             line = f"{status} **{channel_key}**"
             if config.get('name'):
@@ -98,23 +110,30 @@ class ConfigChannelsCommand(BaseCommand):
                             value="*Aucun canal configuré*",
                             inline=False)
 
-        # Guide de configuration
+        # Statut global
+        total_configured = len(all_channels)
+        if total_configured == 0:
+            status_color = 0xe74c3c
+            status_text = "⚠️ Aucune configuration"
+        elif working_count == total_configured:
+            status_color = 0x2ecc71
+            status_text = "✅ Tous les canaux fonctionnent"
+        else:
+            status_color = 0xf39c12
+            status_text = f"⚠️ {working_count}/{total_configured} canaux fonctionnent"
+
+        embed.color = status_color
+        embed.add_field(name="📊 Statut Global",
+                        value=status_text,
+                        inline=False)
+
+        # Actions disponibles
         embed.add_field(
-            name="⚙️ Guide de Configuration",
-            value=("**Méthode 1 - JSON (Recommandé) :**\n"
-                   "```json\n"
-                   "CHANNELS_CONFIG={\n"
-                   '  "recompenses": {"name": "recompenses"},\n'
-                   '  "quetes": {"name": "départ-aventure", "id": 123456},\n'
-                   '  "logs": {"id": 789012}\n'
-                   "}\n"
-                   "```\n"
-                   "**Méthode 2 - Variables individuelles :**\n"
-                   "```env\n"
-                   "CHANNEL_RECOMPENSES_NAME=recompenses\n"
-                   "CHANNEL_QUETES_ID=123456789\n"
-                   "CHANNEL_LOGS_NAME=bot-logs\n"
-                   "```"),
+            name="🛠️ Actions Disponibles",
+            value=("• `/config-channels action:test` - Tester la config\n"
+                   "• `/config-channels action:suggest` - Suggestions auto\n"
+                   "• `/config-channels action:guide` - Guide complet\n"
+                   "• `/config-channels action:list` - Canaux du serveur"),
             inline=False)
 
         embed.set_footer(
@@ -126,28 +145,27 @@ class ConfigChannelsCommand(BaseCommand):
     async def _list_server_channels(self, interaction: discord.Interaction):
         """Liste les canaux du serveur pour aide à la configuration."""
 
-        channels = interaction.guild.text_channels[:15]  # Limiter à 15
-
         embed = discord.Embed(
             title="📋 Canaux du Serveur",
             description=
             f"Liste des canaux texte disponibles sur {interaction.guild.name}",
             color=0x2ecc71)
 
-        channel_list = []
-        for channel in channels:
-            channel_list.append(f"#{channel.name} (ID: `{channel.id}`)")
+        # Utiliser la méthode du helper
+        channel_list = ChannelHelper.format_channel_list(interaction.guild,
+                                                         include_ids=True)
 
         if channel_list:
-            embed.add_field(name=f"📝 Canaux Texte ({len(channels)} affichés)",
-                            value="\n".join(channel_list),
+            embed.add_field(name=f"📝 Canaux Texte",
+                            value=channel_list,
                             inline=False)
 
-        if len(interaction.guild.text_channels) > 15:
+        total_channels = len(interaction.guild.text_channels)
+        if total_channels > 20:
             embed.add_field(
                 name="ℹ️ Information",
                 value=
-                f"*{len(interaction.guild.text_channels) - 15} canaux supplémentaires non affichés*",
+                f"*{total_channels - 20} canaux supplémentaires non affichés*",
                 inline=False)
 
         embed.add_field(
@@ -159,61 +177,159 @@ class ConfigChannelsCommand(BaseCommand):
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
     async def _test_config(self, interaction: discord.Interaction):
-        """Teste la configuration actuelle."""
+        """Teste la configuration actuelle avec rapport détaillé."""
 
-        all_channels = ChannelHelper.get_all_configured_channels(
-            interaction.guild)
+        rapport = ChannelHelper.test_all_channels(interaction.guild)
 
         embed = discord.Embed(
             title="🧪 Test de Configuration",
             description="Résultat des tests de connectivité des canaux",
-            color=0xe74c3c if any(
-                not info['found']
-                for info in all_channels.values()) else 0x2ecc71)
+            color=0x2ecc71 if rapport['manquants'] == 0 else 0xe74c3c)
 
-        working_channels = []
-        broken_channels = []
+        # Canaux fonctionnels
+        if rapport['fonctionnels'] > 0:
+            working_lines = []
+            for channel_key, details in rapport['details'].items():
+                if details['status'] == 'OK':
+                    working_lines.append(
+                        f"✅ **{channel_key}** → {details['channel']}")
 
-        for channel_key, info in all_channels.items():
-            if info['found']:
-                working_channels.append(
-                    f"✅ **{channel_key}** → {info['channel'].mention}")
-            else:
-                config = info['config']
-                error_detail = f"❌ **{channel_key}**"
-                if config.get('name'):
-                    error_detail += f" → #{config['name']}"
-                if config.get('id'):
-                    error_detail += f" (ID: `{config['id']}`)"
-                error_detail += " *introuvable*"
-                broken_channels.append(error_detail)
+            if working_lines:
+                embed.add_field(
+                    name=f"✅ Canaux Fonctionnels ({rapport['fonctionnels']})",
+                    value="\n".join(working_lines),
+                    inline=False)
 
-        if working_channels:
-            embed.add_field(name="✅ Canaux Fonctionnels",
-                            value="\n".join(working_channels),
-                            inline=False)
+        # Canaux en erreur
+        if rapport['manquants'] > 0:
+            error_lines = []
+            for channel_key, details in rapport['details'].items():
+                if details['status'] == 'MANQUANT':
+                    config = details['config']
+                    error_detail = f"❌ **{channel_key}**"
+                    if config.get('name'):
+                        error_detail += f" → #{config['name']}"
+                    if config.get('id'):
+                        error_detail += f" (ID: `{config['id']}`)"
+                    error_detail += " *introuvable*"
+                    error_lines.append(error_detail)
 
-        if broken_channels:
-            embed.add_field(name="❌ Canaux Non Trouvés",
-                            value="\n".join(broken_channels),
-                            inline=False)
+            if error_lines:
+                embed.add_field(
+                    name=f"❌ Canaux Non Trouvés ({rapport['manquants']})",
+                    value="\n".join(error_lines),
+                    inline=False)
 
-        if not working_channels and not broken_channels:
-            embed.add_field(name="ℹ️ Aucune Configuration",
-                            value="Aucun canal n'est configuré actuellement",
-                            inline=False)
-
-        # Statut global
-        total_configured = len(all_channels)
-        working_count = len(working_channels)
-
-        if total_configured == 0:
-            status = "⚠️ Aucune configuration"
-        elif working_count == total_configured:
-            status = "✅ Tous les canaux fonctionnent"
+        # Statut global détaillé
+        if rapport['total'] == 0:
+            status = "⚠️ Aucune configuration détectée"
+            embed.add_field(
+                name="💡 Recommandation",
+                value=
+                "Utilisez `/config-channels action:suggest` pour des suggestions automatiques",
+                inline=False)
+        elif rapport['manquants'] == 0:
+            status = f"✅ Parfait ! Tous les {rapport['fonctionnels']} canaux configurés fonctionnent"
         else:
-            status = f"⚠️ {working_count}/{total_configured} canaux fonctionnent"
+            status = f"⚠️ {rapport['fonctionnels']}/{rapport['total']} canaux fonctionnent"
+            embed.add_field(
+                name="💡 Recommandation",
+                value=
+                "Configurez les canaux manquants ou utilisez `/config-channels action:suggest`",
+                inline=False)
 
-        embed.add_field(name="📊 Statut Global", value=status, inline=False)
+        embed.add_field(name="📊 Résultat", value=status, inline=False)
+
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+
+    async def _suggest_config(self, interaction: discord.Interaction):
+        """Propose une configuration automatique basée sur les canaux existants."""
+
+        embed = discord.Embed(
+            title="💡 Suggestions de Configuration",
+            description=
+            "Configuration automatique basée sur les canaux existants",
+            color=0xf39c12)
+
+        # Utiliser la méthode du helper
+        suggestions = ChannelHelper.suggest_channel_config(interaction.guild)
+
+        embed.add_field(name="🤖 Analyse Automatique",
+                        value=suggestions,
+                        inline=False)
+
+        embed.add_field(
+            name="📝 Comment Appliquer",
+            value=("1. Copiez la configuration JSON suggérée\n"
+                   "2. Définissez la variable d'environnement :\n"
+                   "   `CHANNELS_CONFIG={\"votre_config_json\"}`\n"
+                   "3. Redémarrez le bot\n"
+                   "4. Utilisez `/config-channels action:test` pour vérifier"),
+            inline=False)
+
+        embed.add_field(
+            name="🔧 Configuration Manuelle",
+            value=
+            "Si les suggestions ne conviennent pas, utilisez `/config-channels action:guide`",
+            inline=False)
+
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+
+    async def _show_guide(self, interaction: discord.Interaction):
+        """Affiche le guide complet de configuration."""
+
+        embed = discord.Embed(
+            title="📖 Guide de Configuration des Canaux",
+            description="Guide complet pour configurer les canaux du bot",
+            color=0x9b59b6)
+
+        embed.add_field(
+            name="🎯 Canaux Supportés",
+            value=("• **recompenses** - Canal des récompenses/mentions\n"
+                   "• **quetes** - Canal départ à l'aventure\n"
+                   "• **logs** - Canal des logs du bot\n"
+                   "• **admin** - Canal d'administration du bot"),
+            inline=False)
+
+        embed.add_field(
+            name="⚙️ Méthode 1 - JSON (Recommandé)",
+            value=
+            ("```env\n"
+             "CHANNELS_CONFIG={\n"
+             '  \"recompenses\": {\"name\": \"recompenses\"},\n'
+             '  \"quetes\": {\"name\": \"départ-aventure\", \"id\": 123456},\n'
+             '  \"logs\": {\"id\": 789012}\n'
+             "}\n"
+             "```"),
+            inline=False)
+
+        embed.add_field(name="⚙️ Méthode 2 - Variables Individuelles",
+                        value=("```env\n"
+                               "CHANNEL_RECOMPENSES_NAME=recompenses\n"
+                               "CHANNEL_QUETES_ID=123456789\n"
+                               "CHANNEL_LOGS_NAME=bot-logs\n"
+                               "CHANNEL_ADMIN_NAME=bot-admin\n"
+                               "```"),
+                        inline=False)
+
+        embed.add_field(
+            name="💡 Bonnes Pratiques",
+            value=
+            ("• **Priorité ID > nom** - L'ID est prioritaire sur le nom\n"
+             "• **IDs recommandés** - Plus fiables (ne changent pas)\n"
+             "• **Permissions** - Le bot doit avoir accès aux canaux\n"
+             "• **Test** - Utilisez `/config-channels action:test` après config"
+             ),
+            inline=False)
+
+        embed.add_field(
+            name="🔍 Obtenir un ID de Canal",
+            value=("1. Activez le Mode Développeur Discord\n"
+                   "2. Clic droit sur le canal → Copier l'ID\n"
+                   "3. Ou utilisez `/config-channels action:list`"),
+            inline=False)
+
+        embed.set_footer(
+            text="Redémarrez le bot après modification de la configuration")
 
         await interaction.response.send_message(embed=embed, ephemeral=True)

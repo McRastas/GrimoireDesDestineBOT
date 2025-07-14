@@ -113,5 +113,48 @@ class MentionSomeoneCommand(BaseCommand):
             color=0x7289DA)
 
         if mentions_trouvees:
-            # Afficher jusqu'à 8 mentions récentes (réduit pour éviter dépassement)
-            desc
+            # Afficher jusqu'à 8 mentions récentes (pour éviter dépassement)
+            desc_mentions = []
+            char_count = 0
+            max_chars = 900  # Limite de sécurité pour éviter les erreurs Discord
+
+            for mention in mentions_trouvees[:10]:  # Max 10 pour avoir du choix
+                # Raccourcir pour économiser l'espace
+                apercu_court = mention['apercu'][:50] + ('...' if len(
+                    mention['apercu']) > 50 else '')
+
+                line = (f"• **{mention['when']}** par {mention['author']}\n"
+                        f"  └─ [{apercu_court}]({mention['url']})")
+
+                # Vérifier si on peut ajouter cette ligne
+                if char_count + len(line) + 2 > max_chars:  # +2 pour \n\n
+                    break
+
+                desc_mentions.append(line)
+                char_count += len(line) + 2
+
+            embed.add_field(
+                name=f"📋 Mentions récentes ({len(desc_mentions)} affichées)",
+                value="\n\n".join(desc_mentions),
+                inline=False)
+
+            # Statistiques générales
+            if len(mentions_trouvees) > len(desc_mentions):
+                remaining = len(mentions_trouvees) - len(desc_mentions)
+                embed.add_field(
+                    name="📊 Informations supplémentaires",
+                    value=f"**Non affichées :** {remaining} mentions supplémentaires",
+                    inline=False)
+
+        else:
+            embed.add_field(
+                name="❌ Aucune mention trouvée",
+                value=
+                f"Aucune mention de {cible.display_name} dans {channel.mention} sur 30 jours",
+                inline=False)
+
+        # Footer avec infos de recherche
+        embed.set_footer(
+            text=f"Analysé {messages_parcourus} messages sur 30 jours")
+
+        await interaction.followup.send(embed=embed)
