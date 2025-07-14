@@ -2,11 +2,11 @@
 Commande Discord : /mentionsomeone [membre]
 
 DESCRIPTION:
-    Compte et liste les mentions d'un utilisateur dans le canal #recompenses sur 30 jours
+    Compte et liste les mentions d'un utilisateur dans le canal récompenses sur 30 jours
 
 FONCTIONNEMENT:
     - Paramètre optionnel : si aucun membre spécifié, utilise l'auteur de la commande
-    - Recherche le canal #recompenses dans la guilde
+    - Recherche le canal récompenses configuré dans la guilde
     - Parcourt l'historique des 30 derniers jours (max 1000 messages)
     - Liste tous les messages où l'utilisateur cible est mentionné
     - Affiche avec liens cliquables vers les messages originaux
@@ -21,6 +21,7 @@ from discord import app_commands
 from datetime import datetime, timezone, timedelta
 import logging
 from .base import BaseCommand
+from utils.channels import ChannelHelper
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +34,7 @@ class MentionSomeoneCommand(BaseCommand):
 
     @property
     def description(self) -> str:
-        return "Compte et liste les mentions dans #recompenses sur 30j"
+        return "Compte et liste les mentions dans le canal récompenses sur 30j"
 
     def register(self, tree: app_commands.CommandTree):
         """Enregistrement spécial pour cette commande avec paramètre optionnel."""
@@ -51,12 +52,12 @@ class MentionSomeoneCommand(BaseCommand):
         await interaction.response.defer(ephemeral=True)
 
         cible = membre or interaction.user
-        channel = discord.utils.get(interaction.guild.text_channels,
-                                    name='recompenses')
+        channel = ChannelHelper.get_recompenses_channel(interaction.guild)
 
         if not channel:
-            await interaction.followup.send(
-                "❌ Le canal #recompenses est introuvable.")
+            error_msg = ChannelHelper.get_channel_error_message(
+                ChannelHelper.RECOMPENSES)
+            await interaction.followup.send(error_msg)
             return
 
         now = datetime.now(timezone.utc)
@@ -106,54 +107,11 @@ class MentionSomeoneCommand(BaseCommand):
 
         # Construire l'embed
         embed = discord.Embed(
-            title=f"📢 Mentions de {cible.display_name} dans #recompenses",
+            title=f"📢 Mentions de {cible.display_name}",
             description=
-            f"**{len(mentions_trouvees)} mentions** trouvées sur 30 jours",
+            f"**{len(mentions_trouvees)} mentions** trouvées sur 30 jours dans {channel.mention}",
             color=0x7289DA)
 
         if mentions_trouvees:
             # Afficher jusqu'à 8 mentions récentes (réduit pour éviter dépassement)
-            desc_mentions = []
-            char_count = 0
-            max_chars = 900  # Limite de sécurité sous les 1024
-
-            for mention in mentions_trouvees[:
-                                             15]:  # Max 15 pour avoir du choix
-                # Raccourcir l'aperçu pour économiser de l'espace
-                apercu_court = mention['apercu'][:50] + ('...' if len(
-                    mention['apercu']) > 50 else '')
-
-                line = f"• **{mention['when']}** - [{apercu_court}]({mention['url']})"
-
-                # Vérifier si on peut ajouter cette ligne sans dépasser
-                if char_count + len(line) + 2 > max_chars:  # +2 pour \n\n
-                    break
-
-                desc_mentions.append(line)
-                char_count += len(line) + 2
-
-            embed.add_field(
-                name=f"📋 Mentions récentes ({len(desc_mentions)} affichées)",
-                value="\n\n".join(desc_mentions),
-                inline=False)
-
-            # Ajouter un indicateur s'il y en a plus
-            if len(mentions_trouvees) > len(desc_mentions):
-                remaining = len(mentions_trouvees) - len(desc_mentions)
-                embed.add_field(
-                    name="📊 Résumé",
-                    value=
-                    f"**Total :** {len(mentions_trouvees)} mentions | **Non affichées :** {remaining}",
-                    inline=False)
-        else:
-            embed.add_field(
-                name="❌ Aucune mention trouvée",
-                value=
-                "Aucune mention dans #recompenses sur les 30 derniers jours",
-                inline=False)
-
-        # Footer avec infos de recherche
-        embed.set_footer(
-            text=f"Analysé {messages_parcourus} messages sur 30 jours")
-
-        await interaction.followup.send(embed=embed)
+            desc

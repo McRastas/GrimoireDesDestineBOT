@@ -21,6 +21,9 @@ from .mes_quetes import MesQuetesCommand
 # Générateur PNJ
 from .pnj_generator import PnjGeneratorCommand
 
+# Configuration
+from .config_channels import ConfigChannelsCommand
+
 # Liste de toutes les commandes disponibles
 ALL_COMMANDS = [
     TestCommand,
@@ -34,6 +37,7 @@ ALL_COMMANDS = [
     RecapMjCommand,
     MesQuetesCommand,
     PnjGeneratorCommand,
+    ConfigChannelsCommand,
 ]
 
 __all__ = ['ALL_COMMANDS']
