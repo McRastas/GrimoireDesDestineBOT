@@ -13,8 +13,8 @@ def main():
     try:
         logger.info("Démarrage de l'application Bot Faerûn")
         Config.validate()
-        # web_server = WebServer()
-        # web_server.start_in_thread()
+        web_server = WebServer()
+        web_server.start_in_thread()
         bot = FaerunBot()
         bot.run(Config.DISCORD_TOKEN)
     except ValueError as e:
