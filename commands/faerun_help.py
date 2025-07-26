@@ -1,147 +1,187 @@
 """
-Commande Discord : /faerun_help
+Commande Discord : /help
 
 DESCRIPTION:
-    Guide complet d'utilisation des commandes du calendrier Faerûn
+    Guide complet d'utilisation de toutes les commandes du Bot Faerûn
 
 FONCTIONNEMENT:
-    - Affiche un embed détaillé avec toutes les commandes Faerûn disponibles
-    - Explique le fonctionnement du calendrier de Harptos
-    - Donne des exemples d'utilisation pratiques
-    - Présente les festivals et saisons de Faerûn
+    - Affiche un embed avec toutes les catégories de commandes
+    - Explique chaque commande avec sa syntaxe et ses exemples
+    - Inclut les permissions requises pour les commandes admin
+    - Guide d'utilisation pour les MJ et joueurs
 
 UTILISATION:
-    /faerun_help
+    /help
 """
 
 import discord
 from .base import BaseCommand
+from config import Config
 
 
-class FaerunHelpCommand(BaseCommand):
+class HelpCommand(BaseCommand):
 
     @property
     def name(self) -> str:
-        return "faerun_help"
+        return "help"
 
     @property
     def description(self) -> str:
-        return "Guide complet des commandes du calendrier Faerûn"
+        return "Guide complet de toutes les commandes du bot"
 
     async def callback(self, interaction: discord.Interaction):
-        # Embed principal avec introduction
+        # Embed principal
         embed = discord.Embed(
-            title="🏰 Guide du Calendrier Faerûn",
+            title="🤖 Guide Complet du Bot Faerûn",
             description=(
-                "**Bienvenue dans l'univers temporel des Royaumes Oubliés !**\n\n"
-                "Le calendrier de Harptos est le système de datation officiel de Faerûn. "
-                "Ce guide vous explique comment utiliser toutes les commandes liées au temps dans votre campagne D&D."
+                "**Bot Discord spécialisé pour les campagnes D&D dans les Royaumes Oubliés**\n\n"
+                "Ce bot vous aide à gérer le calendrier Faerûnien, suivre les mentions de joueurs, "
+                "planifier vos quêtes et générer des PNJ pour vos sessions de jeu de rôle."
             ),
             color=0x8B4513
         )
 
-        # Section 1: Commandes disponibles
-        commandes_text = (
-            "📅 **`/faerun`** - Affiche la date Faerûnienne actuelle\n"
-            "📊 **`/faeruncomplet`** - Toutes les infos détaillées (saison, semaine, année DR)\n"
-            "🎊 **`/faerunfestival`** - Prochain festival de Faerûn\n"
-            "🔄 **`/faerunjdr [date]`** - Convertit une date réelle en Faerûnienne\n"
-            "❓ **`/faerun_help`** - Ce guide d'utilisation"
-        )
-        embed.add_field(
-            name="⚡ Commandes Disponibles", 
-            value=commandes_text, 
-            inline=False
-        )
-
-        # Section 2: Le calendrier de Harptos
+        # ===== SECTION 1: CALENDRIER FAERÛN =====
         calendrier_text = (
-            "**12 mois de 30 jours chacun :**\n"
-            "• **Hammer** (Hiver) - *Le Marteau*\n"
-            "• **Alturiak** (Hiver) - *La Griffe de l'Hiver*\n"
-            "• **Ches** (Hiver) - *Les Couchers du Soleil*\n"
-            "• **Tarsakh** (Printemps) - *Les Tempêtes*\n"
-            "• **Mirtul** (Printemps) - *Le Dégel*\n"
-            "• **Kythorn** (Printemps) - *L'Heure des Fleurs*\n"
-            "• **Flamerule** (Été) - *Le Temps des Flammes*\n"
-            "• **Eleasis** (Été) - *Les Hautes Chaleurs*\n"
-            "• **Eleint** (Été) - *Les Précipitations*\n"
-            "• **Marpenoth** (Automne) - *Le Fanage des Feuilles*\n"
-            "• **Uktar** (Automne) - *Le Pourrissement*\n"
-            "• **Nightal** (Automne) - *Le Soleil Descendant*"
+            "📅 **`/faerun`** - Date Faerûnienne actuelle\n"
+            "📊 **`/faeruncomplet`** - Infos détaillées (saison, semaine, année DR)\n"
+            "🎊 **`/faerunfestival`** - Prochain festival de Faerûn\n"
+            "🔄 **`/faerunjdr [date]`** - Convertit une date (format JJ-MM-AAAA)\n"
+            "   *Exemple : `/faerunjdr 25-12-2024`*"
         )
         embed.add_field(
-            name="📆 Calendrier de Harptos", 
+            name="📅 Calendrier de Faerûn", 
             value=calendrier_text, 
             inline=False
         )
 
-        # Section 3: Festivals spéciaux
-        festivals_text = (
-            "🎭 **Midwinter** - Plein Hiver (après Hammer)\n"
-            "🌱 **Greengrass** - Herbe Verte (après Tarsakh)\n"
-            "☀️ **Midsummer** - Solstice d'Été (après Flamerule)\n"
-            "🌾 **Highharvestide** - Hautes Moissons (après Eleint)\n"
-            "🌙 **Feast of the Moon** - Fête de la Lune (après Marpenoth)\n"
-            "🛡️ **Shieldmeet** - Rencontre des Boucliers (années bissextiles)"
+        # ===== SECTION 2: GESTION DES QUÊTES =====
+        quetes_text = (
+            "🎯 **`/mesquetes [membre]`** - Liste les quêtes futures d'un joueur\n"
+            "   • Détecte automatiquement les dates dans vos messages\n"
+            "   • Supporte : `28/06`, `28-06-2025`, `28 juin`, `le 28/06 à 14h30`\n"
+            "   • Classe par urgence : aujourd'hui, demain, cette semaine, plus tard\n"
+            "   *Exemple : `/mesquetes @Aventurier`*"
         )
         embed.add_field(
-            name="🎊 Festivals de Faerûn", 
-            value=festivals_text, 
+            name="🎯 Gestion des Quêtes", 
+            value=quetes_text, 
             inline=False
         )
 
-        # Section 4: Exemples d'utilisation
-        exemples_text = (
-            "• `/faerun` → *Affiche : \"Tar, 15 Mirtul 1492 DR – Season: Spring – Week 21\"*\n"
-            "• `/faerunfestival` → *\"Midsummer, le 30 Flamerule 1492 DR (21/07/2024)\"*\n"
-            "• `/faerunjdr 25-12-2024` → *Convertit Noël 2024 en date Faerûnienne*\n"
-            "• `/faeruncomplet` → *Vue détaillée avec tous les éléments*"
+        # ===== SECTION 3: MENTIONS ET RÉCOMPENSES =====
+        mentions_text = (
+            "📢 **`/mentionsomeone [membre]`** - Mentions d'un joueur dans #récompenses (30 jours)\n"
+            "   • Affiche les liens vers les messages originaux\n"
+            "   • Compte total et détails par message\n\n"
+            "📊 **`/mentionlist`** - Classement des mentions pour tous les actifs du canal\n"
+            "   • Statistiques globales de participation\n\n"
+            "📋 **`/recapmj [membre]`** - Messages où un MJ mentionne 2+ personnes\n"
+            "   • Parfait pour suivre les récompenses de groupe\n"
+            "   *Exemples : `/mentionsomeone @Joueur`, `/mentionlist`*"
         )
         embed.add_field(
-            name="💡 Exemples d'Utilisation", 
-            value=exemples_text, 
+            name="📊 Mentions et Récompenses", 
+            value=mentions_text, 
             inline=False
         )
 
-        # Section 5: Informations utiles
-        infos_text = (
-            "**📏 Structure temporelle :**\n"
-            "• 1 année = 365 jours (366 en année bissextile)\n"
-            "• 1 semaine = 10 jours (décade)\n"
-            "• Années DR (Dalereckoning) = Années réelles - 628\n\n"
-            "**🎲 Pour vos campagnes :**\n"
-            "• Planifiez vos événements selon les festivals\n"
-            "• Utilisez les saisons pour l'ambiance\n"
-            "• Convertissez les dates importantes de votre histoire"
+        # ===== SECTION 4: GÉNÉRATEUR DE CONTENU =====
+        generateur_text = (
+            "🎭 **`/pnj-generator [type] [genre] [race]`** - Génère un PNJ aléatoire\n"
+            "   • **Types :** Marchand, Noble, Garde, Aubergiste, Prêtre, Voleur, Artisan, Paysan, Aventurier, Mage\n"
+            "   • **Genres :** Masculin, Féminin, Aléatoire\n"
+            "   • **Races :** Humain, Elfe, Nain, Halfelin, Demi-Elfe, Tieffelin, Aléatoire\n"
+            "   • Inclut : apparence, personnalité, profession, secret RP\n"
+            "   *Exemple : `/pnj-generator type:marchand genre:féminin race:elfe`*"
         )
         embed.add_field(
-            name="ℹ️ Informations Utiles", 
-            value=infos_text, 
+            name="🎭 Générateur de Contenu", 
+            value=generateur_text, 
             inline=False
         )
 
-        # Section 6: Conseils de MJ
+        # ===== SECTION 5: COMMANDES UTILITAIRES =====
+        utilitaires_text = (
+            "⚙️ **`/test`** - Test de fonctionnement du bot\n"
+            "ℹ️ **`/info`** - Statistiques du bot (serveurs, utilisateurs, commandes)\n"
+            "❓ **`/help`** - Ce guide d'utilisation"
+        )
+        embed.add_field(
+            name="⚙️ Utilitaires", 
+            value=utilitaires_text, 
+            inline=False
+        )
+
+        # ===== SECTION 6: COMMANDES ADMIN =====
+        admin_text = (
+            f"🔧 **`/config-channels`** - Configuration des canaux du bot ({Config.ADMIN_ROLE_NAME} seulement)\n"
+            "   • Voir, tester et configurer les canaux\n"
+            "   • Suggestions automatiques basées sur les canaux existants\n\n"
+            f"**Commandes textuelles admin** (rôle {Config.ADMIN_ROLE_NAME} requis) :\n"
+            "• **`!sync_bot`** - Synchronise les commandes slash\n"
+            "• **`!debug_bot`** - Informations de débogage\n"
+            "• **`!reload_commands`** - Recharge les commandes à chaud"
+        )
+        embed.add_field(
+            name="🔐 Administration", 
+            value=admin_text, 
+            inline=False
+        )
+
+        # ===== SECTION 7: CONFIGURATION DES CANAUX =====
+        config_text = (
+            "**Le bot fonctionne mieux avec des canaux spécialisés :**\n"
+            "• **#récompenses** - Pour `/mentionsomeone` et `/mentionlist`\n"
+            "• **#départ-à-l-aventure** - Pour `/mesquetes` (détection des quêtes)\n"
+            "• **#bot-logs** - Logs système du bot\n"
+            "• **#bot-admin** - Canal d'administration\n\n"
+            f"Utilisez `/config-channels` (rôle {Config.ADMIN_ROLE_NAME}) pour configurer ces canaux."
+        )
+        embed.add_field(
+            name="⚙️ Configuration Recommandée", 
+            value=config_text, 
+            inline=False
+        )
+
+        # ===== SECTION 8: CONSEILS D'UTILISATION =====
         conseils_text = (
-            "🎯 **Immersion maximale :**\n"
-            "• Annoncez les dates en Faerûnien dans vos sessions\n"
-            "• Utilisez les festivals comme événements de campagne\n"
-            "• Adaptez les quêtes aux saisons (hiver = difficultés, été = voyages)\n\n"
-            "🗓️ **Astuce :** Utilisez `/faerunfestival` pour planifier vos prochains événements majeurs !"
+            "🎲 **Pour les MJ :**\n"
+            "• Utilisez le calendrier Faerûn pour l'immersion\n"
+            "• Planifiez vos événements selon les festivals\n"
+            "• Générez des PNJ rapidement avec `/pnj-generator`\n"
+            "• Suivez les récompenses avec `/recapmj`\n\n"
+            "👥 **Pour les Joueurs :**\n"
+            "• Consultez vos quêtes avec `/mesquetes`\n"
+            "• Vérifiez vos mentions avec `/mentionsomeone`\n"
+            "• Convertissez les dates importantes avec `/faerunjdr`"
         )
         embed.add_field(
-            name="🎭 Conseils pour les MJ", 
+            name="💡 Conseils d'Utilisation", 
             value=conseils_text, 
             inline=False
         )
 
-        # Footer
-        embed.set_footer(
-            text="🏰 Royaumes Oubliés • Calendrier de Harptos • Bot Faerûn",
-            icon_url=None
+        # ===== SECTION 9: FORMATS DE DATES SUPPORTÉS =====
+        dates_text = (
+            "**Pour `/faerunjdr` :** JJ-MM-AAAA uniquement\n"
+            "   *Exemple : `15-02-2023`*\n\n"
+            "**Pour `/mesquetes` (détection automatique) :**\n"
+            "• `28/06`, `28-06`, `28.06` (année automatique)\n"
+            "• `28/06/2025`, `28-06-2025` (année explicite)\n"
+            "• `28 juin`, `28 june 2025` (formats textuels)\n"
+            "• `le 28/06`, `28/06 à 14h30` (formats naturels)"
+        )
+        embed.add_field(
+            name="📅 Formats de Dates", 
+            value=dates_text, 
+            inline=False
         )
 
-        # Timestamp
+        # Footer et timestamp
+        embed.set_footer(
+            text=f"🏰 Bot Faerûn v1.0 • {len(self.bot.guilds)} serveurs • {len(self.bot.tree.get_commands())} commandes"
+        )
         embed.timestamp = discord.utils.utcnow()
 
         await interaction.response.send_message(embed=embed, ephemeral=True)
