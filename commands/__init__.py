@@ -40,6 +40,7 @@ ALL_COMMANDS = [
     FaerunFestivalCommand,
     FaerunCompletCommand,
     FaerunJdrCommand,
+    FaerunHelpCommand,
     MentionSomeoneCommand,
     MentionListCommand,
     RecapMjCommand,
