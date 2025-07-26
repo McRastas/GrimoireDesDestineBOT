@@ -9,7 +9,7 @@ from .faerun_date import FaerunCommand
 from .faerun_festival import FaerunFestivalCommand
 from .faerun_complet import FaerunCompletCommand
 from .faerun_jdr import FaerunJdrCommand
-from .faerun_help import FaerunHelpCommand
+from .faerun_help import HelpCommand
 
 # Commandes mentions et statistiques
 from .mention_someone import MentionSomeoneCommand
@@ -41,7 +41,7 @@ ALL_COMMANDS = [
     FaerunFestivalCommand,
     FaerunCompletCommand,
     FaerunJdrCommand,
-    FaerunHelpCommand,
+    HelpCommand,
     MentionSomeoneCommand,
     MentionListCommand,
     RecapMjCommand,
