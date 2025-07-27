@@ -182,9 +182,9 @@ class DailyFileLogger:
     def get_today_stats(self) -> dict:
         """
         Retourne les statistiques du jour actuel.
-        CORRECTION : Utilise le bon nom de fichier
+        CORRECTION : Parsing adapté au nouveau format avec INFO/WARNING/ERROR + SUCCESS/ADMIN
         """
-        today_file = self._get_today_filename()  # CORRECTION : Utilise la méthode cohérente
+        today_file = self._get_today_filename()
         
         stats = {
             'total_commands': 0,
@@ -199,37 +199,45 @@ class DailyFileLogger:
             if os.path.exists(today_file):
                 with open(today_file, 'r', encoding='utf-8') as f:
                     for line in f:
-                        if '|' in line:
+                        if '|' in line and len(line.strip()) > 0:
                             parts = line.split('|')
-                            if len(parts) >= 3:
-                                status = parts[1].strip()
-                                command_part = parts[2].strip()
+                            if len(parts) >= 4:  # CORRECTION : Au moins 4 parties maintenant
+                                # NOUVEAU FORMAT: DATE | LEVEL | STATUS | COMMAND | ...
+                                level = parts[1].strip()      # INFO, WARNING, ERROR
+                                status = parts[2].strip()     # SUCCESS, ADMIN, ERROR
+                                command_part = parts[3].strip()  # /command ou action
                                 
-                                stats['total_commands'] += 1
-                                
-                                if status == 'SUCCESS':
-                                    stats['successful_commands'] += 1
-                                elif status == 'ERROR':
-                                    stats['failed_commands'] += 1
-                                elif status == 'ADMIN':
-                                    stats['admin_actions'] += 1
-                                
-                                # Extraire nom de commande
-                                if command_part.startswith('/'):
-                                    cmd_name = command_part.split()[0][1:]
-                                    stats['most_used_commands'][cmd_name] = stats['most_used_commands'].get(cmd_name, 0) + 1
-                                elif status == 'ADMIN':
-                                    # Pour les actions admin, extraire l'action
-                                    action_name = command_part.strip()
-                                    stats['most_used_commands'][f"ADMIN_{action_name}"] = stats['most_used_commands'].get(f"ADMIN_{action_name}", 0) + 1
-                                
-                                # Extraire utilisateur
-                                if 'User:' in line:
-                                    user_part = line.split('User:')[1].split('|')[0].strip()
-                                    stats['unique_users'].add(user_part)
+                                # Compter seulement les vraies commandes (pas les logs système)
+                                if status in ['SUCCESS', 'ERROR', 'ADMIN']:
+                                    stats['total_commands'] += 1
+                                    
+                                    if status == 'SUCCESS':
+                                        stats['successful_commands'] += 1
+                                    elif status == 'ERROR':
+                                        stats['failed_commands'] += 1
+                                    elif status == 'ADMIN':
+                                        stats['admin_actions'] += 1
+                                    
+                                    # Extraire nom de commande
+                                    if command_part.startswith('/'):
+                                        cmd_name = command_part.split()[0][1:]  # Enlever le /
+                                        stats['most_used_commands'][cmd_name] = stats['most_used_commands'].get(cmd_name, 0) + 1
+                                    elif status == 'ADMIN':
+                                        # Pour les actions admin, utiliser le nom de l'action
+                                        action_name = command_part.strip()
+                                        stats['most_used_commands'][f"ADMIN_{action_name}"] = stats['most_used_commands'].get(f"ADMIN_{action_name}", 0) + 1
+                                    
+                                    # Extraire utilisateur (plus robuste)
+                                    if 'User:' in line:
+                                        try:
+                                            user_part = line.split('User:')[1].split('|')[0].strip()
+                                            if user_part and user_part != "SYSTEM (0)":  # Exclure les logs système
+                                                stats['unique_users'].add(user_part)
+                                        except (IndexError, AttributeError):
+                                            pass
         
         except Exception as e:
-            print(f"Erreur lecture stats : {e}")
+            print(f"⚠️ Erreur lecture stats du fichier {today_file} : {e}")
         
         # Convertir set en nombre
         stats['unique_users'] = len(stats['unique_users'])
