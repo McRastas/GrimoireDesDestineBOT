@@ -8,6 +8,7 @@ from config import Config
 from commands import ALL_COMMANDS
 from utils.permissions import has_admin_role, send_permission_denied
 from utils.discord_logger import init_discord_logger, get_discord_logger
+from utils.file_logger import init_daily_logger, get_daily_logger  # NOUVEAU
 
 # Configuration du niveau de log global
 LOG_LEVEL = logging.INFO
@@ -33,8 +34,9 @@ class FaerunBot(discord.Client):
         self.synced = False
         self.command_instances = []
 
-        # Initialiser le système de logs Discord
+        # Initialiser les systèmes de logs
         self.discord_logger = init_discord_logger(self)
+        self.daily_logger = init_daily_logger()  # NOUVEAU
 
     async def setup_hook(self):
         """Méthode appelée lors du démarrage du bot pour configurer les commandes."""
@@ -63,11 +65,9 @@ class FaerunBot(discord.Client):
         # Marquer le logger Discord comme prêt
         self.discord_logger.set_ready()
 
-        # Log de démarrage dans Discord
-        self.discord_logger.bot_event(
-            "Démarrage",
-            f"Bot connecté avec succès ! Serveurs: {len(self.guilds)}, Commandes: {len(self.tree.get_commands())}"
-        )
+        # Log de démarrage dans Discord ET fichiers quotidiens
+        startup_msg = f"Bot connecté avec succès ! Serveurs: {len(self.guilds)}, Commandes: {len(self.tree.get_commands())}"
+        self.discord_logger.bot_event("Démarrage", startup_msg)
 
         # Synchroniser les commandes avec Discord
         if not self.synced:
@@ -80,8 +80,7 @@ class FaerunBot(discord.Client):
             commands_count = len(self.tree.get_commands())
             if commands_count == 0:
                 logger.error("Aucune commande à synchroniser")
-                self.discord_logger.error(
-                    "Synchronisation impossible - Aucune commande chargée")
+                self.discord_logger.error("Synchronisation impossible - Aucune commande chargée")
                 return
 
             if Config.GUILD_ID:
@@ -116,37 +115,52 @@ class FaerunBot(discord.Client):
     async def on_app_command_error(self, interaction: discord.Interaction,
                                    error: app_commands.AppCommandError):
         """Gère les erreurs des commandes slash."""
-        logger.error(
-            f"Erreur commande {interaction.command.name if interaction.command else 'inconnue'}: {error}"
-        )
+        command_name = interaction.command.name if interaction.command else "inconnue"
+        error_msg = str(error)
+        
+        logger.error(f"Erreur commande {command_name}: {error_msg}")
 
         # Log dans Discord
-        command_name = interaction.command.name if interaction.command else "inconnue"
         self.discord_logger.error(
             f"Erreur lors de l'exécution d'une commande",
             user=f"{interaction.user.display_name} ({interaction.user.id})",
             guild=f"{interaction.guild.name} ({interaction.guild.id})"
             if interaction.guild else "DM",
             command=f"/{command_name}",
-            error=str(error))
+            error=error_msg)
+
+        # NOUVEAU : Log dans fichier quotidien
+        self.daily_logger.log_command_usage(
+            interaction=interaction,
+            command_name=command_name,
+            success=False,
+            error_msg=error_msg
+        )
 
         # Répondre à l'utilisateur
-        error_message = "❌ Une erreur inattendue s'est produite lors de l'exécution de cette commande."
+        error_response = "❌ Une erreur inattendue s'est produite lors de l'exécution de cette commande."
 
         try:
             if not interaction.response.is_done():
-                await interaction.response.send_message(error_message,
+                await interaction.response.send_message(error_response,
                                                         ephemeral=True)
             else:
-                await interaction.followup.send(error_message, ephemeral=True)
+                await interaction.followup.send(error_response, ephemeral=True)
         except:
-            pass  # Si on ne peut pas répondre, tant pis
+            pass
 
     async def on_app_command_completion(self, interaction: discord.Interaction,
                                         command: app_commands.Command):
         """Log les commandes exécutées avec succès."""
         logger.info(
             f"Commande /{command.name} exécutée par {interaction.user.name}")
+
+        # NOUVEAU : Log dans fichier quotidien pour TOUTES les commandes
+        self.daily_logger.log_command_usage(
+            interaction=interaction,
+            command_name=command.name,
+            success=True
+        )
 
         # Log dans Discord seulement pour les commandes admin
         if command.name in [
@@ -188,7 +202,7 @@ class FaerunBot(discord.Client):
             except:
                 pass
 
-            # Vérification des permissions MODIFIÉE
+            # Vérification des permissions
             if not has_admin_role(message.author):
                 await send_permission_denied(message.channel)
                 return
@@ -257,7 +271,7 @@ class FaerunBot(discord.Client):
                 await asyncio.sleep(10)
                 await status_msg.delete()
 
-        # Commande de debug MODIFIÉE
+        # Commande de debug
         elif message.content.strip() == "!debug_bot":
             if not has_admin_role(message.author):
                 await send_permission_denied(message.channel)
@@ -328,7 +342,7 @@ class FaerunBot(discord.Client):
             await asyncio.sleep(15)
             await msg.delete()
 
-        # Commande de rechargement des commandes MODIFIÉE
+        # Commande de rechargement des commandes
         elif message.content.strip() == "!reload_commands":
             if not has_admin_role(message.author):
                 await send_permission_denied(message.channel)

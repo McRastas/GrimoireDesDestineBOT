@@ -22,8 +22,9 @@ from .mes_quetes import MesQuetesCommand
 # Générateur PNJ
 from .pnj_generator import PnjGeneratorCommand
 
-# Configuration
+# Configuration et administration
 from .config_channels import ConfigChannelsCommand
+from .stats_logs import StatsLogsCommand  # NOUVEAU
 
 # Import conditionnel pour les nouvelles commandes
 try:
@@ -48,6 +49,7 @@ ALL_COMMANDS = [
     MesQuetesCommand,
     PnjGeneratorCommand,
     ConfigChannelsCommand,
+    StatsLogsCommand,  # NOUVEAU - Commande pour les stats de logs
 ]
 
 # Ajouter les commandes optionnelles si disponibles
