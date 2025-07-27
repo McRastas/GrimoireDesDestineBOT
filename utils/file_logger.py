@@ -3,6 +3,8 @@ Système de logs quotidiens pour le Bot Faerûn.
 
 Ce module génère des fichiers de logs quotidiens au format DDMMYYYY
 pour tracer l'utilisation des commandes et les événements du bot.
+
+VERSION CORRIGÉE - Résout les problèmes de nommage des fichiers.
 """
 
 import logging
@@ -34,6 +36,14 @@ class DailyFileLogger:
             os.makedirs(self.logs_dir, exist_ok=True)
             print(f"✓ Fallback répertoire logs : {self.logs_dir}")
     
+    def _get_today_filename(self) -> str:
+        """
+        Génère le nom de fichier pour aujourd'hui.
+        CORRECTION PRINCIPALE : Format cohérent logs-DDMMYYYY.log
+        """
+        today = datetime.now().strftime('%d%m%Y')
+        return os.path.join(self.logs_dir, f"logs-{today}.log")
+    
     def _setup_loggers(self):
         """Configure les loggers avec rotation quotidienne."""
         
@@ -43,9 +53,12 @@ class DailyFileLogger:
         
         # Éviter la duplication si déjà configuré
         if not self.command_logger.handlers:
+            # CORRECTION : Utiliser directement le nom de fichier cohérent
+            today_filename = self._get_today_filename()
+            
             # Handler avec rotation quotidienne
             command_handler = TimedRotatingFileHandler(
-                filename=os.path.join(self.logs_dir, "logs.log"),  # MODIFIÉ
+                filename=today_filename,
                 when='midnight',
                 interval=1,
                 backupCount=30,  # Garder 30 jours
@@ -59,30 +72,35 @@ class DailyFileLogger:
             )
             command_handler.setFormatter(command_formatter)
             
-            # Nommage des fichiers avec format DDMMYYYY
-            command_handler.namer = self._get_log_filename
+            # CORRECTION : Fonction de nommage cohérente
+            command_handler.namer = self._get_rotated_filename
             
             self.command_logger.addHandler(command_handler)
+            print(f"✓ Logger configuré avec fichier : {today_filename}")
     
-    def _get_log_filename(self, default_name: str) -> str:
+    def _get_rotated_filename(self, default_name: str) -> str:
         """
         Génère le nom de fichier au format logs-DDMMYYYY.log
+        CORRECTION : Gestion cohérente de la rotation
         """
-        # Extraire la date du nom par défaut
-        # Format par défaut : logs.log.2024-01-15
-        parts = default_name.split('.')
-        if len(parts) >= 3 and '-' in parts[-1]:
-            date_str = parts[-1]  # ex: "2024-01-15"
-            try:
-                date_obj = datetime.strptime(date_str, '%Y-%m-%d')
+        try:
+            # Extraire la date du nom par défaut
+            # Format TimedRotatingFileHandler : /path/logs-DDMMYYYY.log.2024-01-15
+            if '.log.' in default_name:
+                # Séparer le chemin et la date
+                base_path, date_suffix = default_name.rsplit('.log.', 1)
+                
+                # Parser la date (format ISO : YYYY-MM-DD)
+                date_obj = datetime.strptime(date_suffix, '%Y-%m-%d')
                 formatted_date = date_obj.strftime('%d%m%Y')
                 
-                # Reconstruire le nom : logs-15012024.log
-                return f"logs-{formatted_date}.log"
-            except ValueError:
-                pass
+                # Reconstruire le nom : logs-DDMMYYYY.log
+                directory = os.path.dirname(base_path)
+                return os.path.join(directory, f"logs-{formatted_date}.log")
+        except (ValueError, IndexError) as e:
+            print(f"⚠️ Erreur parsing nom fichier log : {e}")
         
-        # Fallback si parsing échoue
+        # Fallback : garder le nom par défaut
         return default_name
     
     def log_command_usage(self, 
@@ -122,7 +140,9 @@ class DailyFileLogger:
             
             # Ajouter l'erreur si présente
             if error_msg:
-                log_message += f" | Error: {error_msg}"
+                # Nettoyer le message d'erreur pour éviter les injections
+                clean_error = str(error_msg).replace('\n', ' ').replace('\r', '')[:200]
+                log_message += f" | Error: {clean_error}"
             
             # Logger selon le niveau
             if success:
@@ -149,7 +169,9 @@ class DailyFileLogger:
             )
             
             if details:
-                admin_message += f" | Details: {details}"
+                # Nettoyer les détails
+                clean_details = str(details).replace('\n', ' ').replace('\r', '')[:300]
+                admin_message += f" | Details: {clean_details}"
             
             # Les actions admin sont loggées en WARNING pour les distinguer
             self.command_logger.warning(admin_message)
@@ -160,9 +182,9 @@ class DailyFileLogger:
     def get_today_stats(self) -> dict:
         """
         Retourne les statistiques du jour actuel.
+        CORRECTION : Utilise le bon nom de fichier
         """
-        today = datetime.now().strftime('%d%m%Y')
-        command_file = os.path.join(self.logs_dir, f"logs-{today}.log")  # MODIFIÉ
+        today_file = self._get_today_filename()  # CORRECTION : Utilise la méthode cohérente
         
         stats = {
             'total_commands': 0,
@@ -174,8 +196,8 @@ class DailyFileLogger:
         }
         
         try:
-            if os.path.exists(command_file):
-                with open(command_file, 'r', encoding='utf-8') as f:
+            if os.path.exists(today_file):
+                with open(today_file, 'r', encoding='utf-8') as f:
                     for line in f:
                         if '|' in line:
                             parts = line.split('|')
@@ -213,10 +235,49 @@ class DailyFileLogger:
         stats['unique_users'] = len(stats['unique_users'])
         
         return stats
+    
+    def get_file_info(self) -> dict:
+        """
+        Retourne les informations sur le fichier de logs du jour.
+        NOUVEAU : Méthode pour récupérer les infos du fichier
+        """
+        today_file = self._get_today_filename()
+        
+        try:
+            if os.path.exists(today_file):
+                size = os.path.getsize(today_file)
+                if size < 1024:
+                    size_str = f"{size} bytes"
+                elif size < 1024*1024:
+                    size_str = f"{size//1024} KB"
+                else:
+                    size_str = f"{size//(1024*1024)} MB"
+                
+                return {
+                    'exists': True,
+                    'filename': os.path.basename(today_file),
+                    'size_str': size_str,
+                    'path': today_file
+                }
+            else:
+                return {
+                    'exists': False,
+                    'filename': os.path.basename(today_file),
+                    'size_str': 'Fichier non créé',
+                    'path': today_file
+                }
+        except Exception as e:
+            return {
+                'exists': False,
+                'filename': 'Erreur',
+                'size_str': f'Erreur: {e}',
+                'path': today_file
+            }
 
     def cleanup_old_logs(self, days_to_keep: int = 30):
         """
         Nettoie les anciens fichiers de logs.
+        CORRECTION : Pattern de recherche cohérent
         """
         try:
             import glob
@@ -224,8 +285,8 @@ class DailyFileLogger:
             
             cutoff_date = datetime.now() - timedelta(days=days_to_keep)
             
-            # Chercher tous les fichiers de logs avec pattern
-            pattern = os.path.join(self.logs_dir, "logs-????????.log")  # MODIFIÉ
+            # CORRECTION : Pattern cohérent avec le nommage
+            pattern = os.path.join(self.logs_dir, "logs-????????.log")
             old_files = glob.glob(pattern)
             
             deleted_count = 0
@@ -233,13 +294,15 @@ class DailyFileLogger:
                 try:
                     # Extraire la date du nom de fichier
                     filename = os.path.basename(file_path)
-                    date_part = filename.replace('logs-', '').replace('.log', '')  # MODIFIÉ
-                    file_date = datetime.strptime(date_part, '%d%m%Y')
-                    
-                    if file_date < cutoff_date:
-                        os.remove(file_path)
-                        deleted_count += 1
-                        print(f"✓ Supprimé: {filename}")
+                    if filename.startswith('logs-') and filename.endswith('.log'):
+                        date_part = filename[5:-4]  # Enlever "logs-" et ".log"
+                        if len(date_part) == 8 and date_part.isdigit():
+                            file_date = datetime.strptime(date_part, '%d%m%Y')
+                            
+                            if file_date < cutoff_date:
+                                os.remove(file_path)
+                                deleted_count += 1
+                                print(f"✓ Supprimé: {filename}")
                         
                 except (ValueError, IndexError):
                     continue
