@@ -45,7 +45,7 @@ class DailyFileLogger:
         if not self.command_logger.handlers:
             # Handler avec rotation quotidienne
             command_handler = TimedRotatingFileHandler(
-                filename=os.path.join(self.logs_dir, "commands.log"),
+                filename=os.path.join(self.logs_dir, "logs.log"),  # MODIFIÉ
                 when='midnight',
                 interval=1,
                 backupCount=30,  # Garder 30 jours
@@ -66,10 +66,10 @@ class DailyFileLogger:
     
     def _get_log_filename(self, default_name: str) -> str:
         """
-        Génère le nom de fichier au format DDMMYYYY.
+        Génère le nom de fichier au format logs-DDMMYYYY.log
         """
         # Extraire la date du nom par défaut
-        # Format par défaut : commands.log.2024-01-15
+        # Format par défaut : logs.log.2024-01-15
         parts = default_name.split('.')
         if len(parts) >= 3 and '-' in parts[-1]:
             date_str = parts[-1]  # ex: "2024-01-15"
@@ -77,9 +77,8 @@ class DailyFileLogger:
                 date_obj = datetime.strptime(date_str, '%Y-%m-%d')
                 formatted_date = date_obj.strftime('%d%m%Y')
                 
-                # Reconstruire le nom : commands_15012024.log
-                base_name = parts[0]  # "commands"
-                return f"{base_name}_{formatted_date}.log"
+                # Reconstruire le nom : logs-15012024.log
+                return f"logs-{formatted_date}.log"
             except ValueError:
                 pass
         
@@ -134,6 +133,124 @@ class DailyFileLogger:
         except Exception as e:
             # Ne pas faire échouer le bot si le logging échoue
             print(f"Erreur lors du logging de commande : {e}")
+
+    def log_admin_action(self, 
+                        user: discord.Member, 
+                        action: str, 
+                        details: str = ""):
+        """
+        Log une action d'administration.
+        """
+        try:
+            admin_message = (
+                f"ADMIN | {action} | "
+                f"User: {user.display_name} ({user.id}) | "
+                f"Guild: {user.guild.name} ({user.guild.id})"
+            )
+            
+            if details:
+                admin_message += f" | Details: {details}"
+            
+            # Les actions admin sont loggées en WARNING pour les distinguer
+            self.command_logger.warning(admin_message)
+            
+        except Exception as e:
+            print(f"Erreur lors du logging d'action admin : {e}")
+
+    def get_today_stats(self) -> dict:
+        """
+        Retourne les statistiques du jour actuel.
+        """
+        today = datetime.now().strftime('%d%m%Y')
+        command_file = os.path.join(self.logs_dir, f"logs-{today}.log")  # MODIFIÉ
+        
+        stats = {
+            'total_commands': 0,
+            'successful_commands': 0,
+            'failed_commands': 0,
+            'admin_actions': 0,
+            'unique_users': set(),
+            'most_used_commands': {}
+        }
+        
+        try:
+            if os.path.exists(command_file):
+                with open(command_file, 'r', encoding='utf-8') as f:
+                    for line in f:
+                        if '|' in line:
+                            parts = line.split('|')
+                            if len(parts) >= 3:
+                                status = parts[1].strip()
+                                command_part = parts[2].strip()
+                                
+                                stats['total_commands'] += 1
+                                
+                                if status == 'SUCCESS':
+                                    stats['successful_commands'] += 1
+                                elif status == 'ERROR':
+                                    stats['failed_commands'] += 1
+                                elif status == 'ADMIN':
+                                    stats['admin_actions'] += 1
+                                
+                                # Extraire nom de commande
+                                if command_part.startswith('/'):
+                                    cmd_name = command_part.split()[0][1:]
+                                    stats['most_used_commands'][cmd_name] = stats['most_used_commands'].get(cmd_name, 0) + 1
+                                elif status == 'ADMIN':
+                                    # Pour les actions admin, extraire l'action
+                                    action_name = command_part.strip()
+                                    stats['most_used_commands'][f"ADMIN_{action_name}"] = stats['most_used_commands'].get(f"ADMIN_{action_name}", 0) + 1
+                                
+                                # Extraire utilisateur
+                                if 'User:' in line:
+                                    user_part = line.split('User:')[1].split('|')[0].strip()
+                                    stats['unique_users'].add(user_part)
+        
+        except Exception as e:
+            print(f"Erreur lecture stats : {e}")
+        
+        # Convertir set en nombre
+        stats['unique_users'] = len(stats['unique_users'])
+        
+        return stats
+
+    def cleanup_old_logs(self, days_to_keep: int = 30):
+        """
+        Nettoie les anciens fichiers de logs.
+        """
+        try:
+            import glob
+            from datetime import timedelta
+            
+            cutoff_date = datetime.now() - timedelta(days=days_to_keep)
+            
+            # Chercher tous les fichiers de logs avec pattern
+            pattern = os.path.join(self.logs_dir, "logs-????????.log")  # MODIFIÉ
+            old_files = glob.glob(pattern)
+            
+            deleted_count = 0
+            for file_path in old_files:
+                try:
+                    # Extraire la date du nom de fichier
+                    filename = os.path.basename(file_path)
+                    date_part = filename.replace('logs-', '').replace('.log', '')  # MODIFIÉ
+                    file_date = datetime.strptime(date_part, '%d%m%Y')
+                    
+                    if file_date < cutoff_date:
+                        os.remove(file_path)
+                        deleted_count += 1
+                        print(f"✓ Supprimé: {filename}")
+                        
+                except (ValueError, IndexError):
+                    continue
+            
+            if deleted_count > 0:
+                print(f"✓ Nettoyage terminé: {deleted_count} anciens fichiers supprimés")
+            else:
+                print("✓ Aucun fichier à nettoyer")
+                
+        except Exception as e:
+            print(f"⚠️ Erreur lors du nettoyage des logs: {e}")
 
 
 # Instance globale
