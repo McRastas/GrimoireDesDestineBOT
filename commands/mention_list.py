@@ -1,9 +1,25 @@
+"""
+Commande Discord : /mentionlist
+
+DESCRIPTION:
+    Compte et liste les mentions et posts de récompenses des utilisateurs du canal
+
+FONCTIONNEMENT:
+    - Récupère les auteurs actifs du canal actuel (1000 derniers messages)
+    - Parcourt le canal #recompenses sur 30 jours
+    - Compte les mentions reçues par chaque utilisateur
+    - Compte les posts avec 2+ mentions (posts MJ)
+    - Affiche un classement par mentions reçues
+
+UTILISATION:
+    /mentionlist
+"""
+
 import discord
-from discord import app_commands
 from datetime import datetime, timezone, timedelta
 import logging
-
-from commands.base import BaseCommand
+from .base import BaseCommand
+from utils.channels import ChannelHelper
 
 logger = logging.getLogger(__name__)
 
@@ -11,11 +27,13 @@ logger = logging.getLogger(__name__)
 class MentionListCommand(BaseCommand):
     """Commande pour lister les mentions et posts de récompenses des utilisateurs du canal."""
 
-    def __init__(self):
-        super().__init__(
-            name="mentionlist",
-            description="Compte les mentions et posts de récompenses des posteurs du canal (30 derniers jours)"
-        )
+    @property
+    def name(self) -> str:
+        return "mentionlist"
+
+    @property
+    def description(self) -> str:
+        return "Compte les mentions et posts de récompenses des posteurs du canal (30 derniers jours)"
 
     async def callback(self, interaction: discord.Interaction):
         """Exécute la commande mentionlist."""
@@ -23,11 +41,12 @@ class MentionListCommand(BaseCommand):
             # Defer car ça peut prendre du temps
             await interaction.response.defer(ephemeral=True)
             
-            recompenses_channel = discord.utils.get(
-                interaction.guild.text_channels, name='recompenses')
+            # Utiliser le système de canaux configurables
+            recompenses_channel = ChannelHelper.get_recompenses_channel(interaction.guild)
             if not recompenses_channel:
-                await interaction.followup.send(
-                    "❌ Le canal #recompenses est introuvable.")
+                error_msg = ChannelHelper.get_channel_error_message(
+                    ChannelHelper.RECOMPENSES)
+                await interaction.followup.send(error_msg)
                 return
                 
             now = datetime.now(timezone.utc)
@@ -35,14 +54,13 @@ class MentionListCommand(BaseCommand):
             
             # Récupérer les auteurs du canal actuel
             auteurs = {}
-            async for msg in interaction.channel.history(
-                    limit=1000, oldest_first=True):
+            async for msg in interaction.channel.history(limit=1000, oldest_first=True):
                 if msg.author.bot:
                     continue
                 auteurs[msg.author.id] = msg.author
                 
-            if isinstance(interaction.channel,
-                          discord.Thread) and interaction.channel.owner_id:
+            # Exclure le créateur du thread si c'est un thread
+            if isinstance(interaction.channel, discord.Thread) and interaction.channel.owner_id:
                 auteurs.pop(interaction.channel.owner_id, None)
                 
             if not auteurs:
@@ -59,8 +77,7 @@ class MentionListCommand(BaseCommand):
                 }
             
             # Parcourir les messages de #recompenses
-            async for msg in recompenses_channel.history(
-                    limit=1000, after=thirty_days_ago):
+            async for msg in recompenses_channel.history(limit=1000, after=thirty_days_ago):
                 # Compter les mentions reçues
                 for user_id, user in auteurs.items():
                     if user in msg.mentions:
@@ -118,8 +135,7 @@ class MentionListCommand(BaseCommand):
             await interaction.followup.send(embed=embed)
             
         except Exception as e:
-            logger.error(f"Erreur dans la commande /mentionlist : {e}",
-                         exc_info=True)
+            logger.error(f"Erreur dans la commande /mentionlist : {e}", exc_info=True)
             try:
                 if interaction.response.is_done():
                     await interaction.followup.send(
