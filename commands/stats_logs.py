@@ -182,7 +182,7 @@ class StatsLogsCommand(BaseCommand):
     def _analyze_today_logs(self, daily_logger) -> dict:
         """Analyse les logs du jour actuel."""
         today = datetime.now().strftime('%d%m%Y')
-        command_file = os.path.join(daily_logger.logs_dir, f"commands_{today}.log")
+        command_file = os.path.join(daily_logger.logs_dir, f"logs-{today}.log")  # MODIFIÉ
         
         stats = {
             'total_commands': 0,
@@ -230,7 +230,7 @@ class StatsLogsCommand(BaseCommand):
     def _get_log_file_info(self, daily_logger) -> str:
         """Récupère les informations sur le fichier de logs du jour."""
         today = datetime.now().strftime('%d%m%Y')
-        command_file = os.path.join(daily_logger.logs_dir, f"commands_{today}.log")
+        command_file = os.path.join(daily_logger.logs_dir, f"logs-{today}.log")  # MODIFIÉ
         
         try:
             if os.path.exists(command_file):
@@ -242,8 +242,8 @@ class StatsLogsCommand(BaseCommand):
                 else:
                     size_str = f"{size//(1024*1024)} MB"
                 
-                return f"**Fichier :** commands_{today}.log\n**Taille :** {size_str}"
+                return f"**Fichier :** logs-{today}.log\n**Taille :** {size_str}"  # MODIFIÉ
             else:
-                return f"**Fichier :** commands_{today}.log\n**Statut :** Non créé"
+                return f"**Fichier :** logs-{today}.log\n**Statut :** Non créé"  # MODIFIÉ
         except Exception as e:
             return f"**Erreur :** {str(e)}"
