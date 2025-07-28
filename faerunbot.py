@@ -8,7 +8,7 @@ from config import Config
 from commands import ALL_COMMANDS
 from utils.permissions import has_admin_role, send_permission_denied
 from utils.discord_logger import init_discord_logger, get_discord_logger
-from utils.file_logger import init_daily_logger, get_daily_logger  # NOUVEAU
+from utils.file_logger import init_daily_logger, get_daily_logger
 
 # Configuration du niveau de log global
 LOG_LEVEL = logging.INFO
@@ -34,9 +34,20 @@ class FaerunBot(discord.Client):
         self.synced = False
         self.command_instances = []
 
-        # Initialiser les systèmes de logs
-        self.discord_logger = init_discord_logger(self)
-        self.daily_logger = init_daily_logger()  # NOUVEAU
+        # CORRECTION : Initialiser les systèmes de logs avec gestion d'erreurs
+        try:
+            self.discord_logger = init_discord_logger(self)
+            logger.info("✅ Discord Logger initialisé")
+        except Exception as e:
+            logger.error(f"❌ Erreur initialisation Discord Logger: {e}")
+            self.discord_logger = None
+
+        try:
+            self.daily_logger = init_daily_logger()
+            logger.info("✅ Daily Logger initialisé")
+        except Exception as e:
+            logger.error(f"❌ Erreur initialisation Daily Logger: {e}")
+            self.daily_logger = None
 
     async def setup_hook(self):
         """Méthode appelée lors du démarrage du bot pour configurer les commandes."""
@@ -62,12 +73,47 @@ class FaerunBot(discord.Client):
         logger.info(
             f"Bot connecté: {self.user} sur {len(self.guilds)} serveur(s)")
 
-        # Marquer le logger Discord comme prêt
-        self.discord_logger.set_ready()
+        # CORRECTION : Marquer le logger Discord comme prêt avec protection
+        if self.discord_logger:
+            try:
+                self.discord_logger.set_ready()
+                logger.info("✅ Discord Logger marqué comme prêt")
+            except Exception as e:
+                logger.error(f"❌ Erreur activation Discord Logger: {e}")
 
-        # Log de démarrage dans Discord ET fichiers quotidiens
+        # AMÉLIORATION : Log de démarrage plus robuste
         startup_msg = f"Bot connecté avec succès ! Serveurs: {len(self.guilds)}, Commandes: {len(self.tree.get_commands())}"
-        self.discord_logger.bot_event("Démarrage", startup_msg)
+        
+        # Log dans Discord seulement si disponible
+        if self.discord_logger:
+            try:
+                self.discord_logger.bot_event("Démarrage", startup_msg)
+            except Exception as e:
+                logger.warning(f"Impossible de logger le démarrage dans Discord: {e}")
+
+        # Log dans le fichier quotidien seulement si disponible
+        if self.daily_logger:
+            try:
+                # Simuler un "utilisateur système" pour le log de démarrage
+                class SystemUser:
+                    def __init__(self):
+                        self.display_name = "SYSTEM"
+                        self.id = 0
+                        self.guild = SystemGuild()
+
+                class SystemGuild:
+                    def __init__(self):
+                        self.name = "SYSTEM"
+                        self.id = 0
+
+                system_user = SystemUser()
+                self.daily_logger.log_admin_action(
+                    system_user, 
+                    "Bot Startup", 
+                    f"Bot démarré avec {len(self.guilds)} serveurs"
+                )
+            except Exception as e:
+                logger.warning(f"Impossible de logger le démarrage dans le fichier: {e}")
 
         # Synchroniser les commandes avec Discord
         if not self.synced:
@@ -80,7 +126,8 @@ class FaerunBot(discord.Client):
             commands_count = len(self.tree.get_commands())
             if commands_count == 0:
                 logger.error("Aucune commande à synchroniser")
-                self.discord_logger.error("Synchronisation impossible - Aucune commande chargée")
+                if self.discord_logger:
+                    self.discord_logger.error("Synchronisation impossible - Aucune commande chargée")
                 return
 
             if Config.GUILD_ID:
@@ -90,27 +137,31 @@ class FaerunBot(discord.Client):
                 logger.info(
                     f"✅ {len(synced)} commandes synchronisées (guild: {Config.GUILD_ID})"
                 )
-                self.discord_logger.info(
-                    f"Commandes synchronisées avec succès sur le serveur de test",
-                    guild=f"Test Server ({Config.GUILD_ID})",
-                    command=f"{len(synced)} commandes")
+                if self.discord_logger:
+                    self.discord_logger.info(
+                        f"Commandes synchronisées avec succès sur le serveur de test",
+                        guild=f"Test Server ({Config.GUILD_ID})",
+                        command=f"{len(synced)} commandes")
             else:
                 synced = await self.tree.sync()
                 logger.info(
                     f"✅ {len(synced)} commandes synchronisées (global)")
-                self.discord_logger.info(
-                    f"Commandes synchronisées globalement",
-                    command=f"{len(synced)} commandes")
+                if self.discord_logger:
+                    self.discord_logger.info(
+                        f"Commandes synchronisées globalement",
+                        command=f"{len(synced)} commandes")
 
         except discord.HTTPException as e:
             logger.error(f"Erreur HTTP synchronisation: {e.status}")
-            self.discord_logger.error(
-                f"Erreur HTTP lors de la synchronisation des commandes",
-                error=f"Status {e.status}: {e.text}")
+            if self.discord_logger:
+                self.discord_logger.error(
+                    f"Erreur HTTP lors de la synchronisation des commandes",
+                    error=f"Status {e.status}: {e.text}")
         except Exception as e:
             logger.error(f"Erreur synchronisation: {e}")
-            self.discord_logger.error_with_traceback(
-                "Erreur critique lors de la synchronisation des commandes", e)
+            if self.discord_logger:
+                self.discord_logger.error_with_traceback(
+                    "Erreur critique lors de la synchronisation des commandes", e)
 
     async def on_app_command_error(self, interaction: discord.Interaction,
                                    error: app_commands.AppCommandError):
@@ -120,22 +171,30 @@ class FaerunBot(discord.Client):
         
         logger.error(f"Erreur commande {command_name}: {error_msg}")
 
-        # Log dans Discord
-        self.discord_logger.error(
-            f"Erreur lors de l'exécution d'une commande",
-            user=f"{interaction.user.display_name} ({interaction.user.id})",
-            guild=f"{interaction.guild.name} ({interaction.guild.id})"
-            if interaction.guild else "DM",
-            command=f"/{command_name}",
-            error=error_msg)
+        # CORRECTION : Log dans Discord avec protection
+        if self.discord_logger:
+            try:
+                self.discord_logger.error(
+                    f"Erreur lors de l'exécution d'une commande",
+                    user=f"{interaction.user.display_name} ({interaction.user.id})",
+                    guild=f"{interaction.guild.name} ({interaction.guild.id})"
+                    if interaction.guild else "DM",
+                    command=f"/{command_name}",
+                    error=error_msg)
+            except Exception as e:
+                logger.warning(f"Impossible de logger l'erreur dans Discord: {e}")
 
-        # NOUVEAU : Log dans fichier quotidien
-        self.daily_logger.log_command_usage(
-            interaction=interaction,
-            command_name=command_name,
-            success=False,
-            error_msg=error_msg
-        )
+        # CORRECTION : Log dans fichier quotidien avec protection
+        if self.daily_logger:
+            try:
+                self.daily_logger.log_command_usage(
+                    interaction=interaction,
+                    command_name=command_name,
+                    success=False,
+                    error_msg=error_msg
+                )
+            except Exception as e:
+                logger.warning(f"Impossible de logger l'erreur dans le fichier: {e}")
 
         # Répondre à l'utilisateur
         error_response = "❌ Une erreur inattendue s'est produite lors de l'exécution de cette commande."
@@ -155,36 +214,53 @@ class FaerunBot(discord.Client):
         logger.info(
             f"Commande /{command.name} exécutée par {interaction.user.name}")
 
-        # NOUVEAU : Log dans fichier quotidien pour TOUTES les commandes
-        self.daily_logger.log_command_usage(
-            interaction=interaction,
-            command_name=command.name,
-            success=True
-        )
+        # CORRECTION : Log dans fichier quotidien pour TOUTES les commandes avec protection
+        if self.daily_logger:
+            try:
+                self.daily_logger.log_command_usage(
+                    interaction=interaction,
+                    command_name=command.name,
+                    success=True
+                )
+            except Exception as e:
+                logger.warning(f"Impossible de logger la commande dans le fichier: {e}")
 
         # Log dans Discord seulement pour les commandes admin
         if command.name in [
-                'config-channels', 'sync_bot', 'debug_bot', 'reload_commands'
+                'config-channels', 'sync_bot', 'debug_bot', 'reload_commands',
+                'test-logs', 'stats-logs'  # AJOUT : Nouvelles commandes admin
         ]:
-            self.discord_logger.command_used(interaction,
-                                             command.name,
-                                             success=True)
+            if self.discord_logger:
+                try:
+                    self.discord_logger.command_used(interaction,
+                                                     command.name,
+                                                     success=True)
+                except Exception as e:
+                    logger.warning(f"Impossible de logger la commande admin dans Discord: {e}")
 
     async def on_guild_join(self, guild: discord.Guild):
         """Log quand le bot rejoint un serveur."""
         logger.info(f"Bot ajouté au serveur: {guild.name} ({guild.id})")
-        self.discord_logger.bot_event(
-            "Nouveau Serveur",
-            f"Bot ajouté au serveur **{guild.name}** ({guild.member_count} membres)",
-            guild=f"{guild.name} ({guild.id})")
+        if self.discord_logger:
+            try:
+                self.discord_logger.bot_event(
+                    "Nouveau Serveur",
+                    f"Bot ajouté au serveur **{guild.name}** ({guild.member_count} membres)",
+                    guild=f"{guild.name} ({guild.id})")
+            except Exception as e:
+                logger.warning(f"Impossible de logger l'ajout de serveur: {e}")
 
     async def on_guild_remove(self, guild: discord.Guild):
         """Log quand le bot quitte un serveur."""
         logger.info(f"Bot retiré du serveur: {guild.name} ({guild.id})")
-        self.discord_logger.bot_event(
-            "Serveur Quitté",
-            f"Bot retiré du serveur **{guild.name}**",
-            guild=f"{guild.name} ({guild.id})")
+        if self.discord_logger:
+            try:
+                self.discord_logger.bot_event(
+                    "Serveur Quitté",
+                    f"Bot retiré du serveur **{guild.name}**",
+                    guild=f"{guild.name} ({guild.id})")
+            except Exception as e:
+                logger.warning(f"Impossible de logger la suppression de serveur: {e}")
 
     async def on_message(self, message: discord.Message):
         if message.author.bot or not message.guild:
@@ -207,10 +283,14 @@ class FaerunBot(discord.Client):
                 await send_permission_denied(message.channel)
                 return
 
-            # Log de l'action admin
-            self.discord_logger.admin_action("Synchronisation Manuelle",
-                                             message.author,
-                                             "Commande !sync_bot utilisée")
+            # CORRECTION : Log de l'action admin avec protection
+            if self.discord_logger:
+                try:
+                    self.discord_logger.admin_action("Synchronisation Manuelle",
+                                                     message.author,
+                                                     "Commande !sync_bot utilisée")
+                except Exception as e:
+                    logger.warning(f"Impossible de logger l'action admin: {e}")
 
             status_msg = await message.channel.send(
                 "🔄 Synchronisation en cours...")
@@ -247,11 +327,15 @@ class FaerunBot(discord.Client):
 
                 await status_msg.edit(content=None, embed=embed)
 
-                # Log de succès
-                self.discord_logger.info(
-                    f"Synchronisation manuelle réussie - {len(synced)} commandes",
-                    user=f"{message.author.display_name} ({message.author.id})",
-                    guild=f"{message.guild.name} ({message.guild.id})")
+                # CORRECTION : Log de succès avec protection
+                if self.discord_logger:
+                    try:
+                        self.discord_logger.info(
+                            f"Synchronisation manuelle réussie - {len(synced)} commandes",
+                            user=f"{message.author.display_name} ({message.author.id})",
+                            guild=f"{message.guild.name} ({message.guild.id})")
+                    except Exception as e:
+                        logger.warning(f"Impossible de logger le succès de sync: {e}")
 
                 # Supprimer après 10 secondes
                 await asyncio.sleep(10)
@@ -261,12 +345,16 @@ class FaerunBot(discord.Client):
                 logger.error(f"Erreur sync manuelle: {e}")
                 await status_msg.edit(content=f"❌ Erreur: {e}")
 
-                # Log de l'erreur
-                self.discord_logger.error_with_traceback(
-                    "Erreur lors de la synchronisation manuelle",
-                    e,
-                    user=f"{message.author.display_name} ({message.author.id})",
-                    guild=f"{message.guild.name} ({message.guild.id})")
+                # CORRECTION : Log de l'erreur avec protection
+                if self.discord_logger:
+                    try:
+                        self.discord_logger.error_with_traceback(
+                            "Erreur lors de la synchronisation manuelle",
+                            e,
+                            user=f"{message.author.display_name} ({message.author.id})",
+                            guild=f"{message.guild.name} ({message.guild.id})")
+                    except Exception as log_e:
+                        logger.warning(f"Impossible de logger l'erreur de sync: {log_e}")
 
                 await asyncio.sleep(10)
                 await status_msg.delete()
@@ -277,9 +365,13 @@ class FaerunBot(discord.Client):
                 await send_permission_denied(message.channel)
                 return
 
-            # Log de l'action admin
-            self.discord_logger.admin_action("Debug Système", message.author,
-                                             "Commande !debug_bot utilisée")
+            # CORRECTION : Log de l'action admin avec protection
+            if self.discord_logger:
+                try:
+                    self.discord_logger.admin_action("Debug Système", message.author,
+                                                     "Commande !debug_bot utilisée")
+                except Exception as e:
+                    logger.warning(f"Impossible de logger l'action debug: {e}")
 
             # Supprimer le message de commande
             try:
@@ -301,6 +393,22 @@ class FaerunBot(discord.Client):
             embed.add_field(name="Rôle Admin",
                             value=f"`{Config.ADMIN_ROLE_NAME}`",
                             inline=True)
+
+            # NOUVEAU : Statut des loggers
+            discord_status = "✅ Actif" if self.discord_logger else "❌ Inactif"
+            daily_status = "✅ Actif" if self.daily_logger else "❌ Inactif"
+            embed.add_field(name="Discord Logger", value=discord_status, inline=True)
+            embed.add_field(name="Daily Logger", value=daily_status, inline=True)
+
+            # NOUVEAU : Statut détaillé Discord Logger
+            if self.discord_logger:
+                try:
+                    status = self.discord_logger.get_status()
+                    cooldown_status = "⏸️ Actif" if status['in_cooldown'] else "✅ Inactif"
+                    embed.add_field(name="Logger Cooldown", value=cooldown_status, inline=True)
+                    embed.add_field(name="Erreurs Logger", value=f"{status['error_count']}/{status['max_errors']}", inline=True)
+                except Exception as e:
+                    logger.warning(f"Impossible de récupérer le statut du Discord Logger: {e}")
 
             # Lister les commandes
             cmd_list = "\n".join(
@@ -348,10 +456,14 @@ class FaerunBot(discord.Client):
                 await send_permission_denied(message.channel)
                 return
 
-            # Log de l'action admin
-            self.discord_logger.admin_action(
-                "Rechargement Commandes", message.author,
-                "Commande !reload_commands utilisée")
+            # CORRECTION : Log de l'action admin avec protection
+            if self.discord_logger:
+                try:
+                    self.discord_logger.admin_action(
+                        "Rechargement Commandes", message.author,
+                        "Commande !reload_commands utilisée")
+                except Exception as e:
+                    logger.warning(f"Impossible de logger l'action reload: {e}")
 
             # Supprimer le message de commande
             try:
@@ -391,11 +503,15 @@ class FaerunBot(discord.Client):
 
                 await status_msg.edit(embed=embed)
 
-                # Log de succès
-                self.discord_logger.info(
-                    f"Rechargement des commandes réussi - {len(synced)} commandes",
-                    user=f"{message.author.display_name} ({message.author.id})",
-                    guild=f"{message.guild.name} ({message.guild.id})")
+                # CORRECTION : Log de succès avec protection
+                if self.discord_logger:
+                    try:
+                        self.discord_logger.info(
+                            f"Rechargement des commandes réussi - {len(synced)} commandes",
+                            user=f"{message.author.display_name} ({message.author.id})",
+                            guild=f"{message.guild.name} ({message.guild.id})")
+                    except Exception as e:
+                        logger.warning(f"Impossible de logger le succès de reload: {e}")
 
                 await asyncio.sleep(10)
                 await status_msg.delete()
@@ -405,60 +521,61 @@ class FaerunBot(discord.Client):
                 embed.description = f"❌ Erreur lors du rechargement: {str(e)}"
                 await status_msg.edit(embed=embed)
 
-                # Log de l'erreur
-                self.discord_logger.error_with_traceback(
-                    "Erreur lors du rechargement des commandes",
-                    e,
-                    user=f"{message.author.display_name} ({message.author.id})",
-                    guild=f"{message.guild.name} ({message.guild.id})")
+                # CORRECTION : Log de l'erreur avec protection
+                if self.discord_logger:
+                    try:
+                        self.discord_logger.error_with_traceback(
+                            "Erreur lors du rechargement des commandes",
+                            e,
+                            user=f"{message.author.display_name} ({message.author.id})",
+                            guild=f"{message.guild.name} ({message.guild.id})")
+                    except Exception as log_e:
+                        logger.warning(f"Impossible de logger l'erreur de reload: {log_e}")
 
                 await asyncio.sleep(10)
                 await status_msg.delete()
 
-        # Nouvelle commande de test des logs
-        elif message.content.strip() == "!test_logs":
+        # NOUVEAU : Commande de reset des erreurs Discord Logger
+        elif message.content.strip() == "!reset_logger_errors":
             if not has_admin_role(message.author):
                 await send_permission_denied(message.channel)
                 return
 
-            # Supprimer le message de commande
             try:
                 await message.delete()
             except:
                 pass
 
-            # Test du système de logs
-            result = await self.discord_logger.test_logging(message.guild)
-
-            embed = discord.Embed(title="🧪 Test du Système de Logs",
-                                  color=0x3498db)
-
-            if result['channel_found']:
-                embed.add_field(name="📍 Canal Admin",
-                                value=f"#{result['channel_name']}",
-                                inline=True)
-                embed.add_field(name="✅ Permissions",
-                                value="✅" if result['can_send'] else "❌",
-                                inline=True)
-                embed.add_field(name="📨 Test Envoyé",
-                                value="✅" if result['test_sent'] else "❌",
-                                inline=True)
-
-                if result['test_sent']:
-                    embed.description = "✅ Système de logs opérationnel !"
-                    embed.color = 0x00ff00
-                else:
-                    embed.description = "⚠️ Problème de permissions ou de configuration"
-                    embed.color = 0xff9900
+            if self.discord_logger:
+                try:
+                    old_status = self.discord_logger.get_status()
+                    self.discord_logger.reset_errors()
+                    
+                    embed = discord.Embed(
+                        title="🔄 Reset Discord Logger",
+                        description="✅ Compteur d'erreurs remis à zéro",
+                        color=0x00ff00
+                    )
+                    embed.add_field(
+                        name="Avant",
+                        value=f"Erreurs: {old_status['error_count']}\nCooldown: {'Actif' if old_status['in_cooldown'] else 'Inactif'}",
+                        inline=True
+                    )
+                    embed.add_field(
+                        name="Après",
+                        value="Erreurs: 0\nCooldown: Inactif",
+                        inline=True
+                    )
+                    
+                    msg = await message.channel.send(embed=embed)
+                    await asyncio.sleep(5)
+                    await msg.delete()
+                    
+                except Exception as e:
+                    error_msg = await message.channel.send(f"❌ Erreur reset: {e}")
+                    await asyncio.sleep(5)
+                    await error_msg.delete()
             else:
-                embed.description = "❌ Canal admin non configuré"
-                embed.color = 0xff0000
-                embed.add_field(
-                    name="💡 Solution",
-                    value=
-                    "Configurez la variable CHANNEL_ADMIN_NAME ou CHANNEL_ADMIN_ID",
-                    inline=False)
-
-            msg = await message.channel.send(embed=embed)
-            await asyncio.sleep(10)
-            await msg.delete()
+                error_msg = await message.channel.send("❌ Discord Logger non disponible")
+                await asyncio.sleep(5)
+                await error_msg.delete()

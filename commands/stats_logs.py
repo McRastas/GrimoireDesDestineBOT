@@ -13,6 +13,8 @@ FONCTIONNEMENT:
 
 UTILISATION:
     /stats-logs (Façonneurs seulement)
+
+VERSION CORRIGÉE - Utilise les bonnes références de fichiers et améliore l'affichage.
 """
 
 import discord
@@ -22,6 +24,7 @@ import os
 from .base import BaseCommand
 from utils.permissions import has_admin_role
 from utils.file_logger import get_daily_logger
+from utils.discord_logger import get_discord_logger
 from config import Config
 
 
@@ -66,6 +69,8 @@ class StatsLogsCommand(BaseCommand):
             return
 
         daily_logger = get_daily_logger()
+        discord_logger = get_discord_logger()
+        
         if not daily_logger:
             await interaction.response.send_message(
                 "❌ Système de logs quotidiens non initialisé.", 
@@ -75,8 +80,9 @@ class StatsLogsCommand(BaseCommand):
         # Defer car peut prendre un moment à analyser les logs
         await interaction.response.defer(ephemeral=True)
         
-        # Analyser les logs du jour
-        stats = self._analyze_today_logs(daily_logger)
+        # CORRECTION : Analyser les logs du jour avec la bonne méthode
+        stats = daily_logger.get_today_stats()
+        file_info = daily_logger.get_file_info()  # NOUVEAU : Utilise la méthode du logger
         today_str = datetime.now().strftime('%d/%m/%Y')
         
         embed = discord.Embed(
@@ -119,6 +125,11 @@ class StatsLogsCommand(BaseCommand):
 
         # === UTILISATEURS ===
         users_text = f"**👥 Utilisateurs uniques :** {stats['unique_users']}"
+        
+        # NOUVEAU : Actions admin séparées
+        if stats['admin_actions'] > 0:
+            users_text += f"\n**🔧 Actions admin :** {stats['admin_actions']}"
+            
         embed.add_field(
             name="👤 Activité Utilisateurs",
             value=users_text,
@@ -136,7 +147,14 @@ class StatsLogsCommand(BaseCommand):
             commands_list = []
             for i, (cmd, count) in enumerate(top_commands, 1):
                 emoji = "🥇" if i == 1 else "🥈" if i == 2 else "🥉" if i == 3 else "▫️"
-                commands_list.append(f"{emoji} **{cmd}** : {count}")
+                
+                # CORRECTION : Affichage différent pour les actions admin
+                if cmd.startswith('ADMIN_'):
+                    display_name = f"🔧 {cmd[6:]}"  # Enlever "ADMIN_"
+                else:
+                    display_name = f"/{cmd}"
+                    
+                commands_list.append(f"{emoji} **{display_name}** : {count}")
             
             embed.add_field(
                 name="🏆 Commandes Populaires",
@@ -166,84 +184,75 @@ class StatsLogsCommand(BaseCommand):
         )
 
         # === INFORMATIONS FICHIER ===
-        log_file_info = self._get_log_file_info(daily_logger)
+        # CORRECTION : Utilise les informations du logger corrigé
+        file_text = f"**Fichier :** {file_info['filename']}\n**Taille :** {file_info['size_str']}"
+        
+        if not file_info['exists']:
+            file_text += "\n⚠️ *Fichier non encore créé*"
+            
         embed.add_field(
             name="📁 Fichier de Logs",
-            value=log_file_info,
+            value=file_text,
             inline=True
         )
 
+        # === STATUT DISCORD LOGGER ===
+        # NOUVEAU : Affiche le statut du Discord Logger
+        if discord_logger:
+            discord_status = discord_logger.get_status()
+            
+            if discord_status['in_cooldown']:
+                discord_text = "⏸️ **En cooldown**\n"
+                discord_text += f"Erreurs: {discord_status['error_count']}/{discord_status['max_errors']}"
+            elif discord_status['ready']:
+                discord_text = "✅ **Opérationnel**\n"
+                discord_text += f"Cache: {discord_status['cache_size']} entrées"
+            else:
+                discord_text = "⚠️ **En attente**\n"
+                discord_text += f"Cache: {discord_status['cache_size']} logs en attente"
+                
+            embed.add_field(
+                name="📢 Discord Logger",
+                value=discord_text,
+                inline=True
+            )
+
+        # === ACTIONS RECOMMANDÉES ===
+        recommendations = []
+        
+        if stats['total_commands'] == 0:
+            recommendations.append("ℹ️ Aucune activité détectée aujourd'hui")
+        elif stats['failed_commands'] > 5:
+            recommendations.append("⚠️ Taux d'erreurs élevé - vérifier les logs")
+        elif success_rate < 90:
+            recommendations.append("🔍 Analyser les causes des échecs de commandes")
+            
+        if discord_logger and discord_logger.get_status()['in_cooldown']:
+            recommendations.append("🔧 Discord Logger en cooldown - vérifier la configuration")
+            
+        if not file_info['exists']:
+            recommendations.append("📝 Fichier de logs non créé - première utilisation")
+
+        if recommendations:
+            embed.add_field(
+                name="💡 Recommandations",
+                value="\n".join(recommendations),
+                inline=False
+            )
+
+        # === COMMANDES UTILES ===
+        embed.add_field(
+            name="🛠️ Commandes Utiles",
+            value=(
+                "• `/test-logs` - Tester le système de logs\n"
+                "• `/config-channels action:test` - Vérifier la config\n"
+                "• `!debug_bot` - Informations de débogage"
+            ),
+            inline=False
+        )
+
         embed.set_footer(
-            text=f"Consulté par {interaction.user.display_name} • {Config.ADMIN_ROLE_NAME}"
+            text=f"Consulté par {interaction.user.display_name} • {Config.ADMIN_ROLE_NAME} • Fichier: {file_info['filename']}"
         )
 
         await interaction.followup.send(embed=embed)
-
-    def _analyze_today_logs(self, daily_logger) -> dict:
-        """Analyse les logs du jour actuel."""
-        today = datetime.now().strftime('%d%m%Y')
-        command_file = os.path.join(daily_logger.logs_dir, f"logs-{today}.log")  # MODIFIÉ
-        
-        stats = {
-            'total_commands': 0,
-            'successful_commands': 0,
-            'failed_commands': 0,
-            'unique_users': set(),
-            'most_used_commands': {}
-        }
-        
-        try:
-            if os.path.exists(command_file):
-                with open(command_file, 'r', encoding='utf-8') as f:
-                    for line in f:
-                        if '|' in line:
-                            parts = line.split('|')
-                            if len(parts) >= 3:
-                                status = parts[1].strip()
-                                command_part = parts[2].strip()
-                                
-                                stats['total_commands'] += 1
-                                
-                                if status == 'SUCCESS':
-                                    stats['successful_commands'] += 1
-                                elif status == 'ERROR':
-                                    stats['failed_commands'] += 1
-                                
-                                # Extraire nom de commande
-                                if command_part.startswith('/'):
-                                    cmd_name = command_part.split()[0][1:]  # Enlever le /
-                                    stats['most_used_commands'][cmd_name] = stats['most_used_commands'].get(cmd_name, 0) + 1
-                                
-                                # Extraire utilisateur (format approximatif)
-                                if 'User:' in line:
-                                    user_part = line.split('User:')[1].split('|')[0].strip()
-                                    stats['unique_users'].add(user_part)
-        
-        except Exception as e:
-            print(f"Erreur lecture stats : {e}")
-        
-        # Convertir set en nombre
-        stats['unique_users'] = len(stats['unique_users'])
-        
-        return stats
-
-    def _get_log_file_info(self, daily_logger) -> str:
-        """Récupère les informations sur le fichier de logs du jour."""
-        today = datetime.now().strftime('%d%m%Y')
-        command_file = os.path.join(daily_logger.logs_dir, f"logs-{today}.log")  # MODIFIÉ
-        
-        try:
-            if os.path.exists(command_file):
-                size = os.path.getsize(command_file)
-                if size < 1024:
-                    size_str = f"{size} bytes"
-                elif size < 1024*1024:
-                    size_str = f"{size//1024} KB"
-                else:
-                    size_str = f"{size//(1024*1024)} MB"
-                
-                return f"**Fichier :** logs-{today}.log\n**Taille :** {size_str}"  # MODIFIÉ
-            else:
-                return f"**Fichier :** logs-{today}.log\n**Statut :** Non créé"  # MODIFIÉ
-        except Exception as e:
-            return f"**Erreur :** {str(e)}"
