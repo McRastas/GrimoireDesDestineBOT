@@ -92,7 +92,7 @@ Un bot Discord spécialisé pour vos campagnes de Donjons & Dragons dans l'unive
 2. **Suivi des joueurs :** Utilisez `/mesquetes @Joueur` pour voir qui vient quand
 3. **Récompenses :** Surveillez l'engagement avec `/mentionlist`
 4. **Création :** Générez des PNJ rapidement pendant vos sessions
-5. **Administration :** Commandes spéciales disponibles si vous avez le rôle "Façonneur"
+5. **Administration :** Des commandes spéciales sont disponibles si vous avez le rôle "Façonneur"
 
 ## 📅 Le calendrier de Faerûn expliqué
 
