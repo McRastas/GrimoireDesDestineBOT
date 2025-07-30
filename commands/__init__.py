@@ -20,12 +20,13 @@ from .top_mj import TopMjCommand  # ⭐ NOUVELLE COMMANDE
 # Commandes quêtes
 from .mes_quetes import MesQuetesCommand
 
-# Générateur PNJ
+# Générateur PNJ et fiches
 from .pnj_generator import PnjGeneratorCommand
+from .maj_fiche import MajFicheCommand  # NOUVEAU
 
 # Configuration et administration
 from .config_channels import ConfigChannelsCommand
-from .stats_logs import StatsLogsCommand  # NOUVEAU
+from .stats_logs import StatsLogsCommand
 
 # Import conditionnel pour les nouvelles commandes
 try:
@@ -71,8 +72,9 @@ ALL_COMMANDS = [
     TopMjCommand,  # ⭐ AJOUT DE LA NOUVELLE COMMANDE
     MesQuetesCommand,
     PnjGeneratorCommand,
+    MajFicheCommand,  # NOUVEAU - Commande pour générer les templates de MAJ
     ConfigChannelsCommand,
-    StatsLogsCommand,  # NOUVEAU - Commande pour les stats de logs
+    StatsLogsCommand,
 ]
 
 # Ajouter les commandes optionnelles si disponibles
