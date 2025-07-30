@@ -139,12 +139,56 @@ class MajFicheCommand(BaseCommand):
         # Diviser le template en parties plus petites pour Discord
         parts = self._split_template_for_discord(template)
         
+        # Calculer la longueur totale du template
+        total_length = len(template)
+        discord_limit = 2000
+        remaining_chars = discord_limit - total_length
+        
         for i, part in enumerate(parts, 1):
+            part_length = len(part)
+            
+            # Créer l'embed avec les infos de caractères
             part_embed = discord.Embed(
                 title=f"📋 Template - Partie {i}/{len(parts)}",
                 description=f"```\n{part}\n```",
                 color=0x8B4513
             )
+            
+            # Ajouter les informations de longueur
+            if len(parts) == 1:
+                # Template complet dans un seul message
+                if remaining_chars >= 0:
+                    part_embed.add_field(
+                        name="📊 Caractères",
+                        value=f"**Longueur :** {total_length}/{discord_limit}\n**✅ Restant :** {remaining_chars} caractères",
+                        inline=True
+                    )
+                else:
+                    part_embed.add_field(
+                        name="📊 Caractères",
+                        value=f"**Longueur :** {total_length}/{discord_limit}\n**⚠️ Dépassement :** {abs(remaining_chars)} caractères",
+                        inline=True
+                    )
+                    part_embed.add_field(
+                        name="💡 Conseil",
+                        value="Template trop long pour un seul message Discord. Copiez en plusieurs fois ou réduisez le contenu.",
+                        inline=False
+                    )
+            else:
+                # Template divisé en plusieurs parties
+                part_embed.add_field(
+                    name="📊 Cette partie",
+                    value=f"**Longueur :** {part_length} caractères",
+                    inline=True
+                )
+                
+                if i == len(parts):  # Dernière partie
+                    part_embed.add_field(
+                        name="📊 Total complet",
+                        value=f"**{total_length} caractères** au total\n⚠️ Divisé car > {discord_limit}",
+                        inline=True
+                    )
+            
             await interaction.followup.send(embed=part_embed, ephemeral=True)
 
     def _generate_template(
