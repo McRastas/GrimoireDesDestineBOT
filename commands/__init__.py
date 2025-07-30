@@ -22,7 +22,8 @@ from .mes_quetes import MesQuetesCommand
 
 # Générateur PNJ et fiches
 from .pnj_generator import PnjGeneratorCommand
-from .maj_fiche import MajFicheCommand  # NOUVEAU
+from .maj_fiche import MajFicheCommand
+from .verifier_maj import VerifierMajCommand  # NOUVEAU
 
 # Configuration et administration
 from .config_channels import ConfigChannelsCommand
@@ -73,6 +74,7 @@ ALL_COMMANDS = [
     MesQuetesCommand,
     PnjGeneratorCommand,
     MajFicheCommand,  # NOUVEAU - Commande pour générer les templates de MAJ
+    VerifierMajCommand,  # NOUVEAU - Vérificateur de template de fiche
     ConfigChannelsCommand,
     StatsLogsCommand,
 ]
