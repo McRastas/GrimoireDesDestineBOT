@@ -13,7 +13,7 @@ class VerifierMajCommand(BaseCommand):
 
     @property
     def description(self) -> str:
-        return "Vérifie si un message respecte le template de mise à jour de fiche D&D"
+        return "Vérifie et propose des ajustements pour un template de mise à jour de fiche D&D"
 
     def register(self, tree: app_commands.CommandTree):
         """Enregistrement avec paramètre d'ID de message"""
@@ -21,20 +21,27 @@ class VerifierMajCommand(BaseCommand):
         @tree.command(name=self.name, description=self.description)
         @app_commands.describe(
             message_id="ID du message à vérifier",
-            canal="Canal où se trouve le message (optionnel, par défaut le canal actuel)"
+            canal="Canal où se trouve le message (optionnel, par défaut le canal actuel)",
+            proposer_corrections="Proposer des corrections automatiques"
         )
+        @app_commands.choices(proposer_corrections=[
+            app_commands.Choice(name="Oui, proposer des ajustements", value="oui"),
+            app_commands.Choice(name="Non, vérification seulement", value="non")
+        ])
         async def verifier_maj_command(
             interaction: discord.Interaction,
             message_id: str,
-            canal: discord.TextChannel = None
+            canal: discord.TextChannel = None,
+            proposer_corrections: str = "oui"
         ):
-            await self.callback(interaction, message_id, canal)
+            await self.callback(interaction, message_id, canal, proposer_corrections == "oui")
 
     async def callback(
         self, 
         interaction: discord.Interaction, 
         message_id: str, 
-        canal: discord.TextChannel = None
+        canal: discord.TextChannel = None,
+        proposer_corrections: bool = True
     ):
         try:
             # Utiliser le canal spécifié ou le canal actuel
@@ -75,10 +82,19 @@ class VerifierMajCommand(BaseCommand):
             # Effectuer la vérification
             verification_result = self._verify_template(content)
             
+            # Générer des suggestions si demandé
+            suggestions = None
+            if proposer_corrections and verification_result['score'] < verification_result['total_checks']:
+                suggestions = self._generate_suggestions(content, verification_result)
+            
             # Créer l'embed de résultat
-            embed = self._create_verification_embed(message, verification_result)
+            embed = self._create_verification_embed(message, verification_result, suggestions)
             
             await interaction.response.send_message(embed=embed, ephemeral=True)
+            
+            # Envoyer le template corrigé si des corrections sont disponibles
+            if suggestions and suggestions.get('corrected_template'):
+                await self._send_corrected_template(interaction, suggestions['corrected_template'])
 
         except Exception as e:
             await interaction.response.send_message(
@@ -96,7 +112,8 @@ class VerifierMajCommand(BaseCommand):
             'sections_missing': [],
             'warnings': [],
             'suggestions': [],
-            'details': {}
+            'details': {},
+            'placeholders': []
         }
         
         # Éléments obligatoires à vérifier
@@ -114,13 +131,6 @@ class VerifierMajCommand(BaseCommand):
             'fiche_maj': r'\*Fiche R20 à jour\.\*'
         }
         
-        # Éléments optionnels
-        optional_patterns = {
-            'separator_marchand_start': r'\*\*\s*/\s*=+\s*Marchand\s*=+\s*\\\s*\*\*',
-            'separator_marchand_end': r'\*\*\s*\\\s*=+\s*Marchand\s*=+\s*/\s*\*\*',
-            'inventaire': r'\*\*¤\s*Inventaire\*\*'
-        }
-        
         # Vérifier les éléments obligatoires
         result['total_checks'] = len(required_patterns)
         
@@ -136,11 +146,6 @@ class VerifierMajCommand(BaseCommand):
             else:
                 result['sections_missing'].append(key)
         
-        # Vérifier les éléments optionnels
-        for key, pattern in optional_patterns.items():
-            if re.search(pattern, content, re.IGNORECASE | re.MULTILINE):
-                result['sections_found'].append(key)
-        
         # Analyser la structure et donner des conseils
         self._analyze_structure(content, result)
         
@@ -150,20 +155,6 @@ class VerifierMajCommand(BaseCommand):
         """Analyse la structure et ajoute des suggestions"""
         
         lines = content.split('\n')
-        
-        # Vérifier l'ordre des sections
-        section_order = []
-        for i, line in enumerate(lines):
-            if 'Nom du PJ' in line:
-                section_order.append(('nom_pj', i))
-            elif 'Classe' in line:
-                section_order.append(('classe', i))
-            elif re.search(r'\*\*Quête\s*:\*\*', line, re.IGNORECASE):
-                section_order.append(('quete', i))
-            elif re.search(r'\*\*Solde XP\s*:\*\*', line, re.IGNORECASE):
-                section_order.append(('solde_xp', i))
-            elif re.search(r'\*\*Gain de niveau\s*:\*\*', line, re.IGNORECASE):
-                section_order.append(('gain_niveau', i))
         
         # Vérifier les calculs XP
         xp_line = None
@@ -181,16 +172,11 @@ class VerifierMajCommand(BaseCommand):
                     result['warnings'].append("Format de calcul XP non standard")
         
         # Vérifier les placeholders non remplis
-        placeholder_count = len(re.findall(r'\[([A-Z_]+)\]', content))
-        if placeholder_count > 0:
-            result['warnings'].append(f"{placeholder_count} placeholder(s) non rempli(s) trouvé(s)")
+        placeholders = re.findall(r'\[([A-Z_]+)\]', content)
+        result['placeholders'] = list(set(placeholders))  # Supprimer les doublons
         
-        # Suggestions selon les sections manquantes
-        if 'separator_marchand_start' in result['sections_found']:
-            result['suggestions'].append("✅ Section Marchand détectée")
-        
-        if 'inventaire' in result['sections_found']:
-            result['suggestions'].append("✅ Section Inventaire détectée")
+        if len(result['placeholders']) > 0:
+            result['warnings'].append(f"{len(result['placeholders'])} placeholder(s) non rempli(s) : {', '.join(result['placeholders'][:5])}")
         
         # Vérifier la longueur
         char_count = len(content)
@@ -199,8 +185,175 @@ class VerifierMajCommand(BaseCommand):
         elif char_count < 300:
             result['warnings'].append("Message très court - Vérifiez si toutes les sections sont présentes")
 
-    def _create_verification_embed(self, message: discord.Message, result: dict) -> discord.Embed:
-        """Crée l'embed avec les résultats de vérification"""
+    def _generate_suggestions(self, original_content: str, verification_result: dict) -> dict:
+        """Génère des suggestions d'amélioration et un template corrigé"""
+        
+        suggestions = {
+            'corrections': [],
+            'ameliorations': [],
+            'corrected_template': None,
+            'automatic_fixes': []
+        }
+        
+        corrected_content = original_content
+        
+        # 1. CORRECTIONS AUTOMATIQUES DES SÉPARATEURS
+        if 'separator_pj_start' in verification_result['sections_missing']:
+            suggestions['automatic_fixes'].append("Ajout du séparateur de début PJ")
+            # Trouver où insérer le séparateur (après Classe)
+            if 'Classe' in corrected_content:
+                corrected_content = re.sub(
+                    r'(Classe\s*:\s*.+)',
+                    r'\1\n\n** / =======================  PJ  ========================= \\ **',
+                    corrected_content,
+                    count=1
+                )
+        
+        if 'separator_pj_end' in verification_result['sections_missing']:
+            suggestions['automatic_fixes'].append("Ajout du séparateur de fin PJ")
+            # Insérer avant le solde final
+            if '*Solde' in corrected_content:
+                corrected_content = re.sub(
+                    r'(\*\*¤\s*Solde\s*:\*\*)',
+                    r'** \\ =======================  PJ  ========================= / **\n\n\1',
+                    corrected_content,
+                    count=1
+                )
+        
+        # 2. CORRECTIONS DES SECTIONS MANQUANTES
+        missing_sections = verification_result['sections_missing']
+        
+        if 'quete' in missing_sections:
+            suggestions['corrections'].append({
+                'section': 'Quête',
+                'correction': '**Quête :** [TITRE_QUETE] + [NOM_MJ] ⁠- [LIEN_MESSAGE_RECOMPENSES]',
+                'position': 'Après les séparateurs PJ'
+            })
+        
+        if 'solde_xp' in missing_sections:
+            suggestions['corrections'].append({
+                'section': 'Solde XP',
+                'correction': '**Solde XP :** [XP_ACTUELS]/[XP_REQUIS] + [XP_OBTENUS] = [NOUVEAUX_XP]/[XP_REQUIS] -> 🆙 passage au niveau [NOUVEAU_NIVEAU]',
+                'position': 'Après la section Quête'
+            })
+        
+        if 'gain_niveau' in missing_sections:
+            suggestions['corrections'].append({
+                'section': 'Gain de niveau',
+                'correction': '**Gain de niveau :**\nPV : [ANCIENS_PV] + [PV_OBTENUS] = [NOUVEAUX_PV]',
+                'position': 'Après Solde XP'
+            })
+        
+        if 'capacites' in missing_sections:
+            suggestions['corrections'].append({
+                'section': 'Capacités et sorts',
+                'correction': '**¤ Capacités et sorts supplémentaires :**\nNouvelle(s) capacité(s) :\n- [CAPACITE_1]\n- [CAPACITE_2]\nNouveau(x) sort(s) :\n- [SORT_1]\n- [SORT_2]',
+                'position': 'Après Gain de niveau'
+            })
+        
+        # 3. AMÉLIORATIONS SUGGÉRÉES
+        if verification_result['placeholders']:
+            suggestions['ameliorations'].append({
+                'type': 'Placeholders à remplir',
+                'description': f"Remplacer les placeholders : {', '.join(verification_result['placeholders'][:10])}",
+                'priority': 'Haute'
+            })
+        
+        # Suggestions basées sur le contenu détecté
+        if 'nom_pj' in verification_result['details']:
+            nom_pj = verification_result['details']['nom_pj']
+            if '[' in nom_pj:
+                suggestions['ameliorations'].append({
+                    'type': 'Nom du PJ',
+                    'description': f"Remplacer '{nom_pj}' par le vrai nom du personnage",
+                    'priority': 'Haute'
+                })
+        
+        if 'classe' in verification_result['details']:
+            classe = verification_result['details']['classe']
+            if '[' in classe:
+                suggestions['ameliorations'].append({
+                    'type': 'Classe',
+                    'description': f"Remplacer '{classe}' par la vraie classe du personnage",
+                    'priority': 'Haute'
+                })
+        
+        # 4. SUGGESTIONS POUR LES CALCULS
+        if 'solde_xp' in verification_result['details']:
+            xp_line = verification_result['details']['solde_xp']
+            if '[' in xp_line:
+                suggestions['ameliorations'].append({
+                    'type': 'Calculs XP',
+                    'description': "Compléter les calculs d'expérience avec les vrais chiffres",
+                    'priority': 'Moyenne'
+                })
+        
+        # 5. SUGGESTIONS DE FORMATAGE
+        if len(original_content) > 1800:
+            suggestions['ameliorations'].append({
+                'type': 'Longueur du message',
+                'description': "Considérer diviser en plusieurs messages pour Discord",
+                'priority': 'Basse'
+            })
+        
+        # 6. GÉNÉRER UN TEMPLATE PARTIELLEMENT CORRIGÉ
+        if suggestions['automatic_fixes']:
+            suggestions['corrected_template'] = self._apply_automatic_fixes(corrected_content, verification_result)
+        
+        return suggestions
+
+    def _apply_automatic_fixes(self, content: str, verification_result: dict) -> str:
+        """Applique les corrections automatiques possibles"""
+        
+        corrected = content
+        
+        # Correction des séparateurs manquants
+        if 'separator_pj_start' in verification_result['sections_missing']:
+            if '** /' not in corrected and 'Classe' in corrected:
+                corrected = re.sub(
+                    r'(Classe\s*:\s*.+?)(\n|$)',
+                    r'\1\n\n** / =======================  PJ  ========================= \\ **\n',
+                    corrected,
+                    count=1,
+                    flags=re.MULTILINE
+                )
+        
+        if 'separator_pj_end' in verification_result['sections_missing']:
+            if '** \\' not in corrected and 'Solde' in corrected:
+                corrected = re.sub(
+                    r'(\*\*¤\s*Solde\s*:\*\*)',
+                    r'** \\ =======================  PJ  ========================= / **\n\n\1',
+                    corrected,
+                    count=1
+                )
+        
+        # Ajout des sections manquantes de base
+        missing = verification_result['sections_missing']
+        
+        # Insérer les sections manquantes dans l'ordre logique
+        if 'quete' in missing and '**Quête' not in corrected:
+            if '** /' in corrected:
+                corrected = re.sub(
+                    r'(\*\* / =+ PJ =+ \\ \*\*\n)',
+                    r'\1**Quête :** [TITRE_QUETE] + [NOM_MJ] ⁠- [LIEN_MESSAGE_RECOMPENSES]\n',
+                    corrected,
+                    count=1
+                )
+        
+        if 'solde_xp' in missing and '**Solde XP' not in corrected:
+            if '**Quête' in corrected:
+                corrected = re.sub(
+                    r'(\*\*Quête\s*:\*\*.*?\n)',
+                    r'\1**Solde XP :** [XP_ACTUELS]/[XP_REQUIS] + [XP_OBTENUS] = [NOUVEAUX_XP]/[XP_REQUIS] -> 🆙 passage au niveau [NOUVEAU_NIVEAU]\n\n',
+                    corrected,
+                    count=1,
+                    flags=re.DOTALL
+                )
+        
+        return corrected
+
+    def _create_verification_embed(self, message: discord.Message, result: dict, suggestions: dict = None) -> discord.Embed:
+        """Crée l'embed avec les résultats de vérification et suggestions"""
         
         # Calculer le pourcentage de conformité
         score_percentage = (result['score'] / result['total_checks']) * 100 if result['total_checks'] > 0 else 0
@@ -224,7 +377,7 @@ class VerifierMajCommand(BaseCommand):
             status_text = "Insuffisant"
         
         embed = discord.Embed(
-            title=f"{status_emoji} Vérification du Template de MAJ",
+            title=f"{status_emoji} Vérification + Suggestions de MAJ",
             description=f"**Statut :** {status_text} ({score_percentage:.0f}%)",
             color=color
         )
@@ -257,8 +410,42 @@ class VerifierMajCommand(BaseCommand):
                 inline=True
             )
         
-        # Sections manquantes (si il y en a)
-        if result['sections_missing']:
+        # NOUVEAU : Corrections automatiques disponibles
+        if suggestions and suggestions.get('automatic_fixes'):
+            fixes_text = "\n".join([f"✅ {fix}" for fix in suggestions['automatic_fixes'][:3]])
+            embed.add_field(
+                name="🔧 Corrections automatiques appliquées",
+                value=fixes_text,
+                inline=False
+            )
+        
+        # NOUVEAU : Suggestions de corrections
+        if suggestions and suggestions.get('corrections'):
+            corrections_text = []
+            for correction in suggestions['corrections'][:3]:
+                corrections_text.append(f"**{correction['section']}** - {correction['position']}")
+            
+            embed.add_field(
+                name="🛠️ Sections à ajouter",
+                value="\n".join(corrections_text),
+                inline=False
+            )
+        
+        # NOUVEAU : Améliorations suggérées
+        if suggestions and suggestions.get('ameliorations'):
+            ameliorations_text = []
+            for amelioration in suggestions['ameliorations'][:3]:
+                priority_emoji = {"Haute": "🔴", "Moyenne": "🟡", "Basse": "🟢"}.get(amelioration['priority'], "⚪")
+                ameliorations_text.append(f"{priority_emoji} **{amelioration['type']}** : {amelioration['description']}")
+            
+            embed.add_field(
+                name="💡 Améliorations suggérées",
+                value="\n".join(ameliorations_text),
+                inline=False
+            )
+        
+        # Sections manquantes (si il y en a et pas de suggestions)
+        if result['sections_missing'] and not suggestions:
             missing_labels = {
                 'nom_pj': 'Nom du PJ',
                 'classe': 'Classe',
@@ -291,19 +478,11 @@ class VerifierMajCommand(BaseCommand):
                 inline=False
             )
         
-        # Suggestions
-        if result['suggestions']:
-            embed.add_field(
-                name="💡 Suggestions",
-                value="\n".join([f"• {s}" for s in result['suggestions'][:3]]),
-                inline=False
-            )
-        
         # Conseils selon le score
         if score_percentage < 70:
             embed.add_field(
-                name="🛠️ Recommandations",
-                value="• Utilisez `/maj-fiche` pour générer un template correct\n• Vérifiez que toutes les sections obligatoires sont présentes\n• Respectez le format avec les séparateurs `** / === PJ === \\ **`",
+                name="🎯 Actions recommandées",
+                value="• Consultez le template corrigé ci-dessous\n• Utilisez `/maj-fiche` pour un nouveau template\n• Complétez les placeholders [EN_MAJUSCULES]\n• Vérifiez les calculs XP et PV",
                 inline=False
             )
         
@@ -314,7 +493,91 @@ class VerifierMajCommand(BaseCommand):
             inline=True
         )
         
-        embed.set_footer(text=f"Vérification effectuée • Message ID: {message.id}")
+        embed.set_footer(text=f"Vérification avec suggestions • Message ID: {message.id}")
         embed.timestamp = discord.utils.utcnow()
         
         return embed
+
+    async def _send_corrected_template(self, interaction: discord.Interaction, corrected_template: str):
+        """Envoie le template corrigé en follow-up"""
+        
+        # Diviser le template si trop long
+        max_length = 1900
+        
+        if len(corrected_template) <= max_length:
+            # Template complet
+            embed = discord.Embed(
+                title="🔧 Template Corrigé",
+                description=f"Voici votre template avec les corrections automatiques appliquées :",
+                color=0x2ecc71
+            )
+            
+            embed.add_field(
+                name="📋 Template amélioré",
+                value=f"```\n{corrected_template}\n```",
+                inline=False
+            )
+            
+            embed.add_field(
+                name="✅ Corrections appliquées",
+                value="• Séparateurs PJ ajoutés\n• Sections manquantes insérées\n• Structure améliorée",
+                inline=False
+            )
+            
+            embed.add_field(
+                name="📝 Prochaines étapes",
+                value="1. Copiez le template corrigé\n2. Remplacez les placeholders [EN_MAJUSCULES]\n3. Complétez les calculs XP et PV\n4. Vérifiez les informations personnage",
+                inline=False
+            )
+            
+            await interaction.followup.send(embed=embed, ephemeral=True)
+        
+        else:
+            # Template trop long - diviser
+            embed = discord.Embed(
+                title="🔧 Template Corrigé (Partie 1)",
+                description="Template trop long - divisé en plusieurs parties",
+                color=0x2ecc71
+            )
+            
+            parts = self._split_template_for_discord(corrected_template)
+            
+            for i, part in enumerate(parts, 1):
+                part_embed = discord.Embed(
+                    title=f"🔧 Template Corrigé - Partie {i}/{len(parts)}",
+                    description=f"```\n{part}\n```",
+                    color=0x2ecc71
+                )
+                
+                if i == len(parts):  # Dernière partie
+                    part_embed.add_field(
+                        name="✅ Corrections appliquées",
+                        value="• Séparateurs PJ ajoutés\n• Sections manquantes insérées\n• Structure améliorée",
+                        inline=False
+                    )
+                
+                await interaction.followup.send(embed=part_embed, ephemeral=True)
+
+    def _split_template_for_discord(self, template: str) -> list:
+        """Divise le template pour respecter les limites Discord"""
+        max_length = 1900
+        parts = []
+        
+        if len(template) <= max_length:
+            return [template]
+        
+        lines = template.split('\n')
+        current_part = ""
+        
+        for line in lines:
+            if len(current_part + line + '\n') > max_length:
+                if current_part:
+                    parts.append(current_part.rstrip())
+                current_part = line + '\n'
+            else:
+                current_part += line + '\n'
+        
+        if current_part:
+            parts.append(current_part.rstrip())
+        
+        return parts
