@@ -54,10 +54,8 @@ class MajFicheCommand(BaseCommand):
     
     def __init__(self, bot):
         super().__init__(bot)
-        self.slash_command = MajFicheSlashCommand(bot)  # ✅ PASSAGE de bot à MajFicheSlashCommand
+        self.slash_command = MajFicheSlashCommand(bot)  # ✅ CORRECTION: Passage de bot
         self.template_generator = TemplateGenerator()
-    
-    # ... reste de la classe inchangé ...
     
     @property
     def name(self) -> str:
@@ -66,6 +64,8 @@ class MajFicheCommand(BaseCommand):
     @property
     def description(self) -> str:
         return "Génère un template de mise à jour de fiche de personnage D&D"
+    
+    # ... reste de la classe identique ...
     
     def register(self, tree: app_commands.CommandTree):
         """

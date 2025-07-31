@@ -11,8 +11,8 @@ class MajFicheBaseCommand(BaseCommand):
     Contient les méthodes utilitaires et la logique de validation partagée.
     """
 
-    def __init__(self, bot):  # ✅ AJOUT du paramètre bot
-        super().__init__(bot)   # ✅ PASSAGE de bot au parent
+    def __init__(self, bot):  # ✅ CORRECTION: Ajout du paramètre bot
+        super().__init__(bot)   # ✅ CORRECTION: Passage de bot au parent
         
         # Dictionnaire des classes D&D avec émojis pour réutilisation
         self.CLASSES_CHOICES = [
@@ -58,77 +58,62 @@ class MajFicheBaseCommand(BaseCommand):
         """
         Valide les paramètres d'entrée et retourne la liste des erreurs.
         
-        Args:
-            nom_pj: Nom du personnage
-            classe: Classe du personnage  
-            niveau_actuel: Niveau actuel du personnage
-            niveau_cible: Niveau cible du personnage
-            xp_actuels: Points d'expérience actuels
-            xp_obtenus: Points d'expérience obtenus
-            
         Returns:
-            List[str]: Liste des messages d'erreur (vide si pas d'erreur)
+            List[str]: Liste des erreurs de validation (vide si tout est OK)
         """
-        validation_errors = []
+        errors = []
+        
+        # Validation du nom
+        if not nom_pj or len(nom_pj.strip()) < 2:
+            errors.append("❌ Le nom du PJ doit contenir au moins 2 caractères")
         
         # Validation des niveaux
         if niveau_actuel and niveau_cible:
-            if niveau_cible <= niveau_actuel:
-                validation_errors.append(
-                    f"❌ Niveau cible ({niveau_cible}) doit être supérieur au niveau actuel ({niveau_actuel})"
-                )
-            if niveau_cible - niveau_actuel > 1:
-                validation_errors.append(
-                    f"⚠️ Attention : Passage de {niveau_actuel} à {niveau_cible} (+{niveau_cible - niveau_actuel} niveaux)"
-                )
+            if niveau_actuel >= niveau_cible:
+                errors.append(f"⚠️ Le niveau cible ({niveau_cible}) doit être supérieur au niveau actuel ({niveau_actuel})")
+            if niveau_cible - niveau_actuel > 5:
+                errors.append(f"⚠️ Progression de {niveau_cible - niveau_actuel} niveaux - vérifiez si c'est correct")
         
         # Validation des XP
         if xp_actuels is not None and xp_actuels < 0:
-            validation_errors.append("❌ Les XP actuels ne peuvent pas être négatifs")
-            
+            errors.append("❌ Les XP actuels ne peuvent pas être négatifs")
         if xp_obtenus is not None and xp_obtenus < 0:
-            validation_errors.append("❌ Les XP obtenus ne peuvent pas être négatifs")
+            errors.append("❌ Les XP obtenus ne peuvent pas être négatifs")
+        
+        return errors
 
-        # Validation du nom (pas vide)
-        if not nom_pj or nom_pj.strip() == "":
-            validation_errors.append("❌ Le nom du personnage ne peut pas être vide")
-
-        return validation_errors
-
-    def calculate_xp_progression(
+    def format_progression_info(
         self, 
-        niveau_actuel: Optional[int], 
+        niveau_actuel: Optional[int],
         niveau_cible: Optional[int],
-        xp_actuels: Optional[int] = None,
-        xp_obtenus: Optional[int] = None
-    ) -> Dict[str, Any]:
+        xp_actuels: Optional[int],
+        xp_obtenus: Optional[int]
+    ) -> Dict[str, any]:
         """
-        Calcule la progression d'XP et les informations de niveau.
+        Formate les informations de progression pour l'affichage.
         
         Returns:
-            Dict contenant les informations calculées d'XP et de niveau
+            Dict contenant les infos formatées et calculs
         """
-        result = {
-            'text_niveau': '',
-            'text_xp': '',
-            'nouveau_total_xp': None,
-            'progression_info': ''
-        }
-
-        # Tableau XP par niveau D&D 5e
         xp_table = {
             1: 0, 2: 300, 3: 900, 4: 2700, 5: 6500,
             6: 14000, 7: 23000, 8: 34000, 9: 48000, 10: 64000,
             11: 85000, 12: 100000, 13: 120000, 14: 140000, 15: 165000,
             16: 195000, 17: 225000, 18: 265000, 19: 305000, 20: 355000
         }
-
-        # Gestion du niveau
+        
+        result = {
+            'text_niveau': 'Non spécifié',
+            'text_xp': 'Non spécifié',
+            'progression_info': '',
+            'nouveau_total_xp': None
+        }
+        
+        # Formatage des niveaux
         if niveau_actuel and niveau_cible:
             result['text_niveau'] = f"Niveau {niveau_actuel} → **Niveau {niveau_cible}**"
-            
             if niveau_cible - niveau_actuel == 1:
-                result['progression_info'] = f"🎉 Passage au niveau supérieur !"
+                result['progression_info'] = f"🎉 Passage au niveau {niveau_cible} !"
             else:
                 result['progression_info'] = f"🚀 Progression de {niveau_cible - niveau_actuel} niveaux !"
                 
@@ -211,38 +196,23 @@ class MajFicheBaseCommand(BaseCommand):
         """
         color = self.get_embed_validation_color(validation_errors)
         
-        if not validation_errors:
-            embed = discord.Embed(
-                title="✅ Validation réussie",
-                description=f"Template généré pour **{nom_pj}** ({classe})",
-                color=color
+        embed = discord.Embed(
+            title="⚠️ Validation du template",
+            description=f"Template pour **{nom_pj}** ({classe})",
+            color=color
+        )
+        
+        if validation_errors:
+            embed.add_field(
+                name="Problèmes détectés",
+                value="\n".join(validation_errors),
+                inline=False
             )
         else:
-            embed = discord.Embed(
-                title="⚠️ Problèmes détectés",
-                description=f"Validation pour **{nom_pj}** ({classe})",
-                color=color
+            embed.add_field(
+                name="✅ Validation réussie",
+                value="Tous les paramètres sont corrects !",
+                inline=False
             )
             
-            # Séparer erreurs critiques et avertissements
-            critical_errors = [e for e in validation_errors if "❌" in e]
-            warnings = [e for e in validation_errors if "⚠️" in e]
-            
-            if critical_errors:
-                embed.add_field(
-                    name="Erreurs critiques",
-                    value="\n".join(critical_errors),
-                    inline=False
-                )
-            
-            if warnings:
-                embed.add_field(
-                    name="Avertissements",
-                    value="\n".join(warnings),
-                    inline=False
-                )
-        
-        embed.set_footer(text="Bot Faerun • Système de mise à jour de fiches")
-        embed.timestamp = discord.utils.utcnow()
-        
         return embed
