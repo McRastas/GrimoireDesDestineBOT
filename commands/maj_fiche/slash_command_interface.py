@@ -16,11 +16,9 @@ class MajFicheSlashCommand(MajFicheBaseCommand):
     VERSION CORRIGÉE - Gestion simplifiée des réponses Discord
     """
 
-    def __init__(self, bot):  # ✅ AJOUT du paramètre bot
-        super().__init__(bot)   # ✅ PASSAGE de bot au parent
+    def __init__(self, bot):  # ✅ CORRECTION: Ajout du paramètre bot
+        super().__init__(bot)   # ✅ CORRECTION: Passage de bot au parent
         self.template_generator = TemplateGenerator()
-
-    # ... reste du fichier inchangé ...
 
     @property
     def name(self) -> str:
@@ -29,6 +27,8 @@ class MajFicheSlashCommand(MajFicheBaseCommand):
     @property
     def description(self) -> str:
         return "Génère un template de mise à jour de fiche de personnage D&D"
+
+    # ... reste du fichier identique ...
 
     def register(self, tree: app_commands.CommandTree):
         """Enregistrement de la commande slash avec tous les paramètres et choix."""
