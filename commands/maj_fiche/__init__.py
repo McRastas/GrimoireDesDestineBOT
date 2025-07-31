@@ -54,8 +54,10 @@ class MajFicheCommand(BaseCommand):
     
     def __init__(self, bot):
         super().__init__(bot)
-        self.slash_command = MajFicheSlashCommand()
+        self.slash_command = MajFicheSlashCommand(bot)  # ✅ PASSAGE de bot à MajFicheSlashCommand
         self.template_generator = TemplateGenerator()
+    
+    # ... reste de la classe inchangé ...
     
     @property
     def name(self) -> str:

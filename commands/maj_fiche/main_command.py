@@ -1,4 +1,4 @@
-# commands/maj_fiche_base.py
+# commands/maj_fiche/main_command.py
 import discord
 from discord import app_commands
 from ..base import BaseCommand
@@ -11,8 +11,9 @@ class MajFicheBaseCommand(BaseCommand):
     Contient les méthodes utilitaires et la logique de validation partagée.
     """
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, bot):  # ✅ AJOUT du paramètre bot
+        super().__init__(bot)   # ✅ PASSAGE de bot au parent
+        
         # Dictionnaire des classes D&D avec émojis pour réutilisation
         self.CLASSES_CHOICES = [
             app_commands.Choice(name="🗡️ Guerrier", value="Guerrier"),
