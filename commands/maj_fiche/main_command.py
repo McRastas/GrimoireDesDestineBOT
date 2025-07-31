@@ -1,7 +1,7 @@
 # commands/maj_fiche_base.py
 import discord
 from discord import app_commands
-from .base import BaseCommand
+from ..base import BaseCommand
 from typing import Optional, List, Dict, Any
 
 
