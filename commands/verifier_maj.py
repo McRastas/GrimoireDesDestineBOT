@@ -92,9 +92,15 @@ class VerifierMajCommand(BaseCommand):
             
             await interaction.response.send_message(embed=embed, ephemeral=True)
             
-            # Envoyer le template corrigé si des corrections sont disponibles
+            # NOUVEAU : Envoyer TOUJOURS le template (original ou corrigé)
+            template_to_send = None
             if suggestions and suggestions.get('corrected_template'):
-                await self._send_corrected_template(interaction, suggestions['corrected_template'])
+                template_to_send = suggestions['corrected_template']
+            else:
+                # Même si parfait, renvoyer le template original nettoyé
+                template_to_send = self._clean_template(content)
+            
+            await self._send_corrected_template(interaction, template_to_send, suggestions)
 
         except Exception as e:
             await interaction.response.send_message(
@@ -300,7 +306,39 @@ class VerifierMajCommand(BaseCommand):
         if suggestions['automatic_fixes']:
             suggestions['corrected_template'] = self._apply_automatic_fixes(corrected_content, verification_result)
         
-        return suggestions
+    def _clean_template(self, content: str) -> str:
+        """Nettoie et optimise le template même s'il est déjà correct"""
+        
+        cleaned = content.strip()
+        
+        # Normaliser les espaces multiples
+        cleaned = re.sub(r'\n{3,}', '\n\n', cleaned)
+        
+        # Normaliser les séparateurs
+        cleaned = re.sub(
+            r'\*\*\s*/\s*=+\s*PJ\s*=+\s*\\\s*\*\*',
+            '** / =======================  PJ  ========================= \\ **',
+            cleaned
+        )
+        cleaned = re.sub(
+            r'\*\*\s*\\\s*=+\s*PJ\s*=+\s*/\s*\*\*',
+            '** \\ =======================  PJ  ========================= / **',
+            cleaned
+        )
+        
+        # Normaliser les sections Marchand si présentes
+        cleaned = re.sub(
+            r'\*\*\s*/\s*=+\s*Marchand\s*=+\s*\\\s*\*\*',
+            '**/ ===================== Marchand ===================== \\\ **',
+            cleaned
+        )
+        cleaned = re.sub(
+            r'\*\*\s*\\\s*=+\s*Marchand\s*=+\s*/\s*\*\*',
+            '** \\ ==================== Marchand ====================== / **',
+            cleaned
+        )
+        
+        return cleaned
 
     def _apply_automatic_fixes(self, content: str, verification_result: dict) -> str:
         """Applique les corrections automatiques possibles"""
@@ -478,18 +516,24 @@ class VerifierMajCommand(BaseCommand):
                 inline=False
             )
         
-        # Conseils selon le score
+        # Conseils selon le score avec mention systématique du template
         if score_percentage < 70:
             embed.add_field(
                 name="🎯 Actions recommandées",
-                value="• Consultez le template corrigé ci-dessous\n• Utilisez `/maj-fiche` pour un nouveau template\n• Complétez les placeholders [EN_MAJUSCULES]\n• Vérifiez les calculs XP et PV",
+                value="• **Consultez le template corrigé ci-dessous**\n• Utilisez `/maj-fiche` pour un nouveau template\n• Complétez les placeholders [EN_MAJUSCULES]\n• Vérifiez les calculs XP et PV",
+                inline=False
+            )
+        else:
+            embed.add_field(
+                name="🎯 Prochaines étapes",
+                value="• **Récupérez le template optimisé ci-dessous**\n• Vérifiez les derniers détails\n• Complétez les éventuels placeholders\n• Votre MAJ est presque prête !",
                 inline=False
             )
         
         # Lien vers le message
         embed.add_field(
             name="🔗 Actions",
-            value=f"[📖 Voir le message original]({message.jump_url})",
+            value=f"[📖 Voir le message original]({message.jump_url})\n📋 **Template amélioré envoyé ci-dessous**",
             inline=True
         )
         
@@ -498,65 +542,159 @@ class VerifierMajCommand(BaseCommand):
         
         return embed
 
-    async def _send_corrected_template(self, interaction: discord.Interaction, corrected_template: str):
-        """Envoie le template corrigé en follow-up"""
+    async def _send_corrected_template(self, interaction: discord.Interaction, template: str, suggestions: dict = None):
+        """Envoie TOUJOURS le template (corrigé ou nettoyé) en follow-up"""
+        
+        # Déterminer le type de template
+        has_corrections = suggestions and (suggestions.get('automatic_fixes') or suggestions.get('corrections'))
+        is_perfect = not has_corrections and suggestions
+        
+        # Titre selon le type
+        if has_corrections:
+            title = "🔧 Template Corrigé et Amélioré"
+            description = "Voici votre template avec toutes les corrections automatiques appliquées :"
+            color = 0x2ecc71  # Vert
+        elif is_perfect:
+            title = "✅ Template Validé et Optimisé"
+            description = "Votre template était déjà excellent ! Voici la version nettoyée et prête à utiliser :"
+            color = 0x3498db  # Bleu
+        else:
+            title = "📋 Template Extrait et Nettoyé"
+            description = "Voici votre template extrait du message, nettoyé et prêt à utiliser :"
+            color = 0x9b59b6  # Violet
         
         # Diviser le template si trop long
-        max_length = 1900
+        max_length = 1800  # Limite sécurisée pour laisser place aux autres éléments
         
-        if len(corrected_template) <= max_length:
-            # Template complet
+        if len(template) <= max_length:
+            # Template complet dans un seul message
             embed = discord.Embed(
-                title="🔧 Template Corrigé",
-                description=f"Voici votre template avec les corrections automatiques appliquées :",
-                color=0x2ecc71
+                title=title,
+                description=description,
+                color=color
             )
             
+            # Calculer les statistiques du template
+            char_count = len(template)
+            line_count = len(template.split('\n'))
+            placeholder_count = len(re.findall(r'\[([A-Z_]+)\]', template))
+            
             embed.add_field(
-                name="📋 Template amélioré",
-                value=f"```\n{corrected_template}\n```",
+                name="📊 Statistiques du template",
+                value=f"**Caractères :** {char_count}/2000 Discord\n**Lignes :** {line_count}\n**Placeholders à remplir :** {placeholder_count}",
+                inline=True
+            )
+            
+            # Afficher les corrections si il y en a
+            if has_corrections and suggestions:
+                corrections_applied = []
+                if suggestions.get('automatic_fixes'):
+                    corrections_applied.extend([f"✅ {fix}" for fix in suggestions['automatic_fixes'][:3]])
+                
+                if corrections_applied:
+                    embed.add_field(
+                        name="🔧 Corrections appliquées",
+                        value="\n".join(corrections_applied),
+                        inline=True
+                    )
+            
+            # Instructions d'utilisation
+            if placeholder_count > 0:
+                embed.add_field(
+                    name="📝 Prochaines étapes",
+                    value=f"1. **Copiez** le template ci-dessous\n2. **Remplacez** les {placeholder_count} placeholders [EN_MAJUSCULES]\n3. **Complétez** les calculs XP et PV\n4. **Vérifiez** les informations personnage",
+                    inline=False
+                )
+            else:
+                embed.add_field(
+                    name="🎯 Template prêt !",
+                    value="✅ Aucun placeholder à remplir\n✅ Copiez et utilisez directement\n✅ Vérifiez une dernière fois les calculs",
+                    inline=False
+                )
+            
+            # Le template lui-même
+            embed.add_field(
+                name="📋 Votre template final",
+                value=f"```\n{template}\n```",
                 inline=False
             )
             
-            embed.add_field(
-                name="✅ Corrections appliquées",
-                value="• Séparateurs PJ ajoutés\n• Sections manquantes insérées\n• Structure améliorée",
-                inline=False
-            )
-            
-            embed.add_field(
-                name="📝 Prochaines étapes",
-                value="1. Copiez le template corrigé\n2. Remplacez les placeholders [EN_MAJUSCULES]\n3. Complétez les calculs XP et PV\n4. Vérifiez les informations personnage",
-                inline=False
-            )
+            # Conseils selon la longueur
+            if char_count > 1900:
+                embed.add_field(
+                    name="⚠️ Attention",
+                    value="Template proche de la limite Discord (2000 caractères). Considérez raccourcir certaines sections si nécessaire.",
+                    inline=False
+                )
             
             await interaction.followup.send(embed=embed, ephemeral=True)
         
         else:
-            # Template trop long - diviser
-            embed = discord.Embed(
-                title="🔧 Template Corrigé (Partie 1)",
-                description="Template trop long - divisé en plusieurs parties",
-                color=0x2ecc71
+            # Template trop long - diviser en parties
+            embed_intro = discord.Embed(
+                title=f"{title} - Multi-parties",
+                description=f"{description}\n\n⚠️ **Template long** - Divisé en plusieurs messages pour Discord",
+                color=color
             )
             
-            parts = self._split_template_for_discord(corrected_template)
+            # Stats dans l'intro
+            char_count = len(template)
+            line_count = len(template.split('\n'))
+            placeholder_count = len(re.findall(r'\[([A-Z_]+)\]', template))
+            
+            embed_intro.add_field(
+                name="📊 Statistiques",
+                value=f"**Total :** {char_count} caractères\n**Lignes :** {line_count}\n**Placeholders :** {placeholder_count}",
+                inline=True
+            )
+            
+            if has_corrections and suggestions and suggestions.get('automatic_fixes'):
+                embed_intro.add_field(
+                    name="🔧 Corrections",
+                    value="\n".join([f"✅ {fix}" for fix in suggestions['automatic_fixes'][:3]]),
+                    inline=True
+                )
+            
+            embed_intro.add_field(
+                name="📝 Instructions",
+                value="1. **Copiez** chaque partie dans l'ordre\n2. **Assemblez** en un seul message\n3. **Complétez** les placeholders\n4. **Vérifiez** les calculs",
+                inline=False
+            )
+            
+            await interaction.followup.send(embed=embed_intro, ephemeral=True)
+            
+            # Diviser et envoyer les parties
+            parts = self._split_template_for_discord(template)
             
             for i, part in enumerate(parts, 1):
                 part_embed = discord.Embed(
-                    title=f"🔧 Template Corrigé - Partie {i}/{len(parts)}",
+                    title=f"📋 Template - Partie {i}/{len(parts)}",
                     description=f"```\n{part}\n```",
-                    color=0x2ecc71
+                    color=color
                 )
                 
-                if i == len(parts):  # Dernière partie
+                part_embed.add_field(
+                    name="📏 Cette partie",
+                    value=f"**Caractères :** {len(part)}\n**Partie :** {i} sur {len(parts)}",
+                    inline=True
+                )
+                
+                if i == 1:
                     part_embed.add_field(
-                        name="✅ Corrections appliquées",
-                        value="• Séparateurs PJ ajoutés\n• Sections manquantes insérées\n• Structure améliorée",
-                        inline=False
+                        name="💡 Conseil",
+                        value="Copiez chaque partie et assemblez-les dans l'ordre",
+                        inline=True
+                    )
+                elif i == len(parts):
+                    part_embed.add_field(
+                        name="✅ Terminé",
+                        value=f"Template complet reconstitué !\n**Total final :** {char_count} caractères",
+                        inline=True
                     )
                 
                 await interaction.followup.send(embed=part_embed, ephemeral=True)
+
+        return suggestions
 
     def _split_template_for_discord(self, template: str) -> list:
         """Divise le template pour respecter les limites Discord"""
