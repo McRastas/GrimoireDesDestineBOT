@@ -16,12 +16,11 @@ class VerifierMajCommand(BaseCommand):
         return "Vérifie et propose des ajustements pour un template de mise à jour de fiche D&D"
 
     def register(self, tree: app_commands.CommandTree):
-        """Enregistrement avec paramètre d'ID de message"""
+        """Enregistrement avec paramètre de lien de message"""
 
         @tree.command(name=self.name, description=self.description)
         @app_commands.describe(
-            message_id="ID du message à vérifier",
-            canal="Canal où se trouve le message (optionnel, par défaut le canal actuel)",
+            lien_message="Lien vers le message à vérifier (clic droit > Copier le lien du message)",
             proposer_corrections="Proposer des corrections automatiques"
         )
         @app_commands.choices(proposer_corrections=[
@@ -30,62 +29,114 @@ class VerifierMajCommand(BaseCommand):
         ])
         async def verifier_maj_command(
             interaction: discord.Interaction,
-            message_id: str,
-            canal: discord.TextChannel = None,
+            lien_message: str,
             proposer_corrections: str = "oui"
         ):
-            await self.callback(interaction, message_id, canal, proposer_corrections == "oui")
+            await self.callback(interaction, lien_message, proposer_corrections == "oui")
 
     async def callback(
         self, 
         interaction: discord.Interaction, 
-        message_id: str, 
-        canal: discord.TextChannel = None,
+        lien_message: str,
         proposer_corrections: bool = True
     ):
         try:
-            # Utiliser le canal spécifié ou le canal actuel
-            target_channel = canal or interaction.channel
-            
-            # Récupérer le message
-            try:
-                message_id_int = int(message_id)
-                message = await target_channel.fetch_message(message_id_int)
-            except ValueError:
+            # Parser le lien Discord pour extraire les IDs
+            message_info = self._parse_discord_link(lien_message)
+            if not message_info:
                 await interaction.response.send_message(
-                    "❌ L'ID du message doit être un nombre valide.", 
+                    "❌ **Lien invalide**\n\n"
+                    "Utilisez un lien Discord valide :\n"
+                    "• **Clic droit** sur le message → **Copier le lien du message**\n"
+                    "• Le lien doit ressembler à : `https://discord.com/channels/123.../456.../789...`\n\n"
+                    "💡 **Conseil :** Activez le Mode Développeur dans Discord pour accéder facilement aux liens de messages.",
                     ephemeral=True
                 )
                 return
+
+            guild_id, channel_id, message_id = message_info
+
+            # Vérifier que nous sommes dans le bon serveur
+            if guild_id != interaction.guild.id:
+                await interaction.response.send_message(
+                    f"❌ **Serveur différent**\n\n"
+                    f"Le message se trouve sur un autre serveur.\n"
+                    f"• **Message :** Serveur ID `{guild_id}`\n"
+                    f"• **Commande :** Serveur ID `{interaction.guild.id}`\n\n"
+                    f"Utilisez cette commande sur le même serveur que le message à vérifier.",
+                    ephemeral=True
+                )
+                return
+
+            # Récupérer le canal
+            try:
+                channel = interaction.guild.get_channel(int(channel_id))
+                if not channel:
+                    await interaction.response.send_message(
+                        f"❌ **Canal introuvable**\n\n"
+                        f"Le canal avec l'ID `{channel_id}` n'existe pas ou n'est pas accessible.\n"
+                        f"Vérifiez que :\n"
+                        f"• Le canal existe toujours\n"
+                        f"• Le bot a accès à ce canal\n"
+                        f"• Le lien est correct",
+                        ephemeral=True
+                    )
+                    return
+            except Exception as e:
+                await interaction.response.send_message(
+                    f"❌ **Erreur d'accès au canal**\n\n"
+                    f"Impossible d'accéder au canal : {str(e)}",
+                    ephemeral=True
+                )
+                return
+
+            # Récupérer le message
+            try:
+                message = await channel.fetch_message(int(message_id))
             except discord.NotFound:
                 await interaction.response.send_message(
-                    f"❌ Message avec l'ID `{message_id}` introuvable dans {target_channel.mention}.", 
+                    f"❌ **Message introuvable**\n\n"
+                    f"Le message avec l'ID `{message_id}` n'existe pas dans {channel.mention}.\n"
+                    f"Vérifiez que :\n"
+                    f"• Le message n'a pas été supprimé\n"
+                    f"• Le lien est correct et complet\n"
+                    f"• Vous avez copié le bon lien",
                     ephemeral=True
                 )
                 return
             except discord.Forbidden:
                 await interaction.response.send_message(
-                    f"❌ Pas d'autorisation pour lire les messages dans {target_channel.mention}.", 
+                    f"❌ **Accès refusé**\n\n"
+                    f"Le bot n'a pas les permissions pour lire les messages dans {channel.mention}.\n"
+                    f"Contactez un administrateur pour accorder les permissions nécessaires.",
+                    ephemeral=True
+                )
+                return
+            except Exception as e:
+                await interaction.response.send_message(
+                    f"❌ **Erreur lors de la récupération du message**\n\n"
+                    f"Erreur : {str(e)}",
                     ephemeral=True
                 )
                 return
 
-            # Analyser le contenu du message
-            content = message.content
-            if not content.strip():
+            # Vérifier que le message a du contenu
+            if not message.content.strip():
                 await interaction.response.send_message(
-                    "❌ Le message est vide ou ne contient que des embeds.", 
+                    "❌ **Message vide**\n\n"
+                    "Le message ne contient pas de texte à analyser.\n"
+                    "Vérifiez que vous avez sélectionné le bon message avec le template de MAJ.",
                     ephemeral=True
                 )
                 return
 
             # Effectuer la vérification
-            verification_result = self._verify_template(content)
+            verification_result = self._verify_template(message.content)
             
             # Générer des suggestions si demandé
             suggestions = None
             if proposer_corrections and verification_result['score'] < verification_result['total_checks']:
-                suggestions = self._generate_suggestions(content, verification_result)
+                suggestions = self._generate_suggestions(message.content, verification_result)
             
             # Créer l'embed de résultat
             embed = self._create_verification_embed(message, verification_result, suggestions)
@@ -98,15 +149,63 @@ class VerifierMajCommand(BaseCommand):
                 template_to_send = suggestions['corrected_template']
             else:
                 # Même si parfait, renvoyer le template original nettoyé
-                template_to_send = self._clean_template(content)
+                template_to_send = self._clean_template(message.content)
             
             await self._send_corrected_template(interaction, template_to_send, suggestions)
 
         except Exception as e:
             await interaction.response.send_message(
-                f"❌ Erreur lors de la vérification : {str(e)}", 
+                f"❌ **Erreur inattendue**\n\n"
+                f"Une erreur s'est produite lors de la vérification : {str(e)}\n\n"
+                f"💡 **Vérifiez que :**\n"
+                f"• Le lien Discord est complet et correct\n"
+                f"• Le message existe toujours\n"
+                f"• Vous avez les bonnes permissions", 
                 ephemeral=True
             )
+
+    def _parse_discord_link(self, link: str) -> tuple:
+        """
+        Parse un lien Discord pour extraire guild_id, channel_id, message_id.
+        
+        Formats acceptés:
+        - https://discord.com/channels/GUILD_ID/CHANNEL_ID/MESSAGE_ID
+        - https://discordapp.com/channels/GUILD_ID/CHANNEL_ID/MESSAGE_ID
+        - discord.com/channels/GUILD_ID/CHANNEL_ID/MESSAGE_ID (sans https)
+        
+        Returns:
+            tuple: (guild_id, channel_id, message_id) ou None si invalide
+        """
+        # Nettoyer le lien (supprimer les espaces, <> si présents)
+        link = link.strip().strip('<>')
+        
+        # Ajouter https:// si manquant
+        if not link.startswith(('http://', 'https://')):
+            if link.startswith('discord'):
+                link = 'https://' + link
+            else:
+                return None
+        
+        # Pattern pour matcher les liens Discord
+        patterns = [
+            r'https?://discord\.com/channels/(\d+)/(\d+)/(\d+)',
+            r'https?://discordapp\.com/channels/(\d+)/(\d+)/(\d+)',
+            r'https?://www\.discord\.com/channels/(\d+)/(\d+)/(\d+)',
+            r'https?://www\.discordapp\.com/channels/(\d+)/(\d+)/(\d+)'
+        ]
+        
+        for pattern in patterns:
+            match = re.match(pattern, link)
+            if match:
+                try:
+                    guild_id = int(match.group(1))
+                    channel_id = int(match.group(2))
+                    message_id = int(match.group(3))
+                    return (guild_id, channel_id, message_id)
+                except ValueError:
+                    continue
+        
+        return None
 
     def _verify_template(self, content: str) -> dict:
         """Vérifie si le contenu respecte le template de mise à jour de fiche"""
@@ -306,6 +405,8 @@ class VerifierMajCommand(BaseCommand):
         if suggestions['automatic_fixes']:
             suggestions['corrected_template'] = self._apply_automatic_fixes(corrected_content, verification_result)
         
+        return suggestions
+
     def _clean_template(self, content: str) -> str:
         """Nettoie et optimise le template même s'il est déjà correct"""
         
@@ -530,10 +631,10 @@ class VerifierMajCommand(BaseCommand):
                 inline=False
             )
         
-        # Lien vers le message
+        # Lien vers le message + guide d'utilisation
         embed.add_field(
             name="🔗 Actions",
-            value=f"[📖 Voir le message original]({message.jump_url})\n📋 **Template amélioré envoyé ci-dessous**",
+            value=f"[📖 Voir le message original]({message.jump_url})\n📋 **Template amélioré envoyé ci-dessous**\n\n💡 **Astuce :** Clic droit sur un message → Copier le lien du message",
             inline=True
         )
         
