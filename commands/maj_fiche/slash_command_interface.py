@@ -16,9 +16,11 @@ class MajFicheSlashCommand(MajFicheBaseCommand):
     VERSION CORRIGÉE - Gestion simplifiée des réponses Discord
     """
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, bot):  # ✅ AJOUT du paramètre bot
+        super().__init__(bot)   # ✅ PASSAGE de bot au parent
         self.template_generator = TemplateGenerator()
+
+    # ... reste du fichier inchangé ...
 
     @property
     def name(self) -> str:
