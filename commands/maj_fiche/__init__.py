@@ -16,7 +16,7 @@ UTILISATION:
     from commands.maj_fiche import MajFicheCommand
     
     # La commande est prête à être enregistrée dans l'arbre Discord
-    command = MajFicheCommand()
+    command = MajFicheCommand(bot)  # CORRECTION: Passer le bot
     command.register(bot.tree)
 
 FONCTIONNALITÉS:
@@ -36,13 +36,115 @@ from .template_generator import TemplateGenerator
 from .validation_system import TemplateValidator
 from .slash_command_interface import MajFicheSlashCommand
 
-# Import pour compatibilité avec l'ancien système
-# La commande principale reste accessible sous le nom original
-MajFicheCommand = MajFicheSlashCommand
+# CORRECTION CRITIQUE: Adapter la classe pour hériter de BaseCommand
+from ..base import BaseCommand
+import discord
+from discord import app_commands
+from typing import Optional
+import logging
 
-# Classes utilitaires accessibles pour extension
+logger = logging.getLogger(__name__)
+
+
+class MajFicheCommand(BaseCommand):
+    """
+    Commande principale maj-fiche adaptée pour le système de bot Faerûn.
+    CORRECTION: Hérite maintenant de BaseCommand pour compatibilité système.
+    """
+    
+    def __init__(self, bot):
+        super().__init__(bot)
+        self.slash_command = MajFicheSlashCommand()
+        self.template_generator = TemplateGenerator()
+    
+    @property
+    def name(self) -> str:
+        return "maj-fiche"
+    
+    @property
+    def description(self) -> str:
+        return "Génère un template de mise à jour de fiche de personnage D&D"
+    
+    def register(self, tree: app_commands.CommandTree):
+        """
+        Enregistrement personnalisé avec tous les paramètres Discord.
+        CORRECTION: Utilise la logique du slash_command mais dans le format BaseCommand
+        """
+        
+        @tree.command(name=self.name, description=self.description)
+        @app_commands.describe(
+            nom_pj="Nom du personnage",
+            classe="Classe du personnage", 
+            niveau_actuel="Niveau actuel du personnage",
+            niveau_cible="Nouveau niveau visé (optionnel)",
+            titre_quete="Titre de la quête (optionnel)",
+            mj="Nom du MJ (optionnel)",
+            xp_actuels="XP actuels (optionnel)",
+            xp_obtenus="XP obtenus cette session (optionnel)",
+            include_marchand="Inclure la section Marchand",
+            include_inventaire="Inclure la section Inventaire détaillée"
+        )
+        @app_commands.choices(classe=self.slash_command.CLASSES_CHOICES)
+        @app_commands.choices(niveau_actuel=self.slash_command.NIVEAUX_ACTUELS)
+        @app_commands.choices(niveau_cible=self.slash_command.NIVEAUX_CIBLES)
+        @app_commands.choices(include_marchand=[
+            app_commands.Choice(name="✅ Oui - Inclure section Marchand", value="oui"),
+            app_commands.Choice(name="❌ Non - Pas de section Marchand", value="non")
+        ])
+        @app_commands.choices(include_inventaire=[
+            app_commands.Choice(name="✅ Oui - Inventaire détaillé", value="oui"),
+            app_commands.Choice(name="❌ Non - Inventaire minimal", value="non")
+        ])
+        async def maj_fiche_command(
+            interaction: discord.Interaction,
+            nom_pj: str,
+            classe: str,
+            niveau_actuel: Optional[int] = None,
+            niveau_cible: Optional[int] = None,
+            titre_quete: Optional[str] = None,
+            mj: Optional[str] = None,
+            xp_actuels: Optional[int] = None,
+            xp_obtenus: Optional[int] = None,
+            include_marchand: str = "non",
+            include_inventaire: str = "oui"
+        ):
+            # CORRECTION: Déléguer à la méthode callback avec les bons paramètres
+            await self.callback(
+                interaction, nom_pj, classe, niveau_actuel, niveau_cible,
+                titre_quete, mj, xp_actuels, xp_obtenus, 
+                include_marchand == "oui", include_inventaire == "oui"
+            )
+    
+    async def callback(
+        self, 
+        interaction: discord.Interaction,
+        nom_pj: str,
+        classe: str,
+        niveau_actuel: Optional[int] = None,
+        niveau_cible: Optional[int] = None,
+        titre_quete: Optional[str] = None,
+        mj: Optional[str] = None,
+        xp_actuels: Optional[int] = None,
+        xp_obtenus: Optional[int] = None,
+        include_marchand: bool = False,
+        include_inventaire: bool = True
+    ):
+        """
+        Callback principal - délègue à la logique du slash_command.
+        CORRECTION: Point d'entrée unifié compatible BaseCommand
+        """
+        
+        # CORRECTION: Utiliser la logique corrigée du slash_command
+        await self.slash_command.callback(
+            interaction, nom_pj, classe, niveau_actuel, niveau_cible,
+            titre_quete, mj, xp_actuels, xp_obtenus, 
+            include_marchand, include_inventaire
+        )
+
+
+# Classes utilitaires accessibles pour extension (gardées pour compatibilité)
 __all__ = [
-    'MajFicheCommand',           # Commande principale (export principal)
+    'MajFicheCommand',           # Commande principale (export principal) - CORRIGÉE
     'MajFicheBaseCommand',       # Classe de base pour extensions
     'TemplateGenerator',         # Générateur de templates
     'TemplateValidator',         # Système de validation  
@@ -50,9 +152,9 @@ __all__ = [
 ]
 
 # Métadonnées du module
-__version__ = "2.0.0"
+__version__ = "2.0.1"  # Version corrigée
 __author__ = "Bot Faerûn Team"
-__description__ = "Système complet de mise à jour de fiche D&D 5e"
+__description__ = "Système complet de mise à jour de fiche D&D 5e - Compatible BaseCommand"
 
 # Configuration du module
 MODULE_CONFIG = {
@@ -61,7 +163,8 @@ MODULE_CONFIG = {
         'base': 'MajFicheBaseCommand - Logique commune et validations',
         'generator': 'TemplateGenerator - Génération de templates personnalisés', 
         'validator': 'TemplateValidator - Validation et corrections automatiques',
-        'interface': 'MajFicheSlashCommand - Interface Discord complète'
+        'interface': 'MajFicheSlashCommand - Interface Discord complète',
+        'wrapper': 'MajFicheCommand - Wrapper compatible BaseCommand'  # NOUVEAU
     },
     'features': [
         'Templates D&D 5e personnalisés',
@@ -69,7 +172,8 @@ MODULE_CONFIG = {
         'Validation automatique',
         'Corrections intelligentes',
         'Gestion longueur Discord',
-        'Calculs XP/PV automatiques'
+        'Calculs XP/PV automatiques',
+        'Compatible système BaseCommand'  # NOUVEAU
     ],
     'discord_limits': {
         'message_length': 2000,
@@ -88,15 +192,18 @@ def get_module_info() -> dict:
     """
     return MODULE_CONFIG
 
-def create_command_instance():
+def create_command_instance(bot):
     """
     Factory function pour créer une instance de la commande principale.
-    Utile pour les tests et l'instanciation programmatique.
+    CORRECTION: Prend maintenant le bot en paramètre pour compatibilité BaseCommand.
     
+    Args:
+        bot: Instance du bot Discord
+        
     Returns:
-        MajFicheSlashCommand: Instance configurée de la commande
+        MajFicheCommand: Instance configurée de la commande compatible BaseCommand
     """
-    return MajFicheSlashCommand()
+    return MajFicheCommand(bot)
 
 def validate_template_content(content: str) -> dict:
     """
@@ -167,7 +274,8 @@ def diagnose_module() -> dict:
         'version': __version__,
         'components_available': {},
         'dependencies': {},
-        'features_working': {}
+        'features_working': {},
+        'basecommand_compatible': True  # NOUVEAU
     }
     
     # Vérifier chaque composant
@@ -194,6 +302,13 @@ def diagnose_module() -> dict:
         diagnosis['components_available']['interface'] = True
     except Exception as e:
         diagnosis['components_available']['interface'] = f"Erreur: {e}"
+        
+    try:
+        from ..base import BaseCommand
+        diagnosis['components_available']['basecommand'] = True
+    except Exception as e:
+        diagnosis['components_available']['basecommand'] = f"Erreur: {e}"
+        diagnosis['basecommand_compatible'] = False
     
     # Vérifier les dépendances externes
     try:
@@ -225,14 +340,32 @@ def diagnose_module() -> dict:
     except Exception as e:
         diagnosis['features_working']['validation'] = f"Erreur: {e}"
     
+    # NOUVEAU: Test de compatibilité BaseCommand
     try:
-        # Test d'instanciation de commande
-        command = create_command_instance()
-        diagnosis['features_working']['command_creation'] = hasattr(command, 'name')
+        # Test d'instanciation de commande compatible BaseCommand
+        # Simulation d'un bot pour le test
+        class MockBot:
+            pass
+        
+        mock_bot = MockBot()
+        command = MajFicheCommand(mock_bot)
+        diagnosis['features_working']['basecommand_creation'] = hasattr(command, 'name') and hasattr(command, 'bot')
     except Exception as e:
-        diagnosis['features_working']['command_creation'] = f"Erreur: {e}"
+        diagnosis['features_working']['basecommand_creation'] = f"Erreur: {e}"
     
     return diagnosis
+
+# Configuration par défaut exportée
+DEFAULT_CONFIG = {
+    'max_template_length': MODULE_CONFIG['discord_limits']['message_length'],
+    'safe_template_length': MODULE_CONFIG['discord_limits']['safe_length'],
+    'auto_split_templates': True,
+    'auto_corrections': True,
+    'class_suggestions': True,
+    'xp_calculations': True,
+    'validation_strict': False,
+    'basecommand_compatible': True  # NOUVEAU
+}
 
 # Message d'initialisation pour le debugging
 if __name__ == "__main__":
@@ -241,6 +374,7 @@ if __name__ == "__main__":
     
     print(f"📦 Version: {diag['version']}")
     print(f"✅ Module prêt: {diag['module_ready']}")
+    print(f"🔧 BaseCommand compatible: {diag['basecommand_compatible']}")
     
     print("\n🧩 Composants:")
     for component, status in diag['components_available'].items():
@@ -257,15 +391,4 @@ if __name__ == "__main__":
         status_icon = "✅" if status is True else "❌"
         print(f"  {status_icon} {feature}: {status}")
     
-    print(f"\n📋 Résumé: Module {'prêt' if diag['module_ready'] else 'non prêt'} à utiliser")
-
-# Configuration par défaut exportée
-DEFAULT_CONFIG = {
-    'max_template_length': MODULE_CONFIG['discord_limits']['message_length'],
-    'safe_template_length': MODULE_CONFIG['discord_limits']['safe_length'],
-    'auto_split_templates': True,
-    'auto_corrections': True,
-    'class_suggestions': True,
-    'xp_calculations': True,
-    'validation_strict': False
-}
+    print(f"\n📋 Résumé: Module {'prêt' if diag['module_ready'] and diag['basecommand_compatible'] else 'non prêt'} à utiliser")
