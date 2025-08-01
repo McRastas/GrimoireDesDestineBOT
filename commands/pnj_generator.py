@@ -1,4 +1,4 @@
-# commands/pnj_generator.py - Fichier Principal
+# commands/pnj_generator.py - Version Corrigée
 import discord
 from discord import app_commands
 from typing import Optional
@@ -25,55 +25,6 @@ class PnjGeneratorCommand(BaseCommand):
     @property
     def description(self) -> str:
         return "Génère un PNJ complet pour D&D avec format Roll20"
-
-    def register(self, tree: app_commands.CommandTree):
-        """Enregistrement de la commande avec option format Roll20"""
-
-        @tree.command(name=self.name, description=self.description)
-        @app_commands.describe(
-            type_pnj="Type de PNJ à générer",
-            genre="Genre du PNJ",
-            race="Race du PNJ",
-            format_roll20="Format optimisé pour Roll20 (recommandé)"
-        )
-        @app_commands.choices(type_pnj=[
-            app_commands.Choice(name="🛡️ Garde", value="garde"),
-            app_commands.Choice(name="💰 Marchand", value="marchand"),
-            app_commands.Choice(name="👑 Noble", value="noble"),
-            app_commands.Choice(name="🍺 Aubergiste", value="aubergiste"),
-            app_commands.Choice(name="⛪ Prêtre", value="pretre"),
-            app_commands.Choice(name="🗡️ Aventurier", value="aventurier"),
-            app_commands.Choice(name="🔨 Artisan", value="artisan"),
-            app_commands.Choice(name="🌾 Paysan", value="paysan"),
-            app_commands.Choice(name="🗝️ Voleur", value="voleur"),
-            app_commands.Choice(name="🔮 Mage", value="mage")
-        ])
-        @app_commands.choices(genre=[
-            app_commands.Choice(name="♂️ Masculin", value="masculin"),
-            app_commands.Choice(name="♀️ Féminin", value="feminin"),
-            app_commands.Choice(name="🎲 Aléatoire", value="aleatoire")
-        ])
-        @app_commands.choices(race=[
-            app_commands.Choice(name="👤 Humain", value="humain"),
-            app_commands.Choice(name="🧝 Elfe", value="elfe"),
-            app_commands.Choice(name="⚒️ Nain", value="nain"),
-            app_commands.Choice(name="🌿 Halfelin", value="halfelin"),
-            app_commands.Choice(name="🌙 Demi-Elfe", value="demi-elfe"),
-            app_commands.Choice(name="😈 Tieffelin", value="tieffelin"),
-            app_commands.Choice(name="🎲 Aléatoire", value="aleatoire")
-        ])
-        @app_commands.choices(format_roll20=[
-            app_commands.Choice(name="✅ Roll20 (Recommandé)", value=True),
-            app_commands.Choice(name="💬 Discord", value=False)
-        ])
-        async def pnj_generator_command(
-            interaction: discord.Interaction,
-            type_pnj: str,
-            genre: str = "aleatoire",
-            race: str = "aleatoire",
-            format_roll20: bool = True
-        ):
-            await self.callback(interaction, type_pnj, genre, race, format_roll20)
 
     async def callback(self,
                        interaction: discord.Interaction,
@@ -145,6 +96,86 @@ class PnjGeneratorCommand(BaseCommand):
                 "❌ Erreur lors de la génération du PNJ. Veuillez réessayer.",
                 ephemeral=True
             )
+
+    def register(self, tree: app_commands.CommandTree):
+        """Enregistrement de la commande avec option format Roll20"""
+        
+        # Créer la commande avec les paramètres
+        command = app_commands.Command(
+            name=self.name,
+            description=self.description,
+            callback=self._command_wrapper
+        )
+        
+        # Ajouter les paramètres
+        command.add_parameter(app_commands.Parameter(
+            name="type_pnj",
+            description="Type de PNJ à générer",
+            type=str,
+            required=True,
+            choices=[
+                app_commands.Choice(name="🛡️ Garde", value="garde"),
+                app_commands.Choice(name="💰 Marchand", value="marchand"),
+                app_commands.Choice(name="👑 Noble", value="noble"),
+                app_commands.Choice(name="🍺 Aubergiste", value="aubergiste"),
+                app_commands.Choice(name="⛪ Prêtre", value="pretre"),
+                app_commands.Choice(name="🗡️ Aventurier", value="aventurier"),
+                app_commands.Choice(name="🔨 Artisan", value="artisan"),
+                app_commands.Choice(name="🌾 Paysan", value="paysan"),
+                app_commands.Choice(name="🗝️ Voleur", value="voleur"),
+                app_commands.Choice(name="🔮 Mage", value="mage")
+            ]
+        ))
+        
+        command.add_parameter(app_commands.Parameter(
+            name="genre",
+            description="Genre du PNJ",
+            type=str,
+            required=False,
+            default="aleatoire",
+            choices=[
+                app_commands.Choice(name="♂️ Masculin", value="masculin"),
+                app_commands.Choice(name="♀️ Féminin", value="feminin"),
+                app_commands.Choice(name="🎲 Aléatoire", value="aleatoire")
+            ]
+        ))
+        
+        command.add_parameter(app_commands.Parameter(
+            name="race",
+            description="Race du PNJ",
+            type=str,
+            required=False,
+            default="aleatoire",
+            choices=[
+                app_commands.Choice(name="👤 Humain", value="humain"),
+                app_commands.Choice(name="🧝 Elfe", value="elfe"),
+                app_commands.Choice(name="⚒️ Nain", value="nain"),
+                app_commands.Choice(name="🌿 Halfelin", value="halfelin"),
+                app_commands.Choice(name="🌙 Demi-Elfe", value="demi-elfe"),
+                app_commands.Choice(name="😈 Tieffelin", value="tieffelin"),
+                app_commands.Choice(name="🎲 Aléatoire", value="aleatoire")
+            ]
+        ))
+        
+        command.add_parameter(app_commands.Parameter(
+            name="format_roll20",
+            description="Format optimisé pour Roll20 (recommandé)",
+            type=bool,
+            required=False,
+            default=True,
+            choices=[
+                app_commands.Choice(name="✅ Roll20 (Recommandé)", value=True),
+                app_commands.Choice(name="💬 Discord", value=False)
+            ]
+        ))
+        
+        tree.add_command(command)
+
+    async def _command_wrapper(self, interaction: discord.Interaction, 
+                             type_pnj: str, genre: str = "aleatoire", 
+                             race: str = "aleatoire", format_roll20: bool = True):
+        """Wrapper pour la commande qui appelle le callback original"""
+        await self.callback(interaction, type_pnj, genre, race, format_roll20)
 
     async def _send_long_content(self, interaction: discord.Interaction, content: str, embed: discord.Embed):
         """Envoie du contenu long en le divisant si nécessaire"""
