@@ -133,11 +133,11 @@ class PnjGeneratorCommand(BaseCommand):
             if len(content) > 1900:
                 await self._send_long_content(interaction, content, embed)
             else:
-                await interaction.response.send_message(embed=embed)
+                await interaction.response.send_message(embed=embed, ephemeral=True)
                 if format_roll20 == "roll20":
-                    await interaction.followup.send(f"```\n{content}\n```")
+                    await interaction.followup.send(f"```\n{content}\n```", ephemeral=True)
                 else:
-                    await interaction.followup.send(content)
+                    await interaction.followup.send(content, ephemeral=True)
 
         except Exception as e:
             logger.error(f"Erreur génération PNJ: {e}")
@@ -149,7 +149,7 @@ class PnjGeneratorCommand(BaseCommand):
     async def _send_long_content(self, interaction: discord.Interaction, content: str, embed: discord.Embed):
         """Envoie du contenu long en le divisant si nécessaire"""
         
-        await interaction.response.send_message(embed=embed)
+        await interaction.response.send_message(embed=embed, ephemeral=True)
         
         # Diviser le contenu si trop long
         if len(content) > 1900:
@@ -169,6 +169,6 @@ class PnjGeneratorCommand(BaseCommand):
                 parts.append(current_part)
             
             for i, part in enumerate(parts):
-                await interaction.followup.send(f"```\n{part}\n```")
+                await interaction.followup.send(f"```\n{part}\n```", ephemeral=True)
         else:
-            await interaction.followup.send(f"```\n{content}\n```")
+            await interaction.followup.send(f"```\n{content}\n```", ephemeral=True)
