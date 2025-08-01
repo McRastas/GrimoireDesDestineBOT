@@ -266,7 +266,7 @@ class FaerunBot(discord.Client):
         if message.author.bot or not message.guild:
             return
 
-        # Commande de synchronisation manuelle
+        # Commande de synchronisation manuelle AVEC mise à jour Git
         if message.content.strip() == "!sync_bot":
             logger.info(
                 f"Commande !sync_bot par {message.author.name} ({message.author.id})"
@@ -286,44 +286,102 @@ class FaerunBot(discord.Client):
             # CORRECTION : Log de l'action admin avec protection
             if self.discord_logger:
                 try:
-                    self.discord_logger.admin_action("Synchronisation Manuelle",
+                    self.discord_logger.admin_action("Synchronisation avec Git",
                                                      message.author,
-                                                     "Commande !sync_bot utilisée")
+                                                     "Commande !sync_bot avec git pull")
                 except Exception as e:
                     logger.warning(f"Impossible de logger l'action admin: {e}")
 
-            status_msg = await message.channel.send(
-                "🔄 Synchronisation en cours...")
+            status_msg = await message.channel.send("🔄 Mise à jour et synchronisation en cours...")
 
             try:
+                # NOUVEAU : Étape 1 - Git Pull
+                import subprocess
+                
+                # Mettre à jour le code depuis GitHub
+                try:
+                    await status_msg.edit(content="📥 **Étape 1/3** : Mise à jour du code depuis GitHub...")
+                    
+                    # Exécuter git pull
+                    result = subprocess.run(
+                        ["git", "pull", "origin", "main"], 
+                        capture_output=True, 
+                        text=True, 
+                        cwd="/app",  # S'assurer qu'on est dans le bon répertoire
+                        timeout=30   # Timeout de 30 secondes
+                    )
+                    
+                    if result.returncode == 0:
+                        git_output = result.stdout.strip()
+                        if "Already up to date" in git_output:
+                            git_status = "✅ Code déjà à jour"
+                        else:
+                            git_status = f"✅ Code mis à jour : {git_output[:100]}..."
+                    else:
+                        git_status = f"⚠️ Git pull partiel : {result.stderr[:100]}..."
+                        
+                except subprocess.TimeoutExpired:
+                    git_status = "⚠️ Git pull timeout (réseau lent)"
+                except FileNotFoundError:
+                    git_status = "⚠️ Git non installé (skip)"
+                except Exception as e:
+                    git_status = f"⚠️ Erreur git : {str(e)[:50]}..."
+
+                # Étape 2 - Rechargement des commandes
+                await status_msg.edit(content="🔄 **Étape 2/3** : Rechargement des commandes...")
+                
+                # Vider l'arbre des commandes
+                self.tree.clear_commands(guild=None)
+                self.command_instances.clear()
+
+                # Recharger les commandes
+                await self.load_commands()
+                await asyncio.sleep(1)  # Petite pause
+
+                # Étape 3 - Synchronisation Discord
+                await status_msg.edit(content="📡 **Étape 3/3** : Synchronisation avec Discord...")
+                
                 # Forcer une nouvelle synchronisation
                 guild = discord.Object(id=message.guild.id)
                 synced = await self.tree.sync(guild=guild)
 
                 # Message de succès détaillé
                 embed = discord.Embed(
-                    title="✅ Synchronisation réussie",
-                    description=f"{len(synced)} commandes synchronisées",
+                    title="✅ Mise à jour et synchronisation réussies",
                     color=0x00ff00)
 
-                # Lister les commandes synchronisées
-                if synced:
-                    cmd_list = "\n".join([f"• {cmd.name}" for cmd in synced])
-                    embed.add_field(name="Commandes",
-                                    value=cmd_list,
-                                    inline=False)
+                # Informations Git
+                embed.add_field(name="📥 Mise à jour Git", 
+                              value=git_status, 
+                              inline=False)
 
-                embed.add_field(name="Serveur",
-                                value=message.guild.name,
-                                inline=True)
-                embed.add_field(name="ID Serveur",
-                                value=str(message.guild.id),
-                                inline=True)
-                embed.add_field(
-                    name="Utilisateur",
-                    value=
-                    f"{message.author.mention} ({Config.ADMIN_ROLE_NAME})",
-                    inline=True)
+                # Informations commandes
+                embed.add_field(name="🔄 Commandes rechargées",
+                              value=f"{len(self.command_instances)} instance(s) créée(s)",
+                              inline=True)
+                
+                embed.add_field(name="📡 Commandes synchronisées",
+                              value=f"{len(synced)} commande(s)",
+                              inline=True)
+
+                # Lister les commandes synchronisées (limité)
+                if synced:
+                    cmd_list = "\n".join([f"• {cmd.name}" for cmd in synced[:10]])
+                    if len(synced) > 10:
+                        cmd_list += f"\n• ... et {len(synced) - 10} autres"
+                    embed.add_field(name="📝 Commandes",
+                                  value=cmd_list,
+                                  inline=False)
+
+                embed.add_field(name="🏰 Serveur",
+                              value=message.guild.name,
+                              inline=True)
+                embed.add_field(name="🔧 Effectué par",
+                              value=f"{message.author.mention} ({Config.ADMIN_ROLE_NAME})",
+                              inline=True)
+                
+                # Timestamp
+                embed.timestamp = discord.utils.utcnow()
 
                 await status_msg.edit(content=None, embed=embed)
 
@@ -331,32 +389,43 @@ class FaerunBot(discord.Client):
                 if self.discord_logger:
                     try:
                         self.discord_logger.info(
-                            f"Synchronisation manuelle réussie - {len(synced)} commandes",
+                            f"Sync avec Git réussie - {len(synced)} commandes, {len(self.command_instances)} instances",
                             user=f"{message.author.display_name} ({message.author.id})",
-                            guild=f"{message.guild.name} ({message.guild.id})")
+                            guild=f"{message.guild.name} ({message.guild.id})",
+                            git_status=git_status)
                     except Exception as e:
                         logger.warning(f"Impossible de logger le succès de sync: {e}")
 
-                # Supprimer après 10 secondes
-                await asyncio.sleep(10)
+                # Supprimer après 15 secondes
+                await asyncio.sleep(15)
                 await status_msg.delete()
 
             except Exception as e:
-                logger.error(f"Erreur sync manuelle: {e}")
-                await status_msg.edit(content=f"❌ Erreur: {e}")
+                logger.error(f"Erreur sync avec git: {e}")
+                
+                error_embed = discord.Embed(
+                    title="❌ Erreur lors de la mise à jour",
+                    description=f"Erreur : {str(e)[:200]}...",
+                    color=0xff0000)
+                
+                error_embed.add_field(name="🔧 Solution",
+                                     value="• Vérifiez les logs\n• Redémarrez le bot si nécessaire\n• Contactez l'administrateur",
+                                     inline=False)
+                
+                await status_msg.edit(content=None, embed=error_embed)
 
                 # CORRECTION : Log de l'erreur avec protection
                 if self.discord_logger:
                     try:
                         self.discord_logger.error_with_traceback(
-                            "Erreur lors de la synchronisation manuelle",
+                            "Erreur lors de la synchronisation avec git",
                             e,
                             user=f"{message.author.display_name} ({message.author.id})",
                             guild=f"{message.guild.name} ({message.guild.id})")
                     except Exception as log_e:
                         logger.warning(f"Impossible de logger l'erreur de sync: {log_e}")
 
-                await asyncio.sleep(10)
+                await asyncio.sleep(15)
                 await status_msg.delete()
 
         # Commande de debug
