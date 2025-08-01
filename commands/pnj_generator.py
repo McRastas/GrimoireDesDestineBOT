@@ -63,15 +63,15 @@ class PnjGeneratorCommand(BaseCommand):
             app_commands.Choice(name="🎲 Aléatoire", value="aleatoire")
         ])
         @app_commands.choices(format_roll20=[
-            app_commands.Choice(name="✅ Roll20 (Recommandé)", value=True),
-            app_commands.Choice(name="💬 Discord", value=False)
+            app_commands.Choice(name="✅ Roll20 (Recommandé)", value="roll20"),
+            app_commands.Choice(name="💬 Discord", value="discord")
         ])
         async def pnj_generator_command(
             interaction: discord.Interaction,
             type_pnj: str,
             genre: str = "aleatoire",
             race: str = "aleatoire",
-            format_roll20: bool = True
+            format_roll20: str = "roll20"
         ):
             await self.callback(interaction, type_pnj, genre, race, format_roll20)
 
@@ -80,14 +80,14 @@ class PnjGeneratorCommand(BaseCommand):
                        type_pnj: str,
                        genre: str = "aleatoire",
                        race: str = "aleatoire",
-                       format_roll20: bool = True):
+                       format_roll20: str = "roll20"):
         """Callback principal avec gestion des deux formats"""
         try:
             # Générer le PNJ via le générateur
             pnj = self.pnj_generator.generate_pnj(type_pnj, genre, race)
 
             # Choisir le format de sortie via les formatters
-            if format_roll20:
+            if format_roll20 == "roll20":
                 content = self.formatters.format_pnj_for_roll20(pnj, type_pnj)
                 embed_title = "🎭 PNJ Généré (Format Roll20)"
                 instructions = (
@@ -134,7 +134,7 @@ class PnjGeneratorCommand(BaseCommand):
                 await self._send_long_content(interaction, content, embed)
             else:
                 await interaction.response.send_message(embed=embed)
-                if format_roll20:
+                if format_roll20 == "roll20":
                     await interaction.followup.send(f"```\n{content}\n```")
                 else:
                     await interaction.followup.send(content)
