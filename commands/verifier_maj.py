@@ -1,17 +1,35 @@
-# commands/verifier_maj.py - PARTIE 1
+# commands/verifier_maj.py
+"""
+Commande de vérification de template de mise à jour de fiche D&D.
+Version améliorée utilisant les modules du répertoire maj_fiche.
+"""
+
 import discord
 from discord import app_commands
 import re
+import logging
+from typing import Optional, Dict, Any
 from .base import BaseCommand
+
+# Import des modules maj_fiche pour la logique de validation
+from .maj_fiche.validation_system import TemplateValidator
+from .maj_fiche.template_generator import TemplateGenerator
+from .maj_fiche.main_command import MajFicheBaseCommand
+
+logger = logging.getLogger(__name__)
 
 
 class VerifierMajCommand(BaseCommand):
+    """
+    Commande pour vérifier et corriger les templates de mise à jour de fiche D&D.
+    Utilise les modules maj_fiche pour une validation cohérente.
+    """
 
-    def _safe_field_value(self, text: str, max_length: int = 1020) -> str:
-        """Sécurise un texte pour les champs Discord (limite 1024 caractères)"""
-        if len(text) <= max_length:
-            return text
-        return text[:max_length-3] + "..."
+    def __init__(self, bot):
+        super().__init__(bot)
+        self.validator = TemplateValidator()
+        self.generator = TemplateGenerator()
+        self.base_command = MajFicheBaseCommand(bot)
 
     @property
     def name(self) -> str:
@@ -19,176 +37,137 @@ class VerifierMajCommand(BaseCommand):
 
     @property
     def description(self) -> str:
-        return "Vérifie et propose des ajustements pour un template de mise à jour de fiche D&D"
+        return "Vérifie et propose des corrections pour un template de mise à jour de fiche D&D"
 
     def register(self, tree: app_commands.CommandTree):
-        """Enregistrement avec paramètre de lien de message"""
+        """Enregistrement avec paramètres optimisés"""
 
         @tree.command(name=self.name, description=self.description)
         @app_commands.describe(
             lien_message="Lien vers le message à vérifier (clic droit > Copier le lien du message)",
-            proposer_corrections="Proposer des corrections automatiques"
+            mode_correction="Type de correction à appliquer",
+            proposer_ameliorations="Proposer des améliorations supplémentaires"
         )
-        @app_commands.choices(proposer_corrections=[
-            app_commands.Choice(name="Oui, proposer des ajustements", value="oui"),
-            app_commands.Choice(name="Non, vérification seulement", value="non")
+        @app_commands.choices(mode_correction=[
+            app_commands.Choice(name="🔧 Corrections automatiques + suggestions", value="auto"),
+            app_commands.Choice(name="📋 Vérification uniquement", value="check"),
+            app_commands.Choice(name="✨ Corrections + optimisations avancées", value="advanced")
+        ])
+        @app_commands.choices(proposer_ameliorations=[
+            app_commands.Choice(name="✅ Oui - Suggérer des améliorations", value="oui"),
+            app_commands.Choice(name="❌ Non - Validation simple", value="non")
         ])
         async def verifier_maj_command(
             interaction: discord.Interaction,
             lien_message: str,
-            proposer_corrections: str = "oui"
+            mode_correction: str = "auto",
+            proposer_ameliorations: str = "oui"
         ):
-            await self.callback(interaction, lien_message, proposer_corrections == "oui")
+            await self.callback(
+                interaction, 
+                lien_message, 
+                mode_correction, 
+                proposer_ameliorations == "oui"
+            )
 
     async def callback(
         self, 
         interaction: discord.Interaction, 
         lien_message: str,
-        proposer_corrections: bool = True
+        mode_correction: str = "auto",
+        proposer_ameliorations: bool = True
     ):
+        """Callback principal avec gestion d'erreur robuste"""
         try:
-            # Parser le lien Discord pour extraire les IDs
+            # Différer la réponse pour éviter les timeouts
+            await interaction.response.defer(ephemeral=True)
+            
+            logger.info(f"Vérification template demandée par {interaction.user} - Mode: {mode_correction}")
+            
+            # Parser et valider le lien Discord
             message_info = self._parse_discord_link(lien_message)
             if not message_info:
-                await interaction.response.send_message(
-                    "❌ **Lien invalide**\n\n"
-                    "Utilisez un lien Discord valide :\n"
-                    "• **Clic droit** sur le message → **Copier le lien du message**\n"
-                    "• Le lien doit ressembler à : `https://discord.com/channels/123.../456.../789...`\n\n"
-                    "💡 **Conseil :** Activez le Mode Développeur dans Discord pour accéder facilement aux liens de messages.",
+                await interaction.followup.send(
+                    embed=self._create_error_embed(
+                        "Lien invalide",
+                        "Utilisez un lien Discord valide :\n"
+                        "• **Clic droit** sur le message → **Copier le lien du message**\n"
+                        "• Format attendu : `https://discord.com/channels/123.../456.../789...`\n\n"
+                        "💡 **Astuce :** Activez le Mode Développeur dans Discord si nécessaire."
+                    ),
                     ephemeral=True
                 )
                 return
 
-            guild_id, channel_id, message_id = message_info
+            # Récupérer le message Discord
+            message = await self._fetch_discord_message(interaction, message_info)
+            if not message:
+                return  # L'erreur a déjà été envoyée
 
-            # Vérifier que nous sommes dans le bon serveur
-            if guild_id != interaction.guild.id:
-                await interaction.response.send_message(
-                    f"❌ **Serveur différent**\n\n"
-                    f"Le message se trouve sur un autre serveur.\n"
-                    f"• **Message :** Serveur ID `{guild_id}`\n"
-                    f"• **Commande :** Serveur ID `{interaction.guild.id}`\n\n"
-                    f"Utilisez cette commande sur le même serveur que le message à vérifier.",
-                    ephemeral=True
-                )
-                return
-
-            # Récupérer le canal
-            try:
-                channel = interaction.guild.get_channel(int(channel_id))
-                if not channel:
-                    await interaction.response.send_message(
-                        f"❌ **Canal introuvable**\n\n"
-                        f"Le canal avec l'ID `{channel_id}` n'existe pas ou n'est pas accessible.\n"
-                        f"Vérifiez que :\n"
-                        f"• Le canal existe toujours\n"
-                        f"• Le bot a accès à ce canal\n"
-                        f"• Le lien est correct",
-                        ephemeral=True
-                    )
-                    return
-            except Exception as e:
-                await interaction.response.send_message(
-                    f"❌ **Erreur d'accès au canal**\n\n"
-                    f"Impossible d'accéder au canal : {str(e)}",
-                    ephemeral=True
-                )
-                return
-
-            # Récupérer le message
-            try:
-                message = await channel.fetch_message(int(message_id))
-            except discord.NotFound:
-                await interaction.response.send_message(
-                    f"❌ **Message introuvable**\n\n"
-                    f"Le message avec l'ID `{message_id}` n'existe pas dans {channel.mention}.\n"
-                    f"Vérifiez que :\n"
-                    f"• Le message n'a pas été supprimé\n"
-                    f"• Le lien est correct et complet\n"
-                    f"• Vous avez copié le bon lien",
-                    ephemeral=True
-                )
-                return
-            except discord.Forbidden:
-                await interaction.response.send_message(
-                    f"❌ **Accès refusé**\n\n"
-                    f"Le bot n'a pas les permissions pour lire les messages dans {channel.mention}.\n"
-                    f"Contactez un administrateur pour accorder les permissions nécessaires.",
-                    ephemeral=True
-                )
-                return
-            except Exception as e:
-                await interaction.response.send_message(
-                    f"❌ **Erreur lors de la récupération du message**\n\n"
-                    f"Erreur : {str(e)}",
-                    ephemeral=True
-                )
-                return
-
-            # Vérifier que le message a du contenu
+            # Vérifier le contenu du message
             if not message.content.strip():
-                await interaction.response.send_message(
-                    "❌ **Message vide**\n\n"
-                    "Le message ne contient pas de texte à analyser.\n"
-                    "Vérifiez que vous avez sélectionné le bon message avec le template de MAJ.",
+                await interaction.followup.send(
+                    embed=self._create_error_embed(
+                        "Message vide",
+                        "Le message ne contient pas de texte à analyser.\n"
+                        "Vérifiez que vous avez sélectionné le bon message avec le template de MAJ."
+                    ),
                     ephemeral=True
                 )
                 return
 
-            # Effectuer la vérification
-            verification_result = self._verify_template(message.content)
+            # Effectuer la validation avec le système maj_fiche
+            verification_result = self.validator.verify_template(message.content)
             
-            # Générer des suggestions si demandé
-            suggestions = None
-            if proposer_corrections and verification_result['score'] < verification_result['total_checks']:
-                suggestions = self._generate_suggestions(message.content, verification_result)
-            
-            # Créer l'embed de résultat
-            embed = self._create_verification_embed(message, verification_result, suggestions)
-            
-            # CORRECTION CRITIQUE : Vérifier si interaction déjà répondue
-            if not interaction.response.is_done():
-                await interaction.response.send_message(embed=embed, ephemeral=True)
-            
-            # Envoyer TOUJOURS le template (original ou corrigé)
-            template_to_send = None
-            if suggestions and suggestions.get('corrected_template'):
-                template_to_send = suggestions['corrected_template']
-            else:
-                template_to_send = self._clean_template(message.content)
-            
-            await self._send_corrected_template(interaction, template_to_send, suggestions)
+            # Générer les corrections selon le mode choisi
+            corrections = None
+            if mode_correction in ["auto", "advanced"]:
+                corrections = self.validator.generate_corrections(message.content, verification_result)
+                
+                # Mode avancé : ajouter des optimisations supplémentaires
+                if mode_correction == "advanced":
+                    corrections = self._add_advanced_optimizations(corrections, message.content)
 
-        except Exception as e:
-            error_message = (
-                f"❌ **Erreur inattendue**\n\n"
-                f"Une erreur s'est produite lors de la vérification : {str(e)}\n\n"
-                f"💡 **Vérifiez que :**\n"
-                f"• Le lien Discord est complet et correct\n"
-                f"• Le message existe toujours\n"
-                f"• Vous avez les bonnes permissions"
+            # Créer l'embed de résultats
+            result_embed = self._create_verification_embed(
+                message, verification_result, corrections, mode_correction
             )
             
-            # CORRECTION : Gestion sécurisée des erreurs
-            if not interaction.response.is_done():
-                await interaction.response.send_message(error_message, ephemeral=True)
-            else:
-                await interaction.followup.send(error_message, ephemeral=True)
+            # Envoyer l'embed de résultats
+            await interaction.followup.send(embed=result_embed, ephemeral=True)
+            
+            # Envoyer le template corrigé si nécessaire
+            if mode_correction != "check":
+                await self._send_corrected_template(
+                    interaction, message.content, verification_result, corrections, proposer_ameliorations
+                )
+            
+            logger.info(f"Vérification terminée avec succès pour {interaction.user}")
+            
+        except Exception as e:
+            logger.error(f"Erreur dans verifier-maj: {e}", exc_info=True)
+            
+            error_embed = self._create_error_embed(
+                "Erreur inattendue",
+                f"Une erreur s'est produite lors de la vérification.\n\n"
+                f"**Erreur :** {str(e)}\n\n"
+                f"💡 **Solutions :**\n"
+                f"• Vérifiez que le lien est correct et complet\n"
+                f"• Réessayez dans quelques instants\n"
+                f"• Contactez un administrateur si le problème persiste"
+            )
+            
+            try:
+                await interaction.followup.send(embed=error_embed, ephemeral=True)
+            except:
+                logger.error(f"Impossible d'envoyer le message d'erreur pour {interaction.user}")
 
-    def _parse_discord_link(self, link: str) -> tuple:
+    def _parse_discord_link(self, link: str) -> Optional[tuple]:
         """
         Parse un lien Discord pour extraire guild_id, channel_id, message_id.
-        
-        Formats acceptés:
-        - https://discord.com/channels/GUILD_ID/CHANNEL_ID/MESSAGE_ID
-        - https://discordapp.com/channels/GUILD_ID/CHANNEL_ID/MESSAGE_ID
-        - discord.com/channels/GUILD_ID/CHANNEL_ID/MESSAGE_ID (sans https)
-        
-        Returns:
-            tuple: (guild_id, channel_id, message_id) ou None si invalide
+        Version améliorée avec support de plusieurs formats.
         """
-        # Nettoyer le lien (supprimer les espaces, <> si présents)
+        # Nettoyer le lien
         link = link.strip().strip('<>')
         
         # Ajouter https:// si manquant
@@ -198,242 +177,489 @@ class VerifierMajCommand(BaseCommand):
             else:
                 return None
         
-        # Pattern pour matcher les liens Discord
+        # Patterns pour différents formats Discord
         patterns = [
-            r'https?://discord\.com/channels/(\d+)/(\d+)/(\d+)',
-            r'https?://discordapp\.com/channels/(\d+)/(\d+)/(\d+)',
-            r'https?://www\.discord\.com/channels/(\d+)/(\d+)/(\d+)',
-            r'https?://www\.discordapp\.com/channels/(\d+)/(\d+)/(\d+)'
+            r'https?://(?:www\.)?discord(?:app)?\.com/channels/(\d+)/(\d+)/(\d+)',
+            r'https?://(?:www\.)?discord\.gg/channels/(\d+)/(\d+)/(\d+)',
+            r'https?://ptb\.discord(?:app)?\.com/channels/(\d+)/(\d+)/(\d+)',
+            r'https?://canary\.discord(?:app)?\.com/channels/(\d+)/(\d+)/(\d+)'
         ]
         
         for pattern in patterns:
             match = re.match(pattern, link)
             if match:
                 try:
-                    guild_id = int(match.group(1))
-                    channel_id = int(match.group(2))
-                    message_id = int(match.group(3))
-                    return (guild_id, channel_id, message_id)
+                    return (int(match.group(1)), int(match.group(2)), int(match.group(3)))
                 except ValueError:
                     continue
         
         return None
 
-        # commands/verifier_maj.py - PARTIE 2
-
-    def _verify_template(self, content: str) -> dict:
-        """Vérifie si le contenu respecte le template de mise à jour de fiche"""
+    async def _fetch_discord_message(
+        self, 
+        interaction: discord.Interaction, 
+        message_info: tuple
+    ) -> Optional[discord.Message]:
+        """Récupère le message Discord avec gestion d'erreur complète"""
         
-        result = {
-            'score': 0,
-            'total_checks': 0,
-            'sections_found': [],
-            'sections_missing': [],
-            'warnings': [],
-            'suggestions': [],
-            'details': {},
-            'placeholders': []
-        }
+        guild_id, channel_id, message_id = message_info
         
-        # Éléments obligatoires à vérifier
-        required_patterns = {
-            'nom_pj': r'Nom du PJ\s*:\s*(.+)',
-            'classe': r'Classe\s*:\s*(.+)',
-            'separator_pj_start': r'\*\*\s*/\s*=+\s*PJ\s*=+\s*\\\s*\*\*',
-            'quete': r'\*\*Quête\s*:\*\*\s*(.+)',
-            'solde_xp': r'\*\*Solde XP\s*:\*\*\s*(.+)',
-            'gain_niveau': r'\*\*Gain de niveau\s*:\*\*',
-            'pv_calcul': r'PV\s*:\s*(.+)',
-            'capacites': r'\*\*¤\s*Capacités et sorts supplémentaires\s*:\*\*',
-            'separator_pj_end': r'\*\*\s*\\\s*=+\s*PJ\s*=+\s*/\s*\*\*',
-            'solde_final': r'\*\*¤\s*Solde\s*:\*\*',
-            'fiche_maj': r'\*Fiche R20 à jour\.\*'
-        }
+        # Vérifier le serveur
+        if guild_id != interaction.guild.id:
+            await interaction.followup.send(
+                embed=self._create_error_embed(
+                    "Serveur différent",
+                    f"Le message se trouve sur un autre serveur.\n\n"
+                    f"• **Message :** Serveur ID `{guild_id}`\n"
+                    f"• **Commande :** Serveur ID `{interaction.guild.id}`\n\n"
+                    f"Utilisez cette commande sur le même serveur que le message."
+                ),
+                ephemeral=True
+            )
+            return None
         
-        # Vérifier les éléments obligatoires
-        result['total_checks'] = len(required_patterns)
-        
-        for key, pattern in required_patterns.items():
-            if re.search(pattern, content, re.IGNORECASE | re.MULTILINE):
-                result['score'] += 1
-                result['sections_found'].append(key)
-                
-                # Extraire les détails pour certains éléments
-                match = re.search(pattern, content, re.IGNORECASE | re.MULTILINE)
-                if match and match.groups():
-                    result['details'][key] = match.group(1).strip()
-            else:
-                result['sections_missing'].append(key)
-        
-        # Analyser la structure et donner des conseils
-        self._analyze_structure(content, result)
-        
-        return result
-
-    def _analyze_structure(self, content: str, result: dict):
-        """Analyse la structure et ajoute des suggestions"""
-        
-        lines = content.split('\n')
-        
-        # Vérifier les calculs XP
-        xp_line = None
-        for line in lines:
-            if re.search(r'\*\*Solde XP\s*:\*\*', line, re.IGNORECASE):
-                xp_line = line
-                break
-        
-        if xp_line:
-            # Chercher un pattern de calcul : X/Y + Z = W/Y
-            if not re.search(r'\d+/\d+\s*\+\s*\d+\s*=\s*\d+/\d+', xp_line):
-                if '[' in xp_line:
-                    result['warnings'].append("XP non calculés - Des placeholders restent à remplir")
-                else:
-                    result['warnings'].append("Format de calcul XP non standard")
-        
-        # Vérifier les placeholders non remplis
-        placeholders = re.findall(r'\[([A-Z_]+)\]', content)
-        result['placeholders'] = list(set(placeholders))  # Supprimer les doublons
-        
-        if len(result['placeholders']) > 0:
-            result['warnings'].append(f"{len(result['placeholders'])} placeholder(s) non rempli(s) : {', '.join(result['placeholders'][:5])}")
-        
-        # Vérifier la longueur
-        char_count = len(content)
-        if char_count > 2000:
-            result['warnings'].append(f"Message long ({char_count} caractères) - Peut nécessiter plusieurs messages")
-        elif char_count < 300:
-            result['warnings'].append("Message très court - Vérifiez si toutes les sections sont présentes")
-
-        # commands/verifier_maj.py - PARTIE 3
-
-    def _generate_suggestions(self, original_content: str, verification_result: dict) -> dict:
-        """Génère des suggestions d'amélioration et un template corrigé"""
-        
-        suggestions = {
-            'corrections': [],
-            'ameliorations': [],
-            'corrected_template': None,
-            'automatic_fixes': []
-        }
-        
-        corrected_content = original_content
-        
-        # 1. CORRECTIONS AUTOMATIQUES DES SÉPARATEURS
-        if 'separator_pj_start' in verification_result['sections_missing']:
-            suggestions['automatic_fixes'].append("Ajout du séparateur de début PJ")
-            # Trouver où insérer le séparateur (après Classe)
-            if 'Classe' in corrected_content:
-                corrected_content = re.sub(
-                    r'(Classe\s*:\s*.+)',
-                    r'\1\n\n** / =======================  PJ  ========================= \\ **',
-                    corrected_content,
-                    count=1
+        # Récupérer le canal
+        try:
+            channel = interaction.guild.get_channel(int(channel_id))
+            if not channel:
+                await interaction.followup.send(
+                    embed=self._create_error_embed(
+                        "Canal introuvable",
+                        f"Le canal avec l'ID `{channel_id}` n'existe pas ou n'est pas accessible.\n\n"
+                        f"**Vérifiez que :**\n"
+                        f"• Le canal existe toujours\n"
+                        f"• Le bot a accès à ce canal\n"
+                        f"• Le lien est correct"
+                    ),
+                    ephemeral=True
                 )
+                return None
+        except Exception as e:
+            await interaction.followup.send(
+                embed=self._create_error_embed(
+                    "Erreur d'accès au canal",
+                    f"Impossible d'accéder au canal : {str(e)}"
+                ),
+                ephemeral=True
+            )
+            return None
         
-        if 'separator_pj_end' in verification_result['sections_missing']:
-            suggestions['automatic_fixes'].append("Ajout du séparateur de fin PJ")
-            # Insérer avant le solde final
-            if '*Solde' in corrected_content:
-                corrected_content = re.sub(
-                    r'(\*\*¤\s*Solde\s*:\*\*)',
-                    r'** \\ =======================  PJ  ========================= / **\n\n\1',
-                    corrected_content,
-                    count=1
-                )
+        # Récupérer le message
+        try:
+            message = await channel.fetch_message(int(message_id))
+            return message
+        except discord.NotFound:
+            await interaction.followup.send(
+                embed=self._create_error_embed(
+                    "Message introuvable",
+                    f"Le message avec l'ID `{message_id}` n'existe pas dans {channel.mention}.\n\n"
+                    f"**Vérifiez que :**\n"
+                    f"• Le message n'a pas été supprimé\n"
+                    f"• Le lien est correct et complet\n"
+                    f"• Vous avez copié le bon lien"
+                ),
+                ephemeral=True
+            )
+            return None
+        except discord.Forbidden:
+            await interaction.followup.send(
+                embed=self._create_error_embed(
+                    "Accès refusé",
+                    f"Le bot n'a pas les permissions pour lire les messages dans {channel.mention}.\n"
+                    f"Contactez un administrateur pour accorder les permissions nécessaires."
+                ),
+                ephemeral=True
+            )
+            return None
+        except Exception as e:
+            await interaction.followup.send(
+                embed=self._create_error_embed(
+                    "Erreur de récupération",
+                    f"Erreur lors de la récupération du message : {str(e)}"
+                ),
+                ephemeral=True
+            )
+            return None
+
+    def _create_verification_embed(
+        self, 
+        message: discord.Message, 
+        verification_result: Dict[str, Any],
+        corrections: Optional[Dict[str, Any]] = None,
+        mode: str = "auto"
+    ) -> discord.Embed:
+        """Crée l'embed de résultats de vérification avec les infos maj_fiche"""
         
-        # 2. CORRECTIONS DES SECTIONS MANQUANTES
-        missing_sections = verification_result['sections_missing']
+        completion = verification_result.get('completion_percentage', 0)
         
-        if 'quete' in missing_sections:
-            suggestions['corrections'].append({
-                'section': 'Quête',
-                'correction': '**Quête :** [TITRE_QUETE] + [NOM_MJ] ⁠- [LIEN_MESSAGE_RECOMPENSES]',
-                'position': 'Après les séparateurs PJ'
+        # Déterminer couleur et statut
+        if completion >= 90:
+            color, emoji, status = 0x2ecc71, "✅", "Excellent"
+        elif completion >= 70:
+            color, emoji, status = 0xf39c12, "🟡", "Bon"
+        elif completion >= 50:
+            color, emoji, status = 0xff9900, "🟠", "Passable"
+        else:
+            color, emoji, status = 0xe74c3c, "❌", "Insuffisant"
+        
+        embed = discord.Embed(
+            title=f"{emoji} Vérification Template D&D",
+            description=f"**Statut :** {status} ({completion:.0f}% complet)",
+            color=color
+        )
+        
+        # Informations du message
+        embed.add_field(
+            name="📝 Message analysé",
+            value=(
+                f"**Auteur :** {message.author.mention}\n"
+                f"**Canal :** {message.channel.mention}\n"
+                f"**Date :** {discord.utils.format_dt(message.created_at, 'R')}"
+            ),
+            inline=False
+        )
+        
+        # Score détaillé avec système maj_fiche
+        score_text = (
+            f"**{verification_result['score']}/{verification_result['total_checks']}** sections obligatoires\n"
+            f"**{completion:.1f}%** de conformité\n"
+            f"**{len(verification_result.get('placeholders', []))}** placeholders à compléter"
+        )
+        embed.add_field(
+            name="📊 Analyse détaillée",
+            value=score_text,
+            inline=True
+        )
+        
+        # Informations personnage détectées
+        details = verification_result.get('details', {})
+        if details.get('nom_pj') or details.get('classe'):
+            char_info = []
+            if details.get('nom_pj'):
+                char_info.append(f"**PJ :** {details['nom_pj']}")
+            if details.get('classe'):
+                char_info.append(f"**Classe :** {details['classe']}")
+            
+            embed.add_field(
+                name="🎭 Personnage",
+                value=self._safe_field_value("\n".join(char_info)),
+                inline=True
+            )
+        
+        # Sections manquantes (limitées pour l'affichage)
+        if verification_result.get('sections_missing'):
+            missing_labels = []
+            section_labels = {
+                'nom_pj': 'Nom PJ', 'classe': 'Classe', 'quete': 'Quête',
+                'solde_xp': 'Solde XP', 'gain_niveau': 'Gain niveau',
+                'capacites': 'Capacités', 'solde_final': 'Solde final'
+            }
+            
+            for section in verification_result['sections_missing'][:5]:
+                label = section_labels.get(section, section)
+                missing_labels.append(f"• {label}")
+            
+            if len(verification_result['sections_missing']) > 5:
+                missing_labels.append(f"• ... et {len(verification_result['sections_missing']) - 5} autres")
+            
+            embed.add_field(
+                name="❌ Sections manquantes",
+                value=self._safe_field_value("\n".join(missing_labels)),
+                inline=False
+            )
+        
+        # Corrections automatiques appliquées
+        if corrections and corrections.get('automatic_fixes'):
+            fixes_text = "\n".join([f"✅ {fix}" for fix in corrections['automatic_fixes'][:4]])
+            embed.add_field(
+                name="🔧 Corrections automatiques",
+                value=self._safe_field_value(fixes_text),
+                inline=False
+            )
+        
+        # Alertes importantes
+        warnings = verification_result.get('warnings', [])
+        if warnings:
+            warnings_text = "\n".join([f"⚠️ {w}" for w in warnings[:3]])
+            embed.add_field(
+                name="⚠️ Alertes",
+                value=self._safe_field_value(warnings_text),
+                inline=False
+            )
+        
+        # Footer avec informations sur le mode
+        mode_descriptions = {
+            "check": "Mode vérification uniquement",
+            "auto": "Mode corrections automatiques",
+            "advanced": "Mode optimisations avancées"
+        }
+        
+        embed.set_footer(
+            text=f"{mode_descriptions.get(mode, 'Mode inconnu')} • Système maj_fiche v2.0"
+        )
+        embed.timestamp = discord.utils.utcnow()
+        
+        return embed
+
+    def _add_advanced_optimizations(
+        self, 
+        corrections: Dict[str, Any], 
+        content: str
+    ) -> Dict[str, Any]:
+        """Ajoute des optimisations avancées au mode advanced"""
+        
+        if not corrections.get('improvements'):
+            corrections['improvements'] = []
+        
+        # Optimisations avancées spécifiques
+        
+        # 1. Optimisation des calculs XP avec table D&D
+        if re.search(r'\[XP_', content):
+            corrections['improvements'].append({
+                'type': 'Calculs XP automatiques',
+                'description': 'Utiliser les calculs automatiques XP basés sur les niveaux D&D 5e',
+                'priority': 'Haute',
+                'template': '**Solde XP :** [XP_ACTUELS] + [XP_OBTENUS] = [NOUVEAUX_XP] -> 🆙 passage au niveau [NOUVEAU_NIVEAU]'
             })
         
-        if 'solde_xp' in missing_sections:
-            suggestions['corrections'].append({
-                'section': 'Solde XP',
-                'correction': '**Solde XP :** [XP_ACTUELS]/[XP_REQUIS] + [XP_OBTENUS] = [NOUVEAUX_XP]/[XP_REQUIS] -> 🆙 passage au niveau [NOUVEAU_NIVEAU]',
-                'position': 'Après la section Quête'
+        # 2. Suggestions de sorts par classe
+        if re.search(r'\[SORT_', content):
+            classe_match = re.search(r'Classe\s*:\s*([A-Za-zÀ-ÿ]+)', content)
+            if classe_match:
+                classe = classe_match.group(1)
+                suggestions = self.generator.add_class_specific_suggestions(classe, 3)  # Niveau exemple
+                if suggestions.get('spells'):
+                    corrections['improvements'].append({
+                        'type': 'Suggestions de sorts',
+                        'description': f'Sorts recommandés pour {classe} : {", ".join(suggestions["spells"][:3])}',
+                        'priority': 'Moyenne'
+                    })
+        
+        # 3. Optimisation de la structure
+        if len(content) > 1800:
+            corrections['improvements'].append({
+                'type': 'Optimisation longueur',
+                'description': 'Réorganiser le template pour optimiser la longueur Discord',
+                'priority': 'Moyenne'
             })
         
-        if 'gain_niveau' in missing_sections:
-            suggestions['corrections'].append({
-                'section': 'Gain de niveau',
-                'correction': '**Gain de niveau :**\nPV : [ANCIENS_PV] + [PV_OBTENUS] = [NOUVEAUX_PV]',
-                'position': 'Après Solde XP'
-            })
-        
-        if 'capacites' in missing_sections:
-            suggestions['corrections'].append({
-                'section': 'Capacités et sorts',
-                'correction': '**¤ Capacités et sorts supplémentaires :**\nNouvelle(s) capacité(s) :\n- [CAPACITE_1]\n- [CAPACITE_2]\nNouveau(x) sort(s) :\n- [SORT_1]\n- [SORT_2]',
-                'position': 'Après Gain de niveau'
-            })
-        
-        # 3. AMÉLIORATIONS SUGGÉRÉES
-        if verification_result['placeholders']:
-            suggestions['ameliorations'].append({
-                'type': 'Placeholders à remplir',
-                'description': f"Remplacer les placeholders : {', '.join(verification_result['placeholders'][:10])}",
+        # 4. Validation des calculs PV
+        if re.search(r'PV\s*:', content):
+            corrections['improvements'].append({
+                'type': 'Validation PV',
+                'description': 'Vérifier la cohérence des calculs de Points de Vie avec les modificateurs',
                 'priority': 'Haute'
             })
         
-        # Suggestions basées sur le contenu détecté
-        if 'nom_pj' in verification_result['details']:
-            nom_pj = verification_result['details']['nom_pj']
-            if '[' in nom_pj:
-                suggestions['ameliorations'].append({
-                    'type': 'Nom du PJ',
-                    'description': f"Remplacer '{nom_pj}' par le vrai nom du personnage",
-                    'priority': 'Haute'
-                })
-        
-        if 'classe' in verification_result['details']:
-            classe = verification_result['details']['classe']
-            if '[' in classe:
-                suggestions['ameliorations'].append({
-                    'type': 'Classe',
-                    'description': f"Remplacer '{classe}' par la vraie classe du personnage",
-                    'priority': 'Haute'
-                })
-        
-        # 4. SUGGESTIONS POUR LES CALCULS
-        if 'solde_xp' in verification_result['details']:
-            xp_line = verification_result['details']['solde_xp']
-            if '[' in xp_line:
-                suggestions['ameliorations'].append({
-                    'type': 'Calculs XP',
-                    'description': "Compléter les calculs d'expérience avec les vrais chiffres",
-                    'priority': 'Moyenne'
-                })
-        
-        # 5. SUGGESTIONS DE FORMATAGE
-        if len(original_content) > 1800:
-            suggestions['ameliorations'].append({
-                'type': 'Longueur du message',
-                'description': "Considérer diviser en plusieurs messages pour Discord",
-                'priority': 'Basse'
-            })
-        
-        # 6. GÉNÉRER UN TEMPLATE PARTIELLEMENT CORRIGÉ
-        if suggestions['automatic_fixes']:
-            suggestions['corrected_template'] = self._apply_automatic_fixes(corrected_content, verification_result)
-        
-        return suggestions
-        
-        # commands/verifier_maj.py - PARTIE 4
+        return corrections
 
-    def _clean_template(self, content: str) -> str:
-        """Nettoie et optimise le template même s'il est déjà correct"""
+    async def _send_corrected_template(
+        self,
+        interaction: discord.Interaction,
+        original_content: str,
+        verification_result: Dict[str, Any],
+        corrections: Optional[Dict[str, Any]],
+        include_improvements: bool
+    ):
+        """Envoie le template corrigé en utilisant la logique maj_fiche"""
+        
+        # Déterminer le template à envoyer
+        if corrections and corrections.get('corrected_template'):
+            final_template = corrections['corrected_template']
+            template_type = "corrigé"
+        else:
+            # Utiliser le nettoyage basique si pas de corrections
+            final_template = self._clean_template_basic(original_content)
+            template_type = "nettoyé"
+        
+        # Calculer les statistiques avec le système maj_fiche
+        template_stats = self.generator.get_template_stats(final_template)
+        
+        # Créer l'embed principal
+        embed = discord.Embed(
+            title=f"📋 Template D&D {template_type.title()}",
+            description=f"Votre template a été {template_type} et optimisé avec le système maj_fiche.",
+            color=0x2ecc71 if template_type == "corrigé" else 0x3498db
+        )
+        
+        # Statistiques du template
+        embed.add_field(
+            name="📊 Statistiques",
+            value=(
+                f"**Caractères :** {template_stats['length']}/2000\n"
+                f"**Placeholders :** {template_stats['placeholders']}\n"
+                f"**Sections :** {template_stats['sections']}"
+            ),
+            inline=True
+        )
+        
+        # Résumé des corrections
+        if corrections:
+            fixes_count = len(corrections.get('automatic_fixes', []))
+            manual_count = len(corrections.get('manual_corrections', []))
+            
+            embed.add_field(
+                name="🔧 Corrections appliquées",
+                value=(
+                    f"**Automatiques :** {fixes_count}\n"
+                    f"**Manuelles suggérées :** {manual_count}\n"
+                    f"**Qualité :** {self.validator.get_validation_summary(verification_result)}"
+                ),
+                inline=True
+            )
+        
+        # Instructions selon l'état
+        placeholder_count = template_stats['placeholders']
+        if placeholder_count > 0:
+            embed.add_field(
+                name="📝 Prochaines étapes",
+                value=(
+                    f"1. **Copiez** le template ci-dessous\n"
+                    f"2. **Complétez** les {placeholder_count} placeholders [EN_MAJUSCULES]\n"
+                    f"3. **Vérifiez** les calculs XP et PV\n"
+                    f"4. **Utilisez** dans le canal approprié"
+                ),
+                inline=False
+            )
+        else:
+            embed.add_field(
+                name="🎯 Template prêt !",
+                value="✅ Aucun placeholder à compléter\n✅ Prêt à utiliser directement\n✅ Validé par le système maj_fiche",
+                inline=False
+            )
+        
+        # Envoyer l'embed d'introduction
+        await interaction.followup.send(embed=embed, ephemeral=True)
+        
+        # Envoyer le template selon sa longueur
+        if template_stats['needs_splitting']:
+            await self._send_template_multipart(interaction, final_template, template_stats)
+        else:
+            await self._send_template_single(interaction, final_template, template_stats)
+        
+        # Envoyer les améliorations suggérées si demandées
+        if include_improvements and corrections and corrections.get('improvements'):
+            await self._send_improvements_suggestions(interaction, corrections['improvements'])
+
+    async def _send_template_single(
+        self, 
+        interaction: discord.Interaction, 
+        template: str, 
+        stats: Dict[str, Any]
+    ):
+        """Envoie un template en une seule partie"""
+        
+        embed = discord.Embed(
+            title="📄 Votre Template Final",
+            description=f"Template complet ({stats['length']} caractères)",
+            color=0x3498db
+        )
+        
+        # Diviser le template en chunks pour l'embed
+        max_field_length = 1020
+        if len(template) <= max_field_length:
+            embed.add_field(
+                name="Template complet",
+                value=f"```\n{template}\n```",
+                inline=False
+            )
+        else:
+            # Template trop long même pour un seul embed
+            template_chunks = [template[i:i+max_field_length-10] for i in range(0, len(template), max_field_length-10)]
+            
+            for i, chunk in enumerate(template_chunks[:3]):  # Limiter à 3 chunks max
+                embed.add_field(
+                    name=f"Template (partie {i+1})" if len(template_chunks) > 1 else "Template",
+                    value=f"```\n{chunk}\n```",
+                    inline=False
+                )
+        
+        await interaction.followup.send(embed=embed, ephemeral=True)
+
+    async def _send_template_multipart(
+        self, 
+        interaction: discord.Interaction, 
+        template: str, 
+        stats: Dict[str, Any]
+    ):
+        """Envoie un template divisé en plusieurs parties"""
+        
+        parts = self.generator.split_template_if_needed(template)
+        
+        for i, part in enumerate(parts, 1):
+            embed = discord.Embed(
+                title=f"📄 Template - Partie {i}/{len(parts)}",
+                description=f"```\n{part}\n```",
+                color=0x3498db
+            )
+            
+            embed.add_field(
+                name="📏 Informations",
+                value=f"**Partie :** {i}/{len(parts)}\n**Caractères :** {len(part)}",
+                inline=True
+            )
+            
+            if i == 1:
+                embed.add_field(
+                    name="💡 Instructions",
+                    value="Copiez chaque partie dans l'ordre et assemblez-les",
+                    inline=True
+                )
+            elif i == len(parts):
+                embed.add_field(
+                    name="✅ Terminé",
+                    value=f"Template complet reconstitué ! Total: {stats['length']} caractères",
+                    inline=True
+                )
+            
+            await interaction.followup.send(embed=embed, ephemeral=True)
+
+    async def _send_improvements_suggestions(
+        self, 
+        interaction: discord.Interaction, 
+        improvements: list
+    ):
+        """Envoie les suggestions d'amélioration"""
+        
+        if not improvements:
+            return
+        
+        embed = discord.Embed(
+            title="💡 Suggestions d'Amélioration",
+            description="Améliorations supplémentaires recommandées pour votre template :",
+            color=0xf39c12
+        )
+        
+        priority_colors = {"Haute": "🔴", "Moyenne": "🟡", "Basse": "🟢"}
+        
+        for i, improvement in enumerate(improvements[:5], 1):  # Limiter à 5 suggestions
+            priority = improvement.get('priority', 'Moyenne')
+            priority_emoji = priority_colors.get(priority, "⚪")
+            
+            embed.add_field(
+                name=f"{priority_emoji} {improvement.get('type', 'Amélioration')}",
+                value=f"{improvement.get('description', 'Aucune description')}\n**Priorité :** {priority}",
+                inline=False
+            )
+        
+        if len(improvements) > 5:
+            embed.add_field(
+                name="📝 Note",
+                value=f"+ {len(improvements) - 5} autres suggestions disponibles",
+                inline=False
+            )
+        
+        await interaction.followup.send(embed=embed, ephemeral=True)
+
+    def _clean_template_basic(self, content: str) -> str:
+        """Nettoyage basique du template sans les modules maj_fiche"""
         
         cleaned = content.strip()
         
         # Normaliser les espaces multiples
         cleaned = re.sub(r'\n{3,}', '\n\n', cleaned)
         
-        # Normaliser les séparateurs
+        # Normaliser les séparateurs PJ
         cleaned = re.sub(
             r'\*\*\s*/\s*=+\s*PJ\s*=+\s*\\\s*\*\*',
             '** / =======================  PJ  ========================= \\ **',
@@ -445,336 +671,24 @@ class VerifierMajCommand(BaseCommand):
             cleaned
         )
         
-        # Normaliser les sections Marchand si présentes - LIGNE 433 CORRIGÉE
-        cleaned = re.sub(
-            r'\*\*\s*/\s*=+\s*Marchand\s*=+\s*\\\s*\*\*',
-            '**/ ===================== Marchand ===================== \\\\ **',
-            cleaned
-        )
-        cleaned = re.sub(
-            r'\*\*\s*\\\s*=+\s*Marchand\s*=+\s*/\s*\*\*',
-            '** \\ ==================== Marchand ====================== / **',
-            cleaned
-        )
-        
         return cleaned
 
-    def _apply_automatic_fixes(self, content: str, verification_result: dict) -> str:
-        """Applique les corrections automatiques possibles"""
-        
-        corrected = content
-        
-        # Correction des séparateurs manquants
-        if 'separator_pj_start' in verification_result['sections_missing']:
-            if '** /' not in corrected and 'Classe' in corrected:
-                corrected = re.sub(
-                    r'(Classe\s*:\s*.+?)(\n|$)',
-                    r'\1\n\n** / =======================  PJ  ========================= \\ **\n',
-                    corrected,
-                    count=1,
-                    flags=re.MULTILINE
-                )
-        
-        if 'separator_pj_end' in verification_result['sections_missing']:
-            if '** \\' not in corrected and 'Solde' in corrected:
-                corrected = re.sub(
-                    r'(\*\*¤\s*Solde\s*:\*\*)',
-                    r'** \\ =======================  PJ  ========================= / **\n\n\1',
-                    corrected,
-                    count=1
-                )
-        
-        # Ajout des sections manquantes de base
-        missing = verification_result['sections_missing']
-        
-        # Insérer les sections manquantes dans l'ordre logique
-        if 'quete' in missing and '**Quête' not in corrected:
-            if '** /' in corrected:
-                corrected = re.sub(
-                    r'(\*\* / =+ PJ =+ \\ \*\*\n)',
-                    r'\1**Quête :** [TITRE_QUETE] + [NOM_MJ] ⁠- [LIEN_MESSAGE_RECOMPENSES]\n',
-                    corrected,
-                    count=1
-                )
-        
-        if 'solde_xp' in missing and '**Solde XP' not in corrected:
-            if '**Quête' in corrected:
-                corrected = re.sub(
-                    r'(\*\*Quête\s*:\*\*.*?\n)',
-                    r'\1**Solde XP :** [XP_ACTUELS]/[XP_REQUIS] + [XP_OBTENUS] = [NOUVEAUX_XP]/[XP_REQUIS] -> 🆙 passage au niveau [NOUVEAU_NIVEAU]\n\n',
-                    corrected,
-                    count=1,
-                    flags=re.DOTALL
-                )
-        
-        return corrected
-
-        # commands/verifier_maj.py - PARTIE 5 - EMBED CORRIGÉ
-
-    def _create_verification_embed(self, message: discord.Message, result: dict, suggestions: dict = None) -> discord.Embed:
-        """Crée l'embed avec les résultats de vérification et suggestions"""
-        
-        # Calculer le pourcentage de conformité
-        score_percentage = (result['score'] / result['total_checks']) * 100 if result['total_checks'] > 0 else 0
-        
-        # Déterminer la couleur selon le score
-        if score_percentage >= 90:
-            color = 0x2ecc71  # Vert
-            status_emoji = "✅"
-            status_text = "Excellent"
-        elif score_percentage >= 70:
-            color = 0xf39c12  # Orange
-            status_emoji = "⚠️"
-            status_text = "Bon"
-        elif score_percentage >= 50:
-            color = 0xff9900  # Orange foncé
-            status_emoji = "🔸"
-            status_text = "Passable"
-        else:
-            color = 0xe74c3c  # Rouge
-            status_emoji = "❌"
-            status_text = "Insuffisant"
+    def _create_error_embed(self, title: str, description: str) -> discord.Embed:
+        """Crée un embed d'erreur standardisé"""
         
         embed = discord.Embed(
-            title=f"{status_emoji} Vérification + Suggestions de MAJ",
-            description=f"**Statut :** {status_text} ({score_percentage:.0f}%)",
-            color=color
+            title=f"❌ {title}",
+            description=description,
+            color=0xe74c3c
         )
         
-        # Informations du message
-        embed.add_field(
-            name="📝 Message analysé",
-            value=f"**Auteur :** {message.author.mention}\n**Canal :** {message.channel.mention}\n**Date :** {discord.utils.format_dt(message.created_at, 'R')}",
-            inline=False
-        )
+        embed.set_footer(text="Commande verifier-maj • Système maj_fiche")
+        embed.timestamp = discord.utils.utcnow()
         
-        # Score de conformité
-        embed.add_field(
-            name="📊 Score de conformité",
-            value=f"**{result['score']}/{result['total_checks']}** éléments obligatoires trouvés\n**{score_percentage:.1f}%** de conformité",
-            inline=True
-        )
-        
-        # Caractéristiques détectées - SÉCURISÉ
-        if result['details'].get('nom_pj') or result['details'].get('classe'):
-            char_info = []
-            if result['details'].get('nom_pj'):
-                char_info.append(f"**PJ :** {result['details']['nom_pj']}")
-            if result['details'].get('classe'):
-                char_info.append(f"**Classe :** {result['details']['classe']}")
-            
-            embed.add_field(
-                name="🎭 Personnage détecté",
-                value=self._safe_field_value("\n".join(char_info)),
-                inline=True
-            )
-        
-        # CORRECTION : Corrections automatiques disponibles (SÉCURISÉ)
-        if suggestions and suggestions.get('automatic_fixes'):
-            fixes_text = "\n".join([f"✅ {fix}" for fix in suggestions['automatic_fixes'][:3]])
-            embed.add_field(
-                name="🔧 Corrections automatiques appliquées",
-                value=self._safe_field_value(fixes_text),
-                inline=False
-            )
-        
-        # CORRECTION : Suggestions de corrections (SÉCURISÉ)
-        if suggestions and suggestions.get('corrections'):
-            corrections_text = []
-            for correction in suggestions['corrections'][:3]:  # Limiter à 3 max
-                corrections_text.append(f"**{correction['section']}** - {correction['position']}")
-            
-            if corrections_text:
-                embed.add_field(
-                    name="🛠️ Sections à ajouter",
-                    value=self._safe_field_value("\n".join(corrections_text)),
-                    inline=False
-                )
-        
-        # CORRECTION : Améliorations suggérées (SÉCURISÉ)
-        if suggestions and suggestions.get('ameliorations'):
-            ameliorations_text = []
-            for amelioration in suggestions['ameliorations'][:2]:  # Limiter à 2 max
-                priority_emoji = {"Haute": "🔴", "Moyenne": "🟡", "    
+        return embed
 
-        # commands/verifier_maj.py - PARTIE 6
-
-    async def _send_corrected_template(self, interaction: discord.Interaction, template: str, suggestions: dict = None):
-        """Envoie TOUJOURS le template (corrigé ou nettoyé) en follow-up"""
-        
-        # Déterminer le type de template
-        has_corrections = suggestions and (suggestions.get('automatic_fixes') or suggestions.get('corrections'))
-        is_perfect = not has_corrections and suggestions
-        
-        # Titre selon le type
-        if has_corrections:
-            title = "🔧 Template Corrigé et Amélioré"
-            description = "Voici votre template avec toutes les corrections automatiques appliquées :"
-            color = 0x2ecc71  # Vert
-        elif is_perfect:
-            title = "✅ Template Validé et Optimisé"
-            description = "Votre template était déjà excellent ! Voici la version nettoyée et prête à utiliser :"
-            color = 0x3498db  # Bleu
-        else:
-            title = "📋 Template Extrait et Nettoyé"
-            description = "Voici votre template extrait du message, nettoyé et prêt à utiliser :"
-            color = 0x9b59b6  # Violet
-        
-        # Diviser le template si trop long
-        max_length = 1800  # Limite sécurisée pour laisser place aux autres éléments
-        
-        if len(template) <= max_length:
-            # Template complet dans un seul message
-            embed = discord.Embed(
-                title=title,
-                description=description,
-                color=color
-            )
-            
-            # Calculer les statistiques du template
-            char_count = len(template)
-            line_count = len(template.split('\n'))
-            placeholder_count = len(re.findall(r'\[([A-Z_]+)\]', template))
-            
-            embed.add_field(
-                name="📊 Statistiques du template",
-                value=f"**Caractères :** {char_count}/2000 Discord\n**Lignes :** {line_count}\n**Placeholders à remplir :** {placeholder_count}",
-                inline=True
-            )
-            
-            # Afficher les corrections si il y en a
-            if has_corrections and suggestions:
-                corrections_applied = []
-                if suggestions.get('automatic_fixes'):
-                    corrections_applied.extend([f"✅ {fix}" for fix in suggestions['automatic_fixes'][:3]])
-                
-                if corrections_applied:
-                    embed.add_field(
-                        name="🔧 Corrections appliquées",
-                        value=self._safe_field_value("\n".join(corrections_applied)),
-                        inline=True
-                    )
-            
-            # Instructions d'utilisation
-            if placeholder_count > 0:
-                embed.add_field(
-                    name="📝 Prochaines étapes",
-                    value=f"1. **Copiez** le template ci-dessous\n2. **Remplacez** les {placeholder_count} placeholders [EN_MAJUSCULES]\n3. **Complétez** les calculs XP et PV\n4. **Vérifiez** les informations personnage",
-                    inline=False
-                )
-            else:
-                embed.add_field(
-                    name="🎯 Template prêt !",
-                    value="✅ Aucun placeholder à remplir\n✅ Copiez et utilisez directement\n✅ Vérifiez une dernière fois les calculs",
-                    inline=False
-                )
-            
-            # Le template lui-même - SÉCURISÉ
-            template_field = f"```\n{template}\n```"
-            embed.add_field(
-                name="📋 Votre template final",
-                value=self._safe_field_value(template_field),
-                inline=False
-            )
-            
-            # Conseils selon la longueur
-            if char_count > 1900:
-                embed.add_field(
-                    name="⚠️ Attention",
-                    value="Template proche de la limite Discord (2000 caractères). Considérez raccourcir certaines sections si nécessaire.",
-                    inline=False
-                )
-            
-            await interaction.followup.send(embed=embed, ephemeral=True)        
-        # commands/verifier_maj.py - PARTIE 7
-
-        else:
-            # Template trop long - diviser en parties
-            embed_intro = discord.Embed(
-                title=f"{title} - Multi-parties",
-                description=f"{description}\n\n⚠️ **Template long** - Divisé en plusieurs messages pour Discord",
-                color=color
-            )
-            
-            # Stats dans l'intro
-            char_count = len(template)
-            line_count = len(template.split('\n'))
-            placeholder_count = len(re.findall(r'\[([A-Z_]+)\]', template))
-            
-            embed_intro.add_field(
-                name="📊 Statistiques",
-                value=f"**Total :** {char_count} caractères\n**Lignes :** {line_count}\n**Placeholders :** {placeholder_count}",
-                inline=True
-            )
-            
-            if has_corrections and suggestions and suggestions.get('automatic_fixes'):
-                embed_intro.add_field(
-                    name="🔧 Corrections",
-                    value=self._safe_field_value("\n".join([f"✅ {fix}" for fix in suggestions['automatic_fixes'][:3]])),
-                    inline=True
-                )
-            
-            embed_intro.add_field(
-                name="📝 Instructions",
-                value="1. **Copiez** chaque partie dans l'ordre\n2. **Assemblez** en un seul message\n3. **Complétez** les placeholders\n4. **Vérifiez** les calculs",
-                inline=False
-            )
-            
-            await interaction.followup.send(embed=embed_intro, ephemeral=True)
-            
-            # Diviser et envoyer les parties
-            parts = self._split_template_for_discord(template)
-            
-            for i, part in enumerate(parts, 1):
-                part_embed = discord.Embed(
-                    title=f"📋 Template - Partie {i}/{len(parts)}",
-                    description=self._safe_field_value(f"```\n{part}\n```"),
-                    color=color
-                )
-                
-                part_embed.add_field(
-                    name="📏 Cette partie",
-                    value=f"**Caractères :** {len(part)}\n**Partie :** {i} sur {len(parts)}",
-                    inline=True
-                )
-                
-                if i == 1:
-                    part_embed.add_field(
-                        name="💡 Conseil",
-                        value="Copiez chaque partie et assemblez-les dans l'ordre",
-                        inline=True
-                    )
-                elif i == len(parts):
-                    part_embed.add_field(
-                        name="✅ Terminé",
-                        value=f"Template complet reconstitué !\n**Total final :** {char_count} caractères",
-                        inline=True
-                    )
-                
-                await interaction.followup.send(embed=part_embed, ephemeral=True)
-
-        return suggestions
-
-    def _split_template_for_discord(self, template: str) -> list:
-        """Divise le template pour respecter les limites Discord"""
-        max_length = 1900
-        parts = []
-        
-        if len(template) <= max_length:
-            return [template]
-        
-        lines = template.split('\n')
-        current_part = ""
-        
-        for line in lines:
-            if len(current_part + line + '\n') > max_length:
-                if current_part:
-                    parts.append(current_part.rstrip())
-                current_part = line + '\n'
-            else:
-                current_part += line + '\n'
-        
-        if current_part:
-            parts.append(current_part.rstrip())
-        
-        return parts    
+    def _safe_field_value(self, text: str, max_length: int = 1020) -> str:
+        """Sécurise un texte pour les champs Discord"""
+        if len(text) <= max_length:
+            return text
+        return text[:max_length-3] + "..."
