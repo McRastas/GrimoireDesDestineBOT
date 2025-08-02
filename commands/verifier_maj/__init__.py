@@ -63,11 +63,11 @@ class RewardParser:
         # Pattern pour XP global au début du message
         self.global_xp_pattern = re.compile(r'^[^@]*[+](\d+)\s*xp', re.IGNORECASE)
         
-        # Patterns pour les récompenses spécifiques
-        self.emerald_pattern = re.compile(r'(\d+)\s*émeraudes?\s*d\'une\s*valeur\s*de\s*(\d+)PO', re.IGNORECASE)
-        self.ruby_pattern = re.compile(r'(\d+)\s*rubis\s*d\'une\s*valeur\s*de\s*(\d+)PO', re.IGNORECASE)
+        # Patterns pour les récompenses spécifiques  
+        self.emerald_pattern = re.compile(r'(\d+)\s*émeraudes?\s*d\'une\s*valeur\s*de\s*(\d+)\s*PO', re.IGNORECASE)
+        self.ruby_pattern = re.compile(r'(\d+)\s*rubis\s*d\'une\s*valeur\s*de\s*(\d+)\s*PO', re.IGNORECASE)
         self.object_pattern = re.compile(r'([^,]+(?:engrenage|fruit|potion|épée|armure|anneau|bague|ornement)[^,]*)', re.IGNORECASE)
-        self.consumed_pattern = re.compile(r'-1?\s*([^,]+(?:fruit|potion)[^,]*)', re.IGNORECASE)
+        self.consumed_pattern = re.compile(r'-(\d+)?\s*([^,]+(?:fruit|potion)[^,]*)', re.IGNORECASE)
     
     def extract_player_rewards(self, message_content: str, target_player: str) -> RewardData:
         """Extrait les récompenses d'un joueur spécifique depuis un message."""
@@ -125,9 +125,12 @@ class RewardParser:
                     object_matches = self.object_pattern.findall(reward_text)
                     rewards.objects = [obj.strip() for obj in object_matches if not obj.strip().startswith('-')]
                     
-                    # Extraire objets consommés
+                    # Extraire objets consommés (format: -1 fruit de potion)
                     consumed_matches = self.consumed_pattern.findall(reward_text)
-                    rewards.consumed_objects = [obj.strip() for obj in consumed_matches]
+                    rewards.consumed_objects = [f"{count if count else '1'} {obj.strip()}" for count, obj in consumed_matches]
+                    
+                    # Debug log pour voir ce qui est extrait
+                    logger.info(f"Récompenses pour {target_player}: XP={rewards.xp}, PO={rewards.po}, Objets={rewards.objects}, Consommés={rewards.consumed_objects}")
                     
                     break
         
@@ -330,10 +333,16 @@ class VerifierMajCommand(BaseCommand):
             verification.errors.append("Message de récompense inaccessible")
             return verification
         
+        # Log du contenu du message pour debug
+        logger.info(f"Contenu du message de récompense: {reward_message.content[:200]}...")
+        
         # Extraire les récompenses du message
         verification.actual_rewards = self.reward_parser.extract_player_rewards(
             reward_message.content, player_name
         )
+        
+        # Log des récompenses extraites
+        logger.info(f"Récompenses extraites pour {player_name}: XP={verification.actual_rewards.xp}, PO={verification.actual_rewards.po}")
         
         # Vérifier si le joueur est trouvé
         verification.player_found = (
