@@ -204,7 +204,7 @@ class FicheParser:
         return result
 
 
-class EnhancedVerifierMajCommand(BaseCommand):
+class VerifierMajCommand(BaseCommand):
     """
     Version améliorée de verifier-maj qui vérifie automatiquement
     les récompenses déclarées contre les messages Discord.
