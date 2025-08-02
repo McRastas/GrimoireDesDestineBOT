@@ -267,6 +267,7 @@ class FaerunBot(discord.Client):
             return
 
         # Commande de synchronisation manuelle AVEC mise à jour Git
+# Commande de synchronisation manuelle AVEC mise à jour Git
         if message.content.strip() == "!sync_bot":
             logger.info(
                 f"Commande !sync_bot par {message.author.name} ({message.author.id})"
@@ -295,16 +296,29 @@ class FaerunBot(discord.Client):
             status_msg = await message.channel.send("🔄 Mise à jour et synchronisation en cours...")
 
             try:
-                # NOUVEAU : Étape 1 - Git Pull
+                # NOUVEAU : Étape 1 - Git Pull avec informations de branche
                 import subprocess
+                
+                # Vérifier la branche actuelle d'abord
+                try:
+                    branch_result = subprocess.run(
+                        ["git", "branch", "--show-current"], 
+                        capture_output=True, 
+                        text=True, 
+                        cwd="/app",
+                        timeout=10
+                    )
+                    current_branch = branch_result.stdout.strip() if branch_result.returncode == 0 else "unknown"
+                except:
+                    current_branch = "unknown"
                 
                 # Mettre à jour le code depuis GitHub
                 try:
-                    await status_msg.edit(content="📥 **Étape 1/3** : Mise à jour du code depuis GitHub...")
+                    await status_msg.edit(content=f"📥 **Étape 1/3** : Mise à jour depuis GitHub (branche: {current_branch})...")
                     
                     # Exécuter git pull
                     result = subprocess.run(
-                        ["git", "pull", "origin", "main"], 
+                        ["git", "pull", "origin", current_branch], 
                         capture_output=True, 
                         text=True, 
                         cwd="/app",  # S'assurer qu'on est dans le bon répertoire
@@ -314,18 +328,21 @@ class FaerunBot(discord.Client):
                     if result.returncode == 0:
                         git_output = result.stdout.strip()
                         if "Already up to date" in git_output:
-                            git_status = "✅ Code déjà à jour"
+                            git_status = f"✅ Code déjà à jour (branche: {current_branch})"
                         else:
-                            git_status = f"✅ Code mis à jour : {git_output[:100]}..."
+                            # Extraire des infos utiles du git pull
+                            lines = git_output.split('\n')
+                            summary = lines[0] if lines else git_output
+                            git_status = f"✅ Code mis à jour (branche: {current_branch}): {summary[:80]}..."
                     else:
-                        git_status = f"⚠️ Git pull partiel : {result.stderr[:100]}..."
+                        git_status = f"⚠️ Git pull partiel (branche: {current_branch}): {result.stderr[:100]}..."
                         
                 except subprocess.TimeoutExpired:
-                    git_status = "⚠️ Git pull timeout (réseau lent)"
+                    git_status = f"⚠️ Git pull timeout (branche: {current_branch}, réseau lent)"
                 except FileNotFoundError:
                     git_status = "⚠️ Git non installé (skip)"
                 except Exception as e:
-                    git_status = f"⚠️ Erreur git : {str(e)[:50]}..."
+                    git_status = f"⚠️ Erreur git (branche: {current_branch}): {str(e)[:50]}..."
 
                 # Étape 2 - Rechargement des commandes
                 await status_msg.edit(content="🔄 **Étape 2/3** : Rechargement des commandes...")
@@ -350,7 +367,7 @@ class FaerunBot(discord.Client):
                     title="✅ Mise à jour et synchronisation réussies",
                     color=0x00ff00)
 
-                # Informations Git
+                # Informations Git avec branche
                 embed.add_field(name="📥 Mise à jour Git", 
                               value=git_status, 
                               inline=False)
@@ -362,6 +379,11 @@ class FaerunBot(discord.Client):
                 
                 embed.add_field(name="📡 Commandes synchronisées",
                               value=f"{len(synced)} commande(s)",
+                              inline=True)
+                
+                # Afficher la branche actuelle
+                embed.add_field(name="🌿 Branche Git",
+                              value=f"`{current_branch}`",
                               inline=True)
 
                 # Lister les commandes synchronisées (limité)
@@ -392,7 +414,8 @@ class FaerunBot(discord.Client):
                             f"Sync avec Git réussie - {len(synced)} commandes, {len(self.command_instances)} instances",
                             user=f"{message.author.display_name} ({message.author.id})",
                             guild=f"{message.guild.name} ({message.guild.id})",
-                            git_status=git_status)
+                            git_status=git_status,
+                            branch=current_branch)
                     except Exception as e:
                         logger.warning(f"Impossible de logger le succès de sync: {e}")
 
