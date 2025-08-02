@@ -430,7 +430,7 @@ class VerifierMajCommand(BaseCommand):
         # Normaliser les sections Marchand si présentes
         cleaned = re.sub(
             r'\*\*\s*/\s*=+\s*Marchand\s*=+\s*\\\s*\*\*',
-            '**/ ===================== Marchand ===================== \\\ **',
+            '**/ ===================== Marchand ===================== \\ **',
             cleaned
         )
         cleaned = re.sub(
