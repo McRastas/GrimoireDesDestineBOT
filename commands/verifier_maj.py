@@ -1,4 +1,4 @@
-# commands/verifier_maj.py
+# commands/verifier_maj.py - PARTIE 1
 import discord
 from discord import app_commands
 import re
@@ -6,6 +6,12 @@ from .base import BaseCommand
 
 
 class VerifierMajCommand(BaseCommand):
+
+    def _safe_field_value(self, text: str, max_length: int = 1020) -> str:
+        """Sécurise un texte pour les champs Discord (limite 1024 caractères)"""
+        if len(text) <= max_length:
+            return text
+        return text[:max_length-3] + "..."
 
     @property
     def name(self) -> str:
@@ -141,28 +147,34 @@ class VerifierMajCommand(BaseCommand):
             # Créer l'embed de résultat
             embed = self._create_verification_embed(message, verification_result, suggestions)
             
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+            # CORRECTION CRITIQUE : Vérifier si interaction déjà répondue
+            if not interaction.response.is_done():
+                await interaction.response.send_message(embed=embed, ephemeral=True)
             
-            # NOUVEAU : Envoyer TOUJOURS le template (original ou corrigé)
+            # Envoyer TOUJOURS le template (original ou corrigé)
             template_to_send = None
             if suggestions and suggestions.get('corrected_template'):
                 template_to_send = suggestions['corrected_template']
             else:
-                # Même si parfait, renvoyer le template original nettoyé
                 template_to_send = self._clean_template(message.content)
             
             await self._send_corrected_template(interaction, template_to_send, suggestions)
 
         except Exception as e:
-            await interaction.response.send_message(
+            error_message = (
                 f"❌ **Erreur inattendue**\n\n"
                 f"Une erreur s'est produite lors de la vérification : {str(e)}\n\n"
                 f"💡 **Vérifiez que :**\n"
                 f"• Le lien Discord est complet et correct\n"
                 f"• Le message existe toujours\n"
-                f"• Vous avez les bonnes permissions", 
-                ephemeral=True
+                f"• Vous avez les bonnes permissions"
             )
+            
+            # CORRECTION : Gestion sécurisée des erreurs
+            if not interaction.response.is_done():
+                await interaction.response.send_message(error_message, ephemeral=True)
+            else:
+                await interaction.followup.send(error_message, ephemeral=True)
 
     def _parse_discord_link(self, link: str) -> tuple:
         """
@@ -206,6 +218,8 @@ class VerifierMajCommand(BaseCommand):
                     continue
         
         return None
+
+        # commands/verifier_maj.py - PARTIE 2
 
     def _verify_template(self, content: str) -> dict:
         """Vérifie si le contenu respecte le template de mise à jour de fiche"""
@@ -289,6 +303,8 @@ class VerifierMajCommand(BaseCommand):
             result['warnings'].append(f"Message long ({char_count} caractères) - Peut nécessiter plusieurs messages")
         elif char_count < 300:
             result['warnings'].append("Message très court - Vérifiez si toutes les sections sont présentes")
+
+        # commands/verifier_maj.py - PARTIE 3
 
     def _generate_suggestions(self, original_content: str, verification_result: dict) -> dict:
         """Génère des suggestions d'amélioration et un template corrigé"""
@@ -406,6 +422,8 @@ class VerifierMajCommand(BaseCommand):
             suggestions['corrected_template'] = self._apply_automatic_fixes(corrected_content, verification_result)
         
         return suggestions
+        
+        # commands/verifier_maj.py - PARTIE 4
 
     def _clean_template(self, content: str) -> str:
         """Nettoie et optimise le template même s'il est déjà correct"""
@@ -427,10 +445,10 @@ class VerifierMajCommand(BaseCommand):
             cleaned
         )
         
-        # Normaliser les sections Marchand si présentes
+        # Normaliser les sections Marchand si présentes - LIGNE 433 CORRIGÉE
         cleaned = re.sub(
             r'\*\*\s*/\s*=+\s*Marchand\s*=+\s*\\\s*\*\*',
-            '**/ ===================== Marchand ===================== \\ **',
+            '**/ ===================== Marchand ===================== \\\\ **',
             cleaned
         )
         cleaned = re.sub(
@@ -491,6 +509,8 @@ class VerifierMajCommand(BaseCommand):
         
         return corrected
 
+        # commands/verifier_maj.py - PARTIE 5 - EMBED CORRIGÉ
+
     def _create_verification_embed(self, message: discord.Message, result: dict, suggestions: dict = None) -> discord.Embed:
         """Crée l'embed avec les résultats de vérification et suggestions"""
         
@@ -535,7 +555,7 @@ class VerifierMajCommand(BaseCommand):
             inline=True
         )
         
-        # Caractéristiques détectées
+        # Caractéristiques détectées - SÉCURISÉ
         if result['details'].get('nom_pj') or result['details'].get('classe'):
             char_info = []
             if result['details'].get('nom_pj'):
@@ -545,103 +565,39 @@ class VerifierMajCommand(BaseCommand):
             
             embed.add_field(
                 name="🎭 Personnage détecté",
-                value="\n".join(char_info),
+                value=self._safe_field_value("\n".join(char_info)),
                 inline=True
             )
         
-        # NOUVEAU : Corrections automatiques disponibles
+        # CORRECTION : Corrections automatiques disponibles (SÉCURISÉ)
         if suggestions and suggestions.get('automatic_fixes'):
             fixes_text = "\n".join([f"✅ {fix}" for fix in suggestions['automatic_fixes'][:3]])
             embed.add_field(
                 name="🔧 Corrections automatiques appliquées",
-                value=fixes_text,
+                value=self._safe_field_value(fixes_text),
                 inline=False
             )
         
-        # NOUVEAU : Suggestions de corrections
+        # CORRECTION : Suggestions de corrections (SÉCURISÉ)
         if suggestions and suggestions.get('corrections'):
             corrections_text = []
-            for correction in suggestions['corrections'][:3]:
+            for correction in suggestions['corrections'][:3]:  # Limiter à 3 max
                 corrections_text.append(f"**{correction['section']}** - {correction['position']}")
             
-            embed.add_field(
-                name="🛠️ Sections à ajouter",
-                value="\n".join(corrections_text),
-                inline=False
-            )
+            if corrections_text:
+                embed.add_field(
+                    name="🛠️ Sections à ajouter",
+                    value=self._safe_field_value("\n".join(corrections_text)),
+                    inline=False
+                )
         
-        # NOUVEAU : Améliorations suggérées
+        # CORRECTION : Améliorations suggérées (SÉCURISÉ)
         if suggestions and suggestions.get('ameliorations'):
             ameliorations_text = []
-            for amelioration in suggestions['ameliorations'][:3]:
-                priority_emoji = {"Haute": "🔴", "Moyenne": "🟡", "Basse": "🟢"}.get(amelioration['priority'], "⚪")
-                ameliorations_text.append(f"{priority_emoji} **{amelioration['type']}** : {amelioration['description']}")
-            
-            embed.add_field(
-                name="💡 Améliorations suggérées",
-                value="\n".join(ameliorations_text),
-                inline=False
-            )
-        
-        # Sections manquantes (si il y en a et pas de suggestions)
-        if result['sections_missing'] and not suggestions:
-            missing_labels = {
-                'nom_pj': 'Nom du PJ',
-                'classe': 'Classe',
-                'separator_pj_start': 'Séparateur début PJ',
-                'quete': 'Section Quête',
-                'solde_xp': 'Solde XP',
-                'gain_niveau': 'Gain de niveau',
-                'pv_calcul': 'Calcul PV',
-                'capacites': 'Capacités et sorts',
-                'separator_pj_end': 'Séparateur fin PJ',
-                'solde_final': 'Solde final',
-                'fiche_maj': 'Mention "Fiche R20 à jour"'
-            }
-            
-            missing_list = [missing_labels.get(key, key) for key in result['sections_missing'][:5]]
-            if len(result['sections_missing']) > 5:
-                missing_list.append(f"... et {len(result['sections_missing']) - 5} autres")
-            
-            embed.add_field(
-                name="❌ Sections manquantes",
-                value="\n".join([f"• {item}" for item in missing_list]),
-                inline=False
-            )
-        
-        # Avertissements
-        if result['warnings']:
-            embed.add_field(
-                name="⚠️ Avertissements",
-                value="\n".join([f"• {w}" for w in result['warnings'][:3]]),
-                inline=False
-            )
-        
-        # Conseils selon le score avec mention systématique du template
-        if score_percentage < 70:
-            embed.add_field(
-                name="🎯 Actions recommandées",
-                value="• **Consultez le template corrigé ci-dessous**\n• Utilisez `/maj-fiche` pour un nouveau template\n• Complétez les placeholders [EN_MAJUSCULES]\n• Vérifiez les calculs XP et PV",
-                inline=False
-            )
-        else:
-            embed.add_field(
-                name="🎯 Prochaines étapes",
-                value="• **Récupérez le template optimisé ci-dessous**\n• Vérifiez les derniers détails\n• Complétez les éventuels placeholders\n• Votre MAJ est presque prête !",
-                inline=False
-            )
-        
-        # Lien vers le message + guide d'utilisation
-        embed.add_field(
-            name="🔗 Actions",
-            value=f"[📖 Voir le message original]({message.jump_url})\n📋 **Template amélioré envoyé ci-dessous**\n\n💡 **Astuce :** Clic droit sur un message → Copier le lien du message",
-            inline=True
-        )
-        
-        embed.set_footer(text=f"Vérification avec suggestions • Message ID: {message.id}")
-        embed.timestamp = discord.utils.utcnow()
-        
-        return embed
+            for amelioration in suggestions['ameliorations'][:2]:  # Limiter à 2 max
+                priority_emoji = {"Haute": "🔴", "Moyenne": "🟡", "    
+
+        # commands/verifier_maj.py - PARTIE 6
 
     async def _send_corrected_template(self, interaction: discord.Interaction, template: str, suggestions: dict = None):
         """Envoie TOUJOURS le template (corrigé ou nettoyé) en follow-up"""
@@ -695,7 +651,7 @@ class VerifierMajCommand(BaseCommand):
                 if corrections_applied:
                     embed.add_field(
                         name="🔧 Corrections appliquées",
-                        value="\n".join(corrections_applied),
+                        value=self._safe_field_value("\n".join(corrections_applied)),
                         inline=True
                     )
             
@@ -713,10 +669,11 @@ class VerifierMajCommand(BaseCommand):
                     inline=False
                 )
             
-            # Le template lui-même
+            # Le template lui-même - SÉCURISÉ
+            template_field = f"```\n{template}\n```"
             embed.add_field(
                 name="📋 Votre template final",
-                value=f"```\n{template}\n```",
+                value=self._safe_field_value(template_field),
                 inline=False
             )
             
@@ -728,8 +685,9 @@ class VerifierMajCommand(BaseCommand):
                     inline=False
                 )
             
-            await interaction.followup.send(embed=embed, ephemeral=True)
-        
+            await interaction.followup.send(embed=embed, ephemeral=True)        
+        # commands/verifier_maj.py - PARTIE 7
+
         else:
             # Template trop long - diviser en parties
             embed_intro = discord.Embed(
@@ -752,7 +710,7 @@ class VerifierMajCommand(BaseCommand):
             if has_corrections and suggestions and suggestions.get('automatic_fixes'):
                 embed_intro.add_field(
                     name="🔧 Corrections",
-                    value="\n".join([f"✅ {fix}" for fix in suggestions['automatic_fixes'][:3]]),
+                    value=self._safe_field_value("\n".join([f"✅ {fix}" for fix in suggestions['automatic_fixes'][:3]])),
                     inline=True
                 )
             
@@ -770,7 +728,7 @@ class VerifierMajCommand(BaseCommand):
             for i, part in enumerate(parts, 1):
                 part_embed = discord.Embed(
                     title=f"📋 Template - Partie {i}/{len(parts)}",
-                    description=f"```\n{part}\n```",
+                    description=self._safe_field_value(f"```\n{part}\n```"),
                     color=color
                 )
                 
@@ -819,4 +777,4 @@ class VerifierMajCommand(BaseCommand):
         if current_part:
             parts.append(current_part.rstrip())
         
-        return parts
+        return parts    
