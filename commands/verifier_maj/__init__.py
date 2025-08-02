@@ -1,38 +1,219 @@
-# commands/verifier_maj/__init__.py
+# enhanced_verifier_maj_command.py
 """
-Module de vérification de template de mise à jour de fiche D&D.
-Structure organisée similaire à maj_fiche avec corrections des erreurs Discord.
+Version améliorée de la commande verifier-maj qui vérifie automatiquement
+les récompenses déclarées contre les messages de récompense Discord.
+Réponse sous forme d'embed Discord uniquement.
 """
 
 import discord
 from discord import app_commands
+import re
 import logging
-from typing import Optional
+from typing import List, Dict, Optional, Tuple
+from dataclasses import dataclass
 from ..base import BaseCommand
-
-# Imports des modules du package
-from .discord_handler import MessageHandler
-from .validation_engine import ValidationEngine
-from .response_builder import ResponseBuilder
 
 logger = logging.getLogger(__name__)
 
 
-class VerifierMajCommand(BaseCommand):
+@dataclass
+class RewardData:
+    """Structure pour stocker les récompenses d'un joueur."""
+    xp: int = 0
+    po: int = 0
+    objects: List[str] = None
+    consumed_objects: List[str] = None
+    
+    def __post_init__(self):
+        if self.objects is None:
+            self.objects = []
+        if self.consumed_objects is None:
+            self.consumed_objects = []
+
+
+@dataclass
+class QuestVerification:
+    """Résultat de vérification d'une quête."""
+    title: str
+    link: str
+    declared_rewards: RewardData
+    actual_rewards: RewardData
+    player_found: bool = False
+    errors: List[str] = None
+    warnings: List[str] = None
+    
+    def __post_init__(self):
+        if self.errors is None:
+            self.errors = []
+        if self.warnings is None:
+            self.warnings = []
+
+
+class RewardParser:
+    """Parse les récompenses depuis les messages Discord."""
+    
+    def __init__(self):
+        # Patterns pour identifier les joueurs et leurs récompenses
+        self.player_patterns = [
+            r'@(\w+)\s*\[([\w/]+)\]\s*([^@]+?)(?=@|$)',  # @pseudo [persos] récompenses
+            r'@(\w+)\[([^\]]+)\]\s*([^@]+?)(?=@|$)',     # @pseudo[persos] récompenses
+            r'(\w+)\s*@\w+\s*\[([\w/]+)\]\s*([^@]+?)(?=@|$)'  # pseudo @tag [persos] récompenses
+        ]
+        
+        # Patterns pour les récompenses
+        self.xp_pattern = re.compile(r'[+]?(\d+)\s*xp', re.IGNORECASE)
+        self.po_pattern = re.compile(r'(\d+)\s*(?:émeraudes?|PO)', re.IGNORECASE)
+        self.object_pattern = re.compile(r'([^,]+(?:engrenage|fruit|potion|épée|armure|anneau|bague)[^,]*)', re.IGNORECASE)
+        self.consumed_pattern = re.compile(r'-1?\s*([^,]+(?:fruit|potion)[^,]*)', re.IGNORECASE)
+    
+    def extract_player_rewards(self, message_content: str, target_player: str) -> RewardData:
+        """Extrait les récompenses d'un joueur spécifique depuis un message."""
+        rewards = RewardData()
+        
+        # Chercher le joueur dans le message
+        for pattern in self.player_patterns:
+            matches = re.finditer(pattern, message_content, re.IGNORECASE | re.MULTILINE)
+            
+            for match in matches:
+                player_name = match.group(1).lower()
+                characters = match.group(2)
+                reward_text = match.group(3)
+                
+                # Vérifier si c'est le bon joueur (chercher aussi dans les persos)
+                if (target_player.lower() in player_name or 
+                    player_name in target_player.lower() or
+                    target_player.lower() in characters.lower()):
+                    
+                    # Extraire XP
+                    xp_matches = self.xp_pattern.findall(reward_text)
+                    rewards.xp = sum(int(x) for x in xp_matches)
+                    
+                    # Extraire PO (émeraudes = 200PO chacune, rubis = 500PO)
+                    po_total = 0
+                    emerald_matches = re.findall(r'(\d+)\s*émeraudes?[^,]*(\d+)PO', reward_text, re.IGNORECASE)
+                    for count, value in emerald_matches:
+                        po_total += int(count) * int(value)
+                    
+                    ruby_matches = re.findall(r'(\d+)\s*rubis[^,]*(\d+)PO', reward_text, re.IGNORECASE)
+                    for count, value in ruby_matches:
+                        po_total += int(count) * int(value)
+                    
+                    rewards.po = po_total
+                    
+                    # Extraire objets obtenus
+                    object_matches = self.object_pattern.findall(reward_text)
+                    rewards.objects = [obj.strip() for obj in object_matches if not obj.strip().startswith('-')]
+                    
+                    # Extraire objets consommés
+                    consumed_matches = self.consumed_pattern.findall(reward_text)
+                    rewards.consumed_objects = [obj.strip() for obj in consumed_matches]
+                    
+                    break
+        
+        return rewards
+
+
+class FicheParser:
+    """Parse les mises à jour de fiche pour extraire les informations."""
+    
+    def __init__(self):
+        # Patterns pour extraire les informations de la fiche
+        self.name_pattern = re.compile(r'Nom du PJ\s*:\s*(.+?)(?:\n|$)', re.IGNORECASE)
+        self.class_pattern = re.compile(r'Classe\s*:\s*(.+?)(?:\n|$)', re.IGNORECASE)
+        
+        # Pattern pour les quêtes avec liens
+        self.quest_pattern = re.compile(
+            r'-\s*(.+?)\s*-\s*.*?\s*-\s*(https://discord\.com/channels/\d+/\d+/\d+)[^,]*,?\s*([^-\n]*)',
+            re.IGNORECASE | re.MULTILINE
+        )
+        
+        # Patterns pour les totaux déclarés
+        self.total_xp_pattern = re.compile(r'Solde XP\s*:.*?[+](\d+)XP', re.IGNORECASE | re.DOTALL)
+        self.total_po_pattern = re.compile(r'PO\s+Lootées\s*:\s*[+](\d+)\s*PO', re.IGNORECASE)
+        self.total_objects_pattern = re.compile(r'Objet\s+Lootées?\s*:\s*(.+?)(?:\n|Don)', re.IGNORECASE)
+    
+    def parse_fiche(self, content: str) -> Dict:
+        """Parse une mise à jour de fiche complète."""
+        result = {
+            'nom_pj': None,
+            'classe': None,
+            'quests': [],
+            'total_declared': RewardData(),
+            'errors': []
+        }
+        
+        # Extraire nom du PJ
+        name_match = self.name_pattern.search(content)
+        if name_match:
+            result['nom_pj'] = name_match.group(1).strip()
+        else:
+            result['errors'].append("Nom du PJ non trouvé")
+        
+        # Extraire classe
+        class_match = self.class_pattern.search(content)
+        if class_match:
+            result['classe'] = class_match.group(1).strip()
+        
+        # Extraire les quêtes avec leurs liens
+        quest_matches = self.quest_pattern.finditer(content)
+        for match in quest_matches:
+            quest_title = match.group(1).strip()
+            quest_link = match.group(2).strip()
+            quest_rewards_text = match.group(3).strip()
+            
+            # Parser les récompenses déclarées pour cette quête
+            declared_rewards = RewardData()
+            
+            # XP de la quête
+            xp_matches = re.findall(r'[+](\d+)\s*XP', quest_rewards_text, re.IGNORECASE)
+            declared_rewards.xp = sum(int(x) for x in xp_matches)
+            
+            result['quests'].append({
+                'title': quest_title,
+                'link': quest_link,
+                'declared_rewards': declared_rewards,
+                'raw_text': quest_rewards_text
+            })
+        
+        # Extraire les totaux déclarés
+        total_xp_match = self.total_xp_pattern.search(content)
+        if total_xp_match:
+            result['total_declared'].xp = int(total_xp_match.group(1))
+        
+        total_po_match = self.total_po_pattern.search(content)
+        if total_po_match:
+            result['total_declared'].po = int(total_po_match.group(1))
+        
+        total_objects_match = self.total_objects_pattern.search(content)
+        if total_objects_match:
+            objects_text = total_objects_match.group(1).strip()
+            # Parse les objets (séparer objets obtenus et consommés)
+            objects = []
+            consumed = []
+            
+            items = [item.strip() for item in objects_text.split(',')]
+            for item in items:
+                if item.startswith('-'):
+                    consumed.append(item[1:].strip())
+                else:
+                    objects.append(item)
+            
+            result['total_declared'].objects = objects
+            result['total_declared'].consumed_objects = consumed
+        
+        return result
+
+
+class EnhancedVerifierMajCommand(BaseCommand):
     """
-    Commande principale pour vérifier les templates de mise à jour de fiche D&D.
-    Version refactorisée avec gestion des erreurs Discord corrigée.
+    Version améliorée de verifier-maj qui vérifie automatiquement
+    les récompenses déclarées contre les messages Discord.
     """
     
     def __init__(self, bot):
         super().__init__(bot)
-        
-        # Initialisation des composants
-        self.message_handler = MessageHandler(bot)
-        self.validation_engine = ValidationEngine()
-        self.response_builder = ResponseBuilder()
-        
-        logger.info("VerifierMajCommand initialisé avec succès")
+        self.fiche_parser = FicheParser()
+        self.reward_parser = RewardParser()
     
     @property
     def name(self) -> str:
@@ -40,304 +221,237 @@ class VerifierMajCommand(BaseCommand):
     
     @property
     def description(self) -> str:
-        return "Vérifie et propose des corrections pour un template de mise à jour de fiche D&D"
+        return "Vérifie une mise à jour de fiche en comparant avec les messages de récompense Discord"
     
     def register(self, tree: app_commands.CommandTree):
-        """Enregistrement avec paramètres optimisés et gestion d'erreur corrigée."""
+        """Enregistrement de la commande."""
         
         @tree.command(name=self.name, description=self.description)
         @app_commands.describe(
-            lien_message="Lien vers le message à vérifier (clic droit > Copier le lien du message)",
-            mode_correction="Type de correction à appliquer",
-            proposer_ameliorations="Proposer des améliorations supplémentaires"
+            lien_message="Lien vers la mise à jour de fiche à vérifier"
         )
-        @app_commands.choices(mode_correction=[
-            app_commands.Choice(name="🔧 Corrections automatiques + suggestions", value="auto"),
-            app_commands.Choice(name="📋 Vérification uniquement", value="check"),
-            app_commands.Choice(name="✨ Corrections + optimisations avancées", value="advanced")
-        ])
-        @app_commands.choices(proposer_ameliorations=[
-            app_commands.Choice(name="✅ Oui - Suggérer des améliorations", value="oui"),
-            app_commands.Choice(name="❌ Non - Validation simple", value="non")
-        ])
         async def verifier_maj_command(
             interaction: discord.Interaction,
-            lien_message: str,
-            mode_correction: str = "auto",
-            proposer_ameliorations: str = "oui"
+            lien_message: str
         ):
-            await self.callback(
-                interaction, 
-                lien_message, 
-                mode_correction, 
-                proposer_ameliorations == "oui"
-            )
+            await self.callback(interaction, lien_message)
     
     async def callback(
-        self, 
-        interaction: discord.Interaction, 
-        lien_message: str,
-        mode_correction: str = "auto",
-        proposer_ameliorations: bool = True
+        self,
+        interaction: discord.Interaction,
+        lien_message: str
     ):
-        """Fonction principale ultra-simplifiée avec gestion d'erreur corrigée."""
+        """Fonction principale de vérification."""
         
         try:
-            # Différer la réponse immédiatement pour éviter les timeouts
+            # Différer la réponse pour éviter les timeouts
             await interaction.response.defer(ephemeral=True)
             
-            logger.info(f"Début de vérification pour {interaction.user} - Lien: {lien_message[:50]}...")
-            
-            # 1. Valider le format du lien
-            if not self.message_handler.validate_link_format(lien_message):
-                await self.response_builder.send_link_validation_error(interaction, lien_message)
-                return
-            
-            # 2. Récupérer le message
-            message = await self.message_handler.get_message_from_link(lien_message)
-            if not message:
-                await self.response_builder.send_message_not_found_error(interaction)
-                return
-            
-            # 3. Vérifier que le message contient du contenu
-            if not message.content or len(message.content.strip()) < 20:
-                await self.response_builder.send_error(
-                    interaction, 
-                    "Le message sélectionné ne contient pas assez de contenu pour être analysé.",
-                    "📝 Contenu insuffisant"
+            # 1. Récupérer le message de la fiche
+            fiche_message = await self.get_message_from_link(lien_message)
+            if not fiche_message:
+                embed = discord.Embed(
+                    title="❌ Erreur",
+                    description="Impossible de récupérer le message de la fiche.\nVérifiez que le lien est correct et que j'ai accès au canal.",
+                    color=0xff0000
                 )
+                await interaction.followup.send(embed=embed, ephemeral=True)
                 return
             
-            logger.info(f"Message récupéré: {len(message.content)} caractères")
+            # 2. Parser la fiche
+            fiche_data = self.fiche_parser.parse_fiche(fiche_message.content)
             
-            # 4. Valider le template
-            result = self.validation_engine.validate_template(message.content, mode_correction)
+            if not fiche_data['nom_pj']:
+                embed = discord.Embed(
+                    title="❌ Erreur de format",
+                    description="Ce message ne semble pas être une mise à jour de fiche valide.\nJe n'ai pas pu trouver le nom du PJ.",
+                    color=0xff0000
+                )
+                await interaction.followup.send(embed=embed, ephemeral=True)
+                return
             
-            logger.info(f"Validation terminée: {result.get('completion_percentage', 0):.1f}%")
+            # 3. Vérifier chaque quête
+            verifications = []
+            for quest in fiche_data['quests']:
+                verification = await self.verify_quest_rewards(
+                    quest, fiche_data['nom_pj']
+                )
+                verifications.append(verification)
             
-            # 5. Envoyer la réponse
-            await self.response_builder.send_validation_result(
-                interaction, message, result, proposer_ameliorations
-            )
+            # 4. Créer l'embed de résultat
+            embed = await self.create_verification_embed(fiche_data, verifications)
             
-            logger.info(f"Vérification terminée avec succès pour {interaction.user}")
-            
-        except discord.InteractionResponded:
-            # L'interaction a déjà été traitée - ne rien faire
-            logger.warning(f"Interaction déjà traitée pour {interaction.user}")
+            await interaction.followup.send(embed=embed, ephemeral=True)
             
         except Exception as e:
-            logger.error(f"Erreur dans verifier-maj pour {interaction.user}: {e}", exc_info=True)
-            
-            # Essayer d'envoyer une réponse d'erreur
-            await self.response_builder.send_error(
-                interaction,
-                f"Une erreur inattendue s'est produite lors de la vérification.\n\n"
-                f"**Type d'erreur :** {type(e).__name__}\n"
-                f"**Message :** {str(e)[:200]}...\n\n"
-                f"💡 **Solutions :**\n"
-                f"• Vérifiez que le lien est correct et complet\n"
-                f"• Réessayez dans quelques instants\n"
-                f"• Contactez un administrateur si le problème persiste",
-                "⚠️ Erreur inattendue"
+            logger.error(f"Erreur dans verifier-maj: {e}", exc_info=True)
+            embed = discord.Embed(
+                title="❌ Erreur inattendue",
+                description=f"Une erreur s'est produite: {str(e)}\nContactez un administrateur si le problème persiste.",
+                color=0xff0000
             )
-
-
-# Fonctions utilitaires exportées
-def validate_template_content(content: str, mode: str = "auto") -> dict:
-    """
-    Fonction utilitaire pour valider un template de fiche.
-    Peut être utilisée indépendamment de Discord.
+            await interaction.followup.send(embed=embed, ephemeral=True)
     
-    Args:
-        content: Le contenu du template à valider
-        mode: Mode de validation ("auto", "check", "advanced")
+    async def verify_quest_rewards(self, quest: dict, player_name: str) -> QuestVerification:
+        """Vérifie les récompenses d'une quête spécifique."""
         
-    Returns:
-        dict: Résultat de la validation avec score et suggestions
-    """
-    try:
-        engine = ValidationEngine()
-        return engine.validate_template(content, mode)
-    except Exception as e:
-        logger.error(f"Erreur dans validate_template_content: {e}")
-        return {
-            'score': 0,
-            'total_checks': 1,
-            'completion_percentage': 0.0,
-            'warnings': [f"Erreur de validation: {str(e)}"]
-        }
-
-
-def quick_template_check(content: str) -> bool:
-    """
-    Vérification rapide pour savoir si un contenu ressemble à un template.
-    
-    Args:
-        content: Le contenu à vérifier
+        verification = QuestVerification(
+            title=quest['title'],
+            link=quest['link'],
+            declared_rewards=quest['declared_rewards'],
+            actual_rewards=RewardData()
+        )
         
-    Returns:
-        bool: True si le contenu semble être un template valide
-    """
-    try:
-        engine = ValidationEngine()
-        return engine.quick_validate(content)
-    except Exception:
-        return False
-
-
-def parse_discord_link(link: str) -> Optional[tuple]:
-    """
-    Parse un lien Discord et retourne les IDs.
-    
-    Args:
-        link: Lien Discord à parser
+        # Récupérer le message de récompense
+        reward_message = await self.get_message_from_link(quest['link'])
         
-    Returns:
-        Optional[tuple]: (guild_id, channel_id, message_id) ou None
-    """
-    try:
-        handler = MessageHandler(None)  # Bot non nécessaire pour le parsing
-        return handler.parse_discord_link(link)
-    except Exception:
-        return None
-
-
-# Classes exportées pour réutilisation
-__all__ = [
-    'VerifierMajCommand',      # Commande principale
-    'MessageHandler',          # Gestionnaire de messages Discord
-    'ValidationEngine',        # Moteur de validation
-    'ResponseBuilder',         # Constructeur de réponses
-    'validate_template_content', # Fonction utilitaire
-    'quick_template_check',    # Vérification rapide
-    'parse_discord_link'       # Parser de liens
-]
-
-# Métadonnées du module
-__version__ = "1.0.0"
-__author__ = "Bot Faerûn Team"
-__description__ = "Système de vérification de templates D&D 5e - Version refactorisée"
-
-# Configuration du module
-MODULE_CONFIG = {
-    'version': __version__,
-    'components': {
-        'handler': 'MessageHandler - Gestion des liens et messages Discord',
-        'engine': 'ValidationEngine - Validation et correction des templates', 
-        'builder': 'ResponseBuilder - Construction des réponses Discord',
-        'command': 'VerifierMajCommand - Commande principale'
-    },
-    'features': [
-        'Validation de templates D&D 5e',
-        'Corrections automatiques',
-        'Support des liens Discord',
-        'Gestion des limites Discord',
-        'Réponses structurées',
-        'Gestion d\'erreurs robuste'
-    ],
-    'fixes': [
-        'Correction limite de 1024 caractères pour les champs',
-        'Gestion des interactions déjà répondues',
-        'Protection contre les timeouts Discord',
-        'Division automatique des contenus longs',
-        'Validation des liens améliorée'
-    ]
-}
-
-
-def get_module_info() -> dict:
-    """
-    Retourne les informations sur le module verifier_maj.
-    
-    Returns:
-        dict: Informations complètes du module
-    """
-    return MODULE_CONFIG
-
-
-def create_command_instance(bot):
-    """
-    Factory function pour créer une instance de la commande principale.
-    
-    Args:
-        bot: Instance du bot Discord
+        if not reward_message:
+            verification.errors.append("Message de récompense inaccessible")
+            return verification
         
-    Returns:
-        VerifierMajCommand: Instance configurée de la commande
-    """
-    return VerifierMajCommand(bot)
-
-
-# Diagnostic pour le debugging
-def diagnose_module() -> dict:
-    """
-    Effectue un diagnostic du module verifier_maj.
+        # Extraire les récompenses du message
+        verification.actual_rewards = self.reward_parser.extract_player_rewards(
+            reward_message.content, player_name
+        )
+        
+        # Vérifier si le joueur est trouvé
+        verification.player_found = (
+            verification.actual_rewards.xp > 0 or 
+            verification.actual_rewards.po > 0 or 
+            len(verification.actual_rewards.objects) > 0
+        )
+        
+        if not verification.player_found:
+            verification.warnings.append("Joueur non trouvé dans le message de récompense")
+        
+        # Comparer les récompenses
+        if verification.declared_rewards.xp != verification.actual_rewards.xp:
+            verification.errors.append(
+                f"XP: déclaré {verification.declared_rewards.xp}, réel {verification.actual_rewards.xp}"
+            )
+        
+        if verification.declared_rewards.po != verification.actual_rewards.po:
+            verification.errors.append(
+                f"PO: déclaré {verification.declared_rewards.po}, réel {verification.actual_rewards.po}"
+            )
+        
+        return verification
     
-    Returns:
-        dict: Rapport de diagnostic
-    """
-    diagnosis = {
-        'module_ready': True,
-        'version': __version__,
-        'components_available': {},
-        'features_working': {}
-    }
+    async def get_message_from_link(self, link: str) -> Optional[discord.Message]:
+        """Récupère un message Discord à partir d'un lien."""
+        # Parser le lien
+        match = re.search(r'https://discord\.com/channels/(\d+)/(\d+)/(\d+)', link)
+        if not match:
+            return None
+        
+        guild_id, channel_id, message_id = map(int, match.groups())
+        
+        try:
+            guild = self.bot.get_guild(guild_id)
+            if not guild:
+                return None
+            
+            channel = guild.get_channel(channel_id)
+            if not channel:
+                return None
+            
+            message = await channel.fetch_message(message_id)
+            return message
+            
+        except Exception as e:
+            logger.error(f"Erreur récupération message: {e}")
+            return None
     
-    # Vérifier chaque composant
-    try:
-        from .discord_handler import MessageHandler
-        diagnosis['components_available']['handler'] = True
-    except Exception as e:
-        diagnosis['components_available']['handler'] = f"Erreur: {e}"
-        diagnosis['module_ready'] = False
-    
-    try:
-        from .validation_engine import ValidationEngine
-        diagnosis['components_available']['engine'] = True
-    except Exception as e:
-        diagnosis['components_available']['engine'] = f"Erreur: {e}"
-        diagnosis['module_ready'] = False
-    
-    try:
-        from .response_builder import ResponseBuilder
-        diagnosis['components_available']['builder'] = True
-    except Exception as e:
-        diagnosis['components_available']['builder'] = f"Erreur: {e}"
-        diagnosis['module_ready'] = False
-    
-    # Tester les fonctionnalités
-    try:
-        result = quick_template_check("Nom: Test\nClasse: Guerrier\nNiveau: 5")
-        diagnosis['features_working']['quick_check'] = result
-    except Exception as e:
-        diagnosis['features_working']['quick_check'] = f"Erreur: {e}"
-    
-    try:
-        parsed = parse_discord_link("https://discord.com/channels/123/456/789")
-        diagnosis['features_working']['link_parsing'] = parsed is not None
-    except Exception as e:
-        diagnosis['features_working']['link_parsing'] = f"Erreur: {e}"
-    
-    return diagnosis
-
-
-# Message d'initialisation pour le debugging
-if __name__ == "__main__":
-    print("🔍 Diagnostic du module verifier_maj:")
-    diag = diagnose_module()
-    
-    print(f"📦 Version: {diag['version']}")
-    print(f"✅ Module prêt: {diag['module_ready']}")
-    
-    print("\n🧩 Composants:")
-    for component, status in diag['components_available'].items():
-        status_icon = "✅" if status is True else "❌"
-        print(f"  {status_icon} {component}: {status}")
-    
-    print("\n🔧 Fonctionnalités:")
-    for feature, status in diag['features_working'].items():
-        status_icon = "✅" if status is True else "❌"
-        print(f"  {status_icon} {feature}: {status}")
-    
-    print(f"\n📋 Résumé: Module {'prêt' if diag['module_ready'] else 'non prêt'} à utiliser")
+    async def create_verification_embed(
+        self,
+        fiche_data: dict,
+        verifications: List[QuestVerification]
+    ) -> discord.Embed:
+        """Crée l'embed de résultat de vérification."""
+        
+        # Calculer les statistiques
+        total_errors = sum(len(v.errors) for v in verifications)
+        total_warnings = sum(len(v.warnings) for v in verifications)
+        total_quests = len(verifications)
+        
+        # Déterminer la couleur
+        if total_errors == 0:
+            color = 0x00ff00  # Vert
+            status_emoji = "✅"
+            status_text = "Tout est correct !"
+        elif total_errors <= 2:
+            color = 0xff6600  # Orange
+            status_emoji = "⚠️"
+            status_text = f"{total_errors} erreur(s) trouvée(s)"
+        else:
+            color = 0xff0000  # Rouge
+            status_emoji = "❌"
+            status_text = f"{total_errors} erreur(s) trouvée(s)"
+        
+        # Créer l'embed principal
+        embed = discord.Embed(
+            title=f"{status_emoji} Vérification de fiche D&D",
+            description=f"**{fiche_data['nom_pj']}** - {fiche_data.get('classe', 'Classe non spécifiée')}",
+            color=color
+        )
+        
+        # Résumé
+        summary_text = f"{status_text}\n"
+        summary_text += f"📊 **{total_quests}** quête(s) vérifiée(s)\n"
+        if total_warnings > 0:
+            summary_text += f"⚠️ **{total_warnings}** avertissement(s)"
+        
+        embed.add_field(
+            name="📋 Résumé",
+            value=summary_text,
+            inline=False
+        )
+        
+        # Détails par quête (limité à 3 quêtes pour éviter de dépasser les limites Discord)
+        for i, verification in enumerate(verifications[:3], 1):
+            quest_emoji = "✅" if not verification.errors else "❌"
+            
+            # Titre de la quête (tronqué)
+            quest_title = verification.title[:30] + "..." if len(verification.title) > 30 else verification.title
+            
+            # Détails des récompenses
+            field_value = f"{quest_emoji} **XP**: {verification.declared_rewards.xp}"
+            if verification.actual_rewards.xp != verification.declared_rewards.xp:
+                field_value += f" → {verification.actual_rewards.xp}"
+            
+            field_value += f"\n**PO**: {verification.declared_rewards.po}"
+            if verification.actual_rewards.po != verification.declared_rewards.po:
+                field_value += f" → {verification.actual_rewards.po}"
+            
+            # Erreurs (limitées)
+            if verification.errors:
+                field_value += f"\n🔴 {verification.errors[0]}"
+                if len(verification.errors) > 1:
+                    field_value += f"\n+{len(verification.errors)-1} autres erreurs"
+            
+            # Avertissements
+            if verification.warnings:
+                field_value += f"\n🟡 {verification.warnings[0][:50]}"
+            
+            embed.add_field(
+                name=f"🎯 {quest_title}",
+                value=field_value,
+                inline=True
+            )
+        
+        # Si plus de 3 quêtes, ajouter une note
+        if len(verifications) > 3:
+            embed.add_field(
+                name="📝 Note",
+                value=f"Seules les 3 premières quêtes sont affichées. Total: {len(verifications)} quêtes.",
+                inline=False
+            )
+        
+        # Footer avec timestamp
+        embed.set_footer(
+            text="Vérification automatique • Bot Faerûn",
+            icon_url="https://cdn.discordapp.com/emojis/940620090687827968.png"
+        )
+        embed.timestamp = discord.utils.utcnow()
+        
+        return embed
