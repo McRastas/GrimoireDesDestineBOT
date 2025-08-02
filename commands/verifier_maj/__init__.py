@@ -55,46 +55,67 @@ class RewardParser:
     def __init__(self):
         # Patterns pour identifier les joueurs et leurs récompenses
         self.player_patterns = [
-            r'@(\w+)\s*\[([\w/]+)\]\s*([^@]+?)(?=@|$)',  # @pseudo [persos] récompenses
-            r'@(\w+)\[([^\]]+)\]\s*([^@]+?)(?=@|$)',     # @pseudo[persos] récompenses
-            r'(\w+)\s*@\w+\s*\[([\w/]+)\]\s*([^@]+?)(?=@|$)'  # pseudo @tag [persos] récompenses
+            r'@(\w+)\s*\[([\w/]+)\]\s*([^,]*?),\s*([^@]+?)(?=@|$)',  # @pseudo [persos] perso, récompenses
+            r'@(\w+)\[([^\]]+)\]\s*([^,]*?),\s*([^@]+?)(?=@|$)',     # @pseudo[persos] perso, récompenses
+            r'@(\w+)([A-Z][a-z]+),\s*([^@]+?)(?=@|$)',               # @pseudoNomPerso, récompenses (pour McRastasTharaxus)
         ]
         
-        # Patterns pour les récompenses
-        self.xp_pattern = re.compile(r'[+]?(\d+)\s*xp', re.IGNORECASE)
-        self.po_pattern = re.compile(r'(\d+)\s*(?:émeraudes?|PO)', re.IGNORECASE)
-        self.object_pattern = re.compile(r'([^,]+(?:engrenage|fruit|potion|épée|armure|anneau|bague)[^,]*)', re.IGNORECASE)
+        # Pattern pour XP global au début du message
+        self.global_xp_pattern = re.compile(r'^[^@]*[+](\d+)\s*xp', re.IGNORECASE)
+        
+        # Patterns pour les récompenses spécifiques
+        self.emerald_pattern = re.compile(r'(\d+)\s*émeraudes?\s*d\'une\s*valeur\s*de\s*(\d+)PO', re.IGNORECASE)
+        self.ruby_pattern = re.compile(r'(\d+)\s*rubis\s*d\'une\s*valeur\s*de\s*(\d+)PO', re.IGNORECASE)
+        self.object_pattern = re.compile(r'([^,]+(?:engrenage|fruit|potion|épée|armure|anneau|bague|ornement)[^,]*)', re.IGNORECASE)
         self.consumed_pattern = re.compile(r'-1?\s*([^,]+(?:fruit|potion)[^,]*)', re.IGNORECASE)
     
     def extract_player_rewards(self, message_content: str, target_player: str) -> RewardData:
         """Extrait les récompenses d'un joueur spécifique depuis un message."""
         rewards = RewardData()
         
-        # Chercher le joueur dans le message
+        # 1. Extraire l'XP global (donné à tous les joueurs)
+        global_xp_match = self.global_xp_pattern.search(message_content)
+        if global_xp_match:
+            rewards.xp = int(global_xp_match.group(1))
+        
+        # 2. Chercher les récompenses spécifiques du joueur
         for pattern in self.player_patterns:
-            matches = re.finditer(pattern, message_content, re.IGNORECASE | re.MULTILINE)
+            matches = re.finditer(pattern, message_content, re.IGNORECASE)
             
             for match in matches:
-                player_name = match.group(1).lower()
-                characters = match.group(2)
-                reward_text = match.group(3)
+                groups = match.groups()
                 
-                # Vérifier si c'est le bon joueur (chercher aussi dans les persos)
-                if (target_player.lower() in player_name or 
-                    player_name in target_player.lower() or
-                    target_player.lower() in characters.lower()):
+                if len(groups) == 4:  # Format: @pseudo [persos] perso, récompenses
+                    player_name = groups[0].lower()
+                    characters = groups[1]
+                    played_char = groups[2]
+                    reward_text = groups[3]
+                elif len(groups) == 3:  # Format: @pseudoPerso, récompenses
+                    combined = groups[0] + groups[1]  # McRastas + Tharaxus
+                    player_name = groups[0].lower()
+                    played_char = groups[1]
+                    reward_text = groups[2]
+                    characters = played_char
+                else:
+                    continue
+                
+                # Vérifier si c'est le bon joueur
+                target_lower = target_player.lower()
+                if (target_lower in player_name or 
+                    player_name in target_lower or
+                    target_lower in characters.lower() or
+                    target_lower in played_char.lower()):
                     
-                    # Extraire XP
-                    xp_matches = self.xp_pattern.findall(reward_text)
-                    rewards.xp = sum(int(x) for x in xp_matches)
-                    
-                    # Extraire PO (émeraudes = 200PO chacune, rubis = 500PO)
+                    # Extraire PO depuis les émeraudes/rubis
                     po_total = 0
-                    emerald_matches = re.findall(r'(\d+)\s*émeraudes?[^,]*(\d+)PO', reward_text, re.IGNORECASE)
+                    
+                    # Émeraudes
+                    emerald_matches = self.emerald_pattern.findall(reward_text)
                     for count, value in emerald_matches:
                         po_total += int(count) * int(value)
                     
-                    ruby_matches = re.findall(r'(\d+)\s*rubis[^,]*(\d+)PO', reward_text, re.IGNORECASE)
+                    # Rubis
+                    ruby_matches = self.ruby_pattern.findall(reward_text)
                     for count, value in ruby_matches:
                         po_total += int(count) * int(value)
                     
