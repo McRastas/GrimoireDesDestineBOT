@@ -89,12 +89,7 @@ class BoutiqueResponseBuilder:
         rarity_lower = rarity.lower().strip()
         emoji = rarity_emojis.get(rarity_lower, '✨')
         
-        # Vérifier si l'objet a un lien
-        link = item.get("Lien", "")
-        has_link = link and link.startswith("http")
-        link_indicator = " 🔗" if has_link else " 📝"
-        
-        return f"{emoji} {name}{link_indicator}"
+        return f"{emoji} {name}"
     
     def _format_item_details(self, item: Dict[str, str]) -> str:
         """
@@ -118,6 +113,22 @@ class BoutiqueResponseBuilder:
         if item_type:
             details.append(f"**Type:** {item_type}")
         
+        # Information sur le lien (colonne G)
+        link_info = item.get("Lien", "").strip()
+        if link_info:
+            # Normaliser les valeurs possibles
+            link_normalized = link_info.lower()
+            if link_normalized in ["oui", "yes"]:
+                details.append("📖 **Objet avec lien source**")
+            elif link_normalized in ["non", "no"]:
+                details.append("📝 **Objet sans lien source**")
+            elif link_normalized == "maudit":
+                details.append("💀 **Objet maudit**")
+            else:
+                details.append(f"**Lien:** {link_info}")
+        else:
+            details.append("📝 **Objet sans lien source**")
+        
         # Prix d'achat
         buy_price = item.get("Prix achat", "")
         if buy_price and buy_price != "Non spécifié":
@@ -134,14 +145,6 @@ class BoutiqueResponseBuilder:
             if len(effect) > 200:
                 effect = effect[:197] + "..."
             details.append(f"**Effet:** {effect}")
-        
-        # Lien vers la source
-        link = item.get("Lien", "")
-        if link and link.startswith("http"):
-            details.append(f"[📖 Plus d'infos]({link})")
-        else:
-            # Indiquer explicitement qu'il n'y a pas de lien
-            details.append("📝 *Informations disponibles localement*")
         
         return '\n'.join(details) if details else "Informations non disponibles"
     
@@ -185,9 +188,6 @@ class BoutiqueResponseBuilder:
                 footer_parts.append(f"• {stats['total_items']} objets en base")
             if 'filtered_items' in stats:
                 footer_parts.append(f"• {stats['filtered_items']} objets disponibles")
-        
-        # Ajouter la légende des icônes
-        footer_parts.append("• 🔗 = Lien disponible • 📝 = Infos locales")
         
         return " ".join(footer_parts)
     
