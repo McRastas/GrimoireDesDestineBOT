@@ -103,7 +103,8 @@ class ItemSelector:
             if not self._is_rarity_excluded(rarity):
                 filtered_items.append(item)
             else:
-                logger.debug(f"Objet exclu: {item.get('Nom de l\\'objet', 'Inconnu')} (Rareté: {rarity})")
+                item_name = item.get("Nom de l'objet", "Inconnu")
+                logger.debug(f"Objet exclu: {item_name} (Rareté: {rarity})")
         
         logger.info(f"Filtrage terminé: {len(filtered_items)}/{len(items)} objets retenus")
         return filtered_items
@@ -179,22 +180,22 @@ class ItemSelector:
             validated_item[key] = str(value).strip() if value else ""
         
         # Gérer le nom de l'objet (utiliser le nom alternatif en priorité s'il existe)
-        nom_principal = validated_item.get('Nom de l\'objet', '')
-        nom_alternatif = validated_item.get('Nom de l\'objet_1', '')
+        nom_principal = validated_item.get("Nom de l'objet", "")
+        nom_alternatif = validated_item.get("Nom de l'objet_1", "")
         
         # Utiliser le nom alternatif s'il existe et n'est pas vide, sinon le principal
         if nom_alternatif and nom_alternatif != nom_principal:
-            validated_item['Nom de l\'objet_display'] = nom_alternatif
+            validated_item["Nom de l'objet_display"] = nom_alternatif
         else:
-            validated_item['Nom de l\'objet_display'] = nom_principal or 'Objet mystérieux'
+            validated_item["Nom de l'objet_display"] = nom_principal or "Objet mystérieux"
         
         # Colonnes requises avec valeurs par défaut
         required_columns = {
-            'Rareté': 'Inconnue',
-            'Prix achat': 'Non spécifié',
-            'Prix vente': 'Non spécifié',
-            'Effet': 'Effet mystérieux',
-            'Type': 'Objet magique'
+            "Rareté": "Inconnue",
+            "Prix achat": "Non spécifié",
+            "Prix vente": "Non spécifié",
+            "Effet": "Effet mystérieux",
+            "Type": "Objet magique"
         }
         
         # Ajouter les valeurs par défaut pour les colonnes manquantes

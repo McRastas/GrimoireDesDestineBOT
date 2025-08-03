@@ -73,8 +73,8 @@ class BoutiqueResponseBuilder:
             str: Nom formaté
         """
         # Utiliser le nom d'affichage calculé lors de la validation
-        name = item.get('Nom de l\'objet_display') or item.get('Nom de l\'objet_1') or item.get('Nom de l\'objet', f'Objet #{index}')
-        rarity = item.get('Rareté', '')
+        name = item.get("Nom de l'objet_display") or item.get("Nom de l'objet_1") or item.get("Nom de l'objet", f"Objet #{index}")
+        rarity = item.get("Rareté", "")
         
         # Emoji selon la rareté
         rarity_emojis = {
@@ -104,35 +104,35 @@ class BoutiqueResponseBuilder:
         details = []
         
         # Rareté
-        rarity = item.get('Rareté', 'Inconnue')
+        rarity = item.get("Rareté", "Inconnue")
         if rarity:
             details.append(f"**Rareté:** {rarity}")
         
         # Type
-        item_type = item.get('Type', '')
+        item_type = item.get("Type", "")
         if item_type:
             details.append(f"**Type:** {item_type}")
         
         # Prix d'achat
-        buy_price = item.get('Prix achat', '')
-        if buy_price and buy_price != 'Non spécifié':
+        buy_price = item.get("Prix achat", "")
+        if buy_price and buy_price != "Non spécifié":
             details.append(f"**Prix:** {buy_price}")
         
         # Spécificités
-        specs = item.get('Spécificités', '')
+        specs = item.get("Spécificités", "")
         if specs:
             details.append(f"**Spécificités:** {specs}")
         
         # Effet (tronqué si trop long)
-        effect = item.get('Effet', '')
-        if effect and effect != 'Effet mystérieux':
+        effect = item.get("Effet", "")
+        if effect and effect != "Effet mystérieux":
             if len(effect) > 200:
                 effect = effect[:197] + "..."
             details.append(f"**Effet:** {effect}")
         
         # Lien vers la source
-        link = item.get('Lien', '')
-        if link and link.startswith('http'):
+        link = item.get("Lien", "")
+        if link and link.startswith("http"):
             details.append(f"[📖 Plus d'infos]({link})")
         
         return '\n'.join(details) if details else "Informations non disponibles"
