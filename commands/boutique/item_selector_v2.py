@@ -6,7 +6,7 @@ Sélecteur d'objets adapté pour le fichier OM_PRICE.csv
 import random
 import logging
 from typing import List, Dict, Optional, Tuple
-from .config_v2 import get_config, normalize_rarity_name, normalize_lien_magique, is_na_value, clean_na_value
+from .config_v2 import get_config, normalize_rarity_name, normalize_lien_magique
 
 logger = logging.getLogger(__name__)
 
@@ -62,29 +62,33 @@ class ItemSelectorV2:
         if not item:
             return False
         
-        # Récupérer la configuration de filtrage
-        config = get_config()
-        filtering_config = config.get('filtering', {})
-        critical_columns = filtering_config.get('critical_columns', ['Name', 'NameVF', 'RARETER', 'Type'])
+        # Colonnes critiques qui ne doivent pas être NA
+        critical_columns = [
+            'Name',           # Nom anglais
+            'NameVF',         # Nom français
+            'RARETER',        # Rareté
+            'Type'            # Type
+        ]
         
         # Vérifier les colonnes critiques
         for column in critical_columns:
             value = item.get(column, "")
-            if is_na_value(value):
-                logger.debug(f"Objet invalide - {column}: '{value}' (NA)")
+            if not value or str(value).strip().upper() in ['NA', 'N/A', '']:
+                logger.debug(f"Objet invalide - {column}: '{value}'")
                 return False
         
         # Vérifier qu'au moins un nom existe (français ou anglais)
         name_fr = item.get('NameVF', '')
         name_en = item.get('Name', '')
         
-        if is_na_value(name_fr) and is_na_value(name_en):
+        if (not name_fr or str(name_fr).strip().upper() in ['NA', 'N/A', '']) and \
+           (not name_en or str(name_en).strip().upper() in ['NA', 'N/A', '']):
             logger.debug("Objet invalide - aucun nom valide")
             return False
         
         # Vérifier la rareté
         rarity = item.get('RARETER', '')
-        if is_na_value(rarity):
+        if not rarity or str(rarity).strip().upper() in ['NA', 'N/A', '']:
             logger.debug("Objet invalide - rareté NA")
             return False
         
