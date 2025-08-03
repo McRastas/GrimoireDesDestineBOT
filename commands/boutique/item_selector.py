@@ -77,16 +77,10 @@ class ItemSelector:
         
         normalized_rarity = self._normalize_rarity(rarity)
         
-        # Vérification exacte
+        # Vérification exacte uniquement - plus de correspondance partielle
         if normalized_rarity in self.excluded_rarities_normalized:
             logger.debug(f"Rareté '{rarity}' -> '{normalized_rarity}' : EXCLUE (correspondance exacte)")
             return True
-        
-        # Vérification partielle (contient le mot clé)
-        for excluded in self.excluded_rarities_normalized:
-            if excluded in normalized_rarity or normalized_rarity in excluded:
-                logger.debug(f"Rareté '{rarity}' -> '{normalized_rarity}' : EXCLUE (correspondance partielle avec '{excluded}')")
-                return True
         
         logger.debug(f"Rareté '{rarity}' -> '{normalized_rarity}' : AUTORISÉE")
         return False
