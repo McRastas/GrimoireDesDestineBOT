@@ -204,6 +204,7 @@ class BoutiqueResponseBuilder:
             # Récupérer la configuration
             config = get_config()
             sheet_id = config['google_sheets']['sheet_id']
+            sheet_gid = config['google_sheets'].get('sheet_gid', '775953869')
             
             if not sheet_id or not item:
                 return ""
@@ -212,20 +213,20 @@ class BoutiqueResponseBuilder:
             if original_index is not None:
                 # +2 car les indices Python commencent à 0 et il y a une ligne d'en-tête
                 row_number = original_index + 2
-                # URL pour aller directement à une ligne spécifique
-                # Format: https://docs.google.com/spreadsheets/d/{ID}/edit#gid=0&range=A{ROW}
-                return f"https://docs.google.com/spreadsheets/d/{sheet_id}/edit#gid=0&range=A{row_number}"
+                # URL pour aller directement à une ligne spécifique (colonne B)
+                # Format: https://docs.google.com/spreadsheets/d/{ID}/edit?gid={GID}#gid={GID}&range=B{ROW}
+                return f"https://docs.google.com/spreadsheets/d/{sheet_id}/edit?gid={sheet_gid}#gid={sheet_gid}&range=B{row_number}"
             
             # Méthode 2: Utiliser le nom de l'objet pour la recherche
             nom_objet = item.get("Nom de l'objet_1") or item.get("Nom de l'objet", "")
             if nom_objet:
                 from urllib.parse import quote
                 nom_encoded = quote(nom_objet)
-                # URL avec recherche automatique
-                return f"https://docs.google.com/spreadsheets/d/{sheet_id}/edit#search={nom_encoded}"
+                # URL avec recherche automatique sur la bonne feuille
+                return f"https://docs.google.com/spreadsheets/d/{sheet_id}/edit?gid={sheet_gid}#gid={sheet_gid}&search={nom_encoded}"
             
-            # Méthode 3: Lien vers la feuille générale
-            return f"https://docs.google.com/spreadsheets/d/{sheet_id}/edit"
+            # Méthode 3: Lien vers la feuille spécifique
+            return f"https://docs.google.com/spreadsheets/d/{sheet_id}/edit?gid={sheet_gid}#gid={sheet_gid}"
             
         except Exception as e:
             logger.debug(f"Erreur génération lien Google Sheets: {e}")

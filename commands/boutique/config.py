@@ -10,6 +10,7 @@ from typing import List, Dict, Any
 GOOGLE_SHEETS_CONFIG = {
     'sheet_id': os.getenv('BOUTIQUE_SHEET_ID', '1DsvQ5GmwBH-jXo3vHR-XqkpQjkyRHi5BaZ0gqkcrvI8'),
     'sheet_name': os.getenv('BOUTIQUE_SHEET_NAME', 'Objets Magique'),
+    'sheet_gid': os.getenv('BOUTIQUE_SHEET_GID', '775953869'),  # GID de la feuille "Objets Magique"
     'base_url': 'https://docs.google.com/spreadsheets/d'
 }
 

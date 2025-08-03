@@ -85,46 +85,50 @@ class ItemSelector:
         logger.debug(f"Rareté '{rarity}' -> '{normalized_rarity}' : AUTORISÉE")
         return False
     
-    def filter_items_by_rarity(self, items: List[Dict[str, str]], rarity_column: str = "Rareté") -> List[Dict[str, str]]:
+    def filter_items_by_rarity(self, items: List[Dict[str, str]], rarity_column: str = "Rareté") -> Tuple[List[Dict[str, str]], List[int]]:
         """
-        Filtre les objets selon leur rareté.
+        Filtre les objets selon leur rareté en gardant les indices originaux.
         
         Args:
             items: Liste des objets à filtrer
             rarity_column: Nom de la colonne contenant la rareté
             
         Returns:
-            List[Dict[str, str]]: Liste des objets filtrés
+            Tuple[List[Dict[str, str]], List[int]]: (Liste des objets filtrés, Liste des indices originaux)
         """
         filtered_items = []
+        original_indices = []
         
-        for item in items:
+        for i, item in enumerate(items):
             rarity = item.get(rarity_column, "")
             
             if not self._is_rarity_excluded(rarity):
                 filtered_items.append(item)
+                original_indices.append(i)
             else:
                 item_name = item.get("Nom de l'objet", "Inconnu")
                 logger.debug(f"Objet exclu: {item_name} (Rareté: {rarity})")
         
         logger.info(f"Filtrage terminé: {len(filtered_items)}/{len(items)} objets retenus")
-        return filtered_items
+        return filtered_items, original_indices
     
-    def select_random_items(self, items: List[Dict[str, str]], min_count: int = 3, max_count: int = 8) -> Tuple[List[Dict[str, str]], List[int]]:
+    def select_random_items(self, items_with_indices: Tuple[List[Dict[str, str]], List[int]], min_count: int = 3, max_count: int = 8) -> Tuple[List[Dict[str, str]], List[int]]:
         """
         Sélectionne un nombre aléatoire d'objets avec leurs indices originaux.
         
         Args:
-            items: Liste des objets disponibles
+            items_with_indices: Tuple (liste des objets, liste des indices originaux)
             min_count: Nombre minimum d'objets à sélectionner
             max_count: Nombre maximum d'objets à sélectionner
             
         Returns:
-            Tuple: (Liste des objets sélectionnés, Liste des indices originaux)
+            Tuple: (Liste des objets sélectionnés, Liste des indices originaux correspondants)
             
         Raises:
             ValueError: Si pas assez d'objets disponibles
         """
+        items, original_indices = items_with_indices
+        
         if not items:
             raise ValueError("Aucun objet disponible pour la sélection")
         
@@ -136,15 +140,15 @@ class ItemSelector:
             logger.warning(f"Pas assez d'objets disponibles: {available_count} < {target_count}")
             target_count = available_count
         
-        # Créer une liste d'indices avec les objets
-        indexed_items = list(enumerate(items))
+        # Créer une liste de tuples (objet, index_original)
+        items_with_original_indices = list(zip(items, original_indices))
         
         # Sélection aléatoire sans remise
-        selected_indexed_items = random.sample(indexed_items, target_count)
+        selected_items_with_indices = random.sample(items_with_original_indices, target_count)
         
         # Séparer les objets et les indices
-        selected_items = [item for index, item in selected_indexed_items]
-        selected_indices = [index for index, item in selected_indexed_items]
+        selected_items = [item for item, _ in selected_items_with_indices]
+        selected_indices = [index for _, index in selected_items_with_indices]
         
         logger.info(f"Sélection aléatoire: {len(selected_items)} objets choisis")
         return selected_items, selected_indices

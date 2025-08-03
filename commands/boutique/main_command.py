@@ -115,8 +115,8 @@ class BoutiqueCommand(BaseCommand):
             
             logger.info(f"Récupération réussie: {len(raw_items)} objets trouvés")
             
-            # Filtrage par rareté
-            filtered_items = self.item_selector.filter_items_by_rarity(raw_items, 'Rareté')
+            # Filtrage par rareté avec conservation des indices originaux
+            filtered_items, filtered_indices = self.item_selector.filter_items_by_rarity(raw_items, 'Rareté')
             
             if not filtered_items:
                 error_embed = self.response_builder.create_error_embed(
@@ -131,7 +131,7 @@ class BoutiqueCommand(BaseCommand):
             # Sélection aléatoire
             try:
                 selected_items, selected_indices = self.item_selector.select_random_items(
-                    filtered_items, 
+                    (filtered_items, filtered_indices), 
                     min_count=target_count, 
                     max_count=target_count
                 )
