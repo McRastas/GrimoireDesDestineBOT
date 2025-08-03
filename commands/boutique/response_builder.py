@@ -29,13 +29,14 @@ class BoutiqueResponseBuilder:
             'default': '🔮'
         })
     
-    def create_boutique_embed(self, items: List[Dict[str, str]], stats: Dict[str, any] = None) -> discord.Embed:
+    def create_boutique_embed(self, items: List[Dict[str, str]], stats: Dict[str, any] = None, item_indices: List[int] = None) -> discord.Embed:
         """
         Crée l'embed principal de la boutique.
         
         Args:
             items: Liste des objets sélectionnés
             stats: Statistiques optionnelles
+            item_indices: Indices des objets dans la liste originale (pour les liens Google Sheets)
             
         Returns:
             discord.Embed: Embed formaté pour Discord
@@ -53,7 +54,10 @@ class BoutiqueResponseBuilder:
         # Ajout des objets comme champs
         for i, item in enumerate(items, 1):
             name = self._get_item_name(item, i)
-            value = self._format_item_details(item)
+            
+            # Passer l'index de ligne si disponible
+            original_index = item_indices[i-1] if item_indices and len(item_indices) >= i else None
+            value = self._format_item_details(item, original_index)
             
             # Vérifier la longueur du champ
             if len(value) > self.max_field_length:
@@ -101,12 +105,13 @@ class BoutiqueResponseBuilder:
         
         return f"{emoji} {name}"
     
-    def _format_item_details(self, item: Dict[str, str]) -> str:
+    def _format_item_details(self, item: Dict[str, str], original_index: int = None) -> str:
         """
         Formate les détails d'un objet.
         
         Args:
             item: Objet à formatter
+            original_index: Index de l'objet dans la liste originale (pour le lien Google Sheets)
             
         Returns:
             str: Détails formatés
@@ -147,7 +152,12 @@ class BoutiqueResponseBuilder:
                 effect = effect[:197] + "..."
             details.append(f"**Effet:** {effect}")
         
-        # Lien web vers la source (si c'est un lien HTTP)
+        # Lien vers Google Sheets (nouvelle fonctionnalité)
+        sheets_link = self._generate_sheets_link(item, original_index)
+        if sheets_link:
+            details.append(f"[📊 Voir dans Google Sheets]({sheets_link})")
+        
+        # Lien web vers la source (si c'est un lien HTTP dans une autre colonne)
         link = item.get("Lien", "")
         if link and link.startswith("http"):
             details.append(f"[📖 Plus d'infos]({link})")
@@ -177,7 +187,47 @@ class BoutiqueResponseBuilder:
             return f"{self.lien_emojis['maudit']} Maudit"
         else:
             # Pour les autres valeurs, on les affiche telles quelles
-            return f"{self.lien_emojis['default']} {lien_value}"
+    def _generate_sheets_link(self, item: Dict[str, str], original_index: int = None) -> str:
+        """
+        Génère un lien direct vers la ligne de l'objet dans Google Sheets.
+        
+        Args:
+            item: Objet pour lequel générer le lien
+            original_index: Index de l'objet dans la liste originale
+            
+        Returns:
+            str: URL vers Google Sheets ou chaîne vide si impossible
+        """
+        try:
+            # Récupérer la configuration
+            config = get_config()
+            sheet_id = config['google_sheets']['sheet_id']
+            
+            if not sheet_id or not item:
+                return ""
+            
+            # Méthode 1: Si on a l'index original, utiliser le numéro de ligne
+            if original_index is not None:
+                # +2 car les indices Python commencent à 0 et il y a une ligne d'en-tête
+                row_number = original_index + 2
+                # URL pour aller directement à une ligne spécifique
+                # Format: https://docs.google.com/spreadsheets/d/{ID}/edit#gid=0&range=A{ROW}
+                return f"https://docs.google.com/spreadsheets/d/{sheet_id}/edit#gid=0&range=A{row_number}"
+            
+            # Méthode 2: Utiliser le nom de l'objet pour la recherche
+            nom_objet = item.get("Nom de l'objet_1") or item.get("Nom de l'objet", "")
+            if nom_objet:
+                from urllib.parse import quote
+                nom_encoded = quote(nom_objet)
+                # URL avec recherche automatique
+                return f"https://docs.google.com/spreadsheets/d/{sheet_id}/edit#search={nom_encoded}"
+            
+            # Méthode 3: Lien vers la feuille générale
+            return f"https://docs.google.com/spreadsheets/d/{sheet_id}/edit"
+            
+        except Exception as e:
+            logger.debug(f"Erreur génération lien Google Sheets: {e}")
+            return ""
     
     def _truncate_field_value(self, value: str) -> str:
         """

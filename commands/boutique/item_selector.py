@@ -5,7 +5,7 @@ Sélecteur d'objets aléatoires avec filtres de rareté.
 
 import random
 import logging
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -110,9 +110,9 @@ class ItemSelector:
         logger.info(f"Filtrage terminé: {len(filtered_items)}/{len(items)} objets retenus")
         return filtered_items
     
-    def select_random_items(self, items: List[Dict[str, str]], min_count: int = 3, max_count: int = 8) -> List[Dict[str, str]]:
+    def select_random_items(self, items: List[Dict[str, str]], min_count: int = 3, max_count: int = 8) -> Tuple[List[Dict[str, str]], List[int]]:
         """
-        Sélectionne un nombre aléatoire d'objets.
+        Sélectionne un nombre aléatoire d'objets avec leurs indices originaux.
         
         Args:
             items: Liste des objets disponibles
@@ -120,7 +120,7 @@ class ItemSelector:
             max_count: Nombre maximum d'objets à sélectionner
             
         Returns:
-            List[Dict[str, str]]: Liste des objets sélectionnés
+            Tuple: (Liste des objets sélectionnés, Liste des indices originaux)
             
         Raises:
             ValueError: Si pas assez d'objets disponibles
@@ -136,11 +136,18 @@ class ItemSelector:
             logger.warning(f"Pas assez d'objets disponibles: {available_count} < {target_count}")
             target_count = available_count
         
+        # Créer une liste d'indices avec les objets
+        indexed_items = list(enumerate(items))
+        
         # Sélection aléatoire sans remise
-        selected_items = random.sample(items, target_count)
+        selected_indexed_items = random.sample(indexed_items, target_count)
+        
+        # Séparer les objets et les indices
+        selected_items = [item for index, item in selected_indexed_items]
+        selected_indices = [index for index, item in selected_indexed_items]
         
         logger.info(f"Sélection aléatoire: {len(selected_items)} objets choisis")
-        return selected_items
+        return selected_items, selected_indices
     
     def get_item_stats(self, items: List[Dict[str, str]], rarity_column: str = "Rareté") -> Dict[str, int]:
         """

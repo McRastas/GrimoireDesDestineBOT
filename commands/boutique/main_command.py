@@ -130,7 +130,7 @@ class BoutiqueCommand(BaseCommand):
             
             # Sélection aléatoire
             try:
-                selected_items = self.item_selector.select_random_items(
+                selected_items, selected_indices = self.item_selector.select_random_items(
                     filtered_items, 
                     min_count=target_count, 
                     max_count=target_count
@@ -157,10 +157,11 @@ class BoutiqueCommand(BaseCommand):
                 'target_count': target_count
             }
             
-            # Création de la réponse finale
+            # Création de la réponse finale avec les indices pour les liens Google Sheets
             boutique_embed = self.response_builder.create_boutique_embed(
                 validated_items, 
-                stats
+                stats,
+                selected_indices
             )
             
             # Mise à jour de la réponse
