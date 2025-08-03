@@ -1,34 +1,33 @@
-# commands/boutique/item_selector_v2.py
+# commands/boutique/item_selector.py
 """
-Sélecteur d'objets adapté pour le fichier OM_PRICE.csv
+Sélecteur d'objets aléatoires avec filtres de rareté.
 """
 
 import random
 import logging
 from typing import List, Dict, Optional, Tuple
-from .config_v2 import get_config, normalize_rarity_name, normalize_lien_magique
 
 logger = logging.getLogger(__name__)
 
-class ItemSelectorV2:
+class ItemSelector:
     """
-    Classe pour sélectionner des objets aléatoires adaptée au format OM_PRICE.
+    Classe pour sélectionner des objets aléatoires avec filtres.
     """
     
     def __init__(self, excluded_rarities: List[str] = None):
         """
-        Initialise le sélecteur d'objets pour OM_PRICE.
+        Initialise le sélecteur d'objets.
         
         Args:
-            excluded_rarities: Liste des raretés à exclure (format OM_PRICE)
+            excluded_rarities: Liste des raretés à exclure (par défaut: très rare, légendaire)
         """
-        self.excluded_rarities = excluded_rarities or ['3-VERY RARE', '4-LEGENDARY']
-        # Normaliser les raretés pour la comparaison
+        self.excluded_rarities = excluded_rarities or ['Très rare', 'Légendaire', 'Artefact']
+        # Normaliser les raretés pour la comparaison (minuscules, sans accents)
         self.excluded_rarities_normalized = [
             self._normalize_rarity(rarity) for rarity in self.excluded_rarities
         ]
         
-        # Log de debug
+        # Log de debug pour voir les raretés exclues
         logger.info(f"Raretés à exclure: {self.excluded_rarities}")
         logger.info(f"Raretés normalisées: {self.excluded_rarities_normalized}")
     
@@ -45,8 +44,22 @@ class ItemSelectorV2:
         if not rarity:
             return ""
         
-        # Convertir en majuscules et supprimer les espaces
-        normalized = rarity.upper().strip()
+        # Convertir en minuscules et supprimer les espaces
+        normalized = rarity.lower().strip()
+        
+        # Suppression des accents basique
+        accent_map = {
+            'è': 'e', 'é': 'e', 'ê': 'e', 'ë': 'e',
+            'à': 'a', 'á': 'a', 'â': 'a', 'ä': 'a',
+            'ù': 'u', 'ú': 'u', 'û': 'u', 'ü': 'u',
+            'ò': 'o', 'ó': 'o', 'ô': 'o', 'ö': 'o',
+            'ì': 'i', 'í': 'i', 'î': 'i', 'ï': 'i',
+            'ç': 'c'
+        }
+        
+        for accented, normal in accent_map.items():
+            normalized = normalized.replace(accented, normal)
+        
         return normalized
     
     def _is_rarity_excluded(self, rarity: str) -> bool:
@@ -54,7 +67,7 @@ class ItemSelectorV2:
         Vérifie si une rareté doit être exclue.
         
         Args:
-            rarity: Rareté à vérifier (format OM_PRICE)
+            rarity: Rareté à vérifier
             
         Returns:
             bool: True si la rareté doit être exclue
@@ -64,15 +77,15 @@ class ItemSelectorV2:
         
         normalized_rarity = self._normalize_rarity(rarity)
         
-        # Vérification exacte uniquement
+        # Vérification exacte uniquement - plus de correspondance partielle
         if normalized_rarity in self.excluded_rarities_normalized:
-            logger.debug(f"Rareté '{rarity}' -> '{normalized_rarity}' : EXCLUE")
+            logger.debug(f"Rareté '{rarity}' -> '{normalized_rarity}' : EXCLUE (correspondance exacte)")
             return True
         
         logger.debug(f"Rareté '{rarity}' -> '{normalized_rarity}' : AUTORISÉE")
         return False
     
-    def filter_items_by_rarity(self, items: List[Dict[str, str]], rarity_column: str = "RARETER") -> Tuple[List[Dict[str, str]], List[int]]:
+    def filter_items_by_rarity(self, items: List[Dict[str, str]], rarity_column: str = "Rareté") -> Tuple[List[Dict[str, str]], List[int]]:
         """
         Filtre les objets selon leur rareté en gardant les indices originaux.
         
@@ -93,7 +106,7 @@ class ItemSelectorV2:
                 filtered_items.append(item)
                 original_indices.append(i)
             else:
-                item_name = item.get("NameVF") or item.get("Name", "Inconnu")
+                item_name = item.get("Nom de l'objet", "Inconnu")
                 logger.debug(f"Objet exclu: {item_name} (Rareté: {rarity})")
         
         logger.info(f"Filtrage terminé: {len(filtered_items)}/{len(items)} objets retenus")
@@ -110,6 +123,9 @@ class ItemSelectorV2:
             
         Returns:
             Tuple: (Liste des objets sélectionnés, Liste des indices originaux correspondants)
+            
+        Raises:
+            ValueError: Si pas assez d'objets disponibles
         """
         items, original_indices = items_with_indices
         
@@ -137,26 +153,37 @@ class ItemSelectorV2:
         logger.info(f"Sélection aléatoire: {len(selected_items)} objets choisis")
         return selected_items, selected_indices
     
-    def get_item_stats(self, items: List[Dict[str, str]], rarity_column: str = "RARETER") -> Dict[str, int]:
+    def get_item_stats(self, items: List[Dict[str, str]], rarity_column: str = "Rareté") -> Dict[str, int]:
         """
         Retourne les statistiques sur les raretés des objets.
+        
+        Args:
+            items: Liste des objets à analyser
+            rarity_column: Nom de la colonne contenant la rareté
+            
+        Returns:
+            Dict[str, int]: Statistiques par rareté
         """
         stats = {}
         
         for item in items:
-            rarity = item.get(rarity_column, "0-COMMUN").strip()
+            rarity = item.get(rarity_column, "Inconnue").strip()
             if not rarity:
-                rarity = "0-COMMUN"
+                rarity = "Inconnue"
             
-            # Convertir en format lisible
-            readable_rarity = normalize_rarity_name(rarity)
-            stats[readable_rarity] = stats.get(readable_rarity, 0) + 1
+            stats[rarity] = stats.get(rarity, 0) + 1
         
         return stats
     
     def validate_item_data(self, item: Dict[str, str]) -> Dict[str, str]:
         """
-        Valide et nettoie les données d'un objet OM_PRICE.
+        Valide et nettoie les données d'un objet.
+        
+        Args:
+            item: Objet à valider
+            
+        Returns:
+            Dict[str, str]: Objet validé
         """
         validated_item = {}
         
@@ -164,34 +191,28 @@ class ItemSelectorV2:
         for key, value in item.items():
             validated_item[key] = str(value).strip() if value else ""
         
-        # Utiliser le nom français en priorité, sinon anglais
-        nom_francais = validated_item.get("NameVF", "")
-        nom_anglais = validated_item.get("Name", "")
+        # Gérer le nom de l'objet (utiliser le nom alternatif en priorité s'il existe)
+        nom_principal = validated_item.get("Nom de l'objet", "")
+        nom_alternatif = validated_item.get("Nom de l'objet_1", "")
         
-        if nom_francais:
-            validated_item["nom_display"] = nom_francais
-        elif nom_anglais:
-            validated_item["nom_display"] = nom_anglais
+        # Utiliser le nom alternatif s'il existe et n'est pas vide, sinon le principal
+        if nom_alternatif and nom_alternatif != nom_principal:
+            validated_item["Nom de l'objet_display"] = nom_alternatif
         else:
-            validated_item["nom_display"] = "Objet mystérieux"
+            validated_item["Nom de l'objet_display"] = nom_principal or "Objet mystérieux"
         
-        # Normaliser la rareté pour l'affichage
-        rarity_raw = validated_item.get("RARETER", "0-COMMUN")
-        validated_item["rarity_display"] = normalize_rarity_name(rarity_raw)
+        # Colonnes requises avec valeurs par défaut
+        required_columns = {
+            "Rareté": "Inconnue",
+            "Prix achat": "Non spécifié",
+            "Prix vente": "Non spécifié",
+            "Effet": "Effet mystérieux",
+            "Type": "Objet magique"
+        }
         
-        # Normaliser le lien magique
-        lien_raw = validated_item.get("Lien", "N")
-        validated_item["lien_display"] = normalize_lien_magique(lien_raw)
-        
-        # Gérer les prix (utiliser CostF en priorité)
-        price_costf = validated_item.get("CostF", "")
-        price_median = validated_item.get("MEDIANNE", "")
-        
-        if price_costf and price_costf != "0":
-            validated_item["price_display"] = f"{price_costf} po"
-        elif price_median and price_median != "0":
-            validated_item["price_display"] = f"{price_median} po"
-        else:
-            validated_item["price_display"] = "Prix non spécifié"
+        # Ajouter les valeurs par défaut pour les colonnes manquantes
+        for column, default_value in required_columns.items():
+            if column not in validated_item or not validated_item[column]:
+                validated_item[column] = default_value
         
         return validated_item

@@ -1,38 +1,47 @@
-# commands/boutique/response_builder_v2.py
+# commands/boutique/response_builder.py
 """
-Constructeur de réponses adapté pour OM_PRICE.csv
+Constructeur de réponses Discord pour la commande boutique.
 """
 
 import discord
 import logging
 from typing import List, Dict, Optional
-from .config_v2 import get_config
+from .config import get_config
 
 logger = logging.getLogger(__name__)
 
-class BoutiqueResponseBuilderV2:
+class BoutiqueResponseBuilder:
     """
-    Classe pour construire les réponses Discord adaptée au format OM_PRICE.
+    Classe pour construire les réponses Discord de la boutique.
     """
     
     def __init__(self):
         """Initialise le constructeur de réponses."""
-        self.max_field_length = 1024
-        self.max_embed_length = 6000
+        self.max_field_length = 1024  # Limite Discord pour les champs d'embed
+        self.max_embed_length = 6000  # Limite Discord pour la longueur totale d'un embed
         
         # Charger la configuration
         config = get_config()
         self.lien_emojis = config.get('lien_magique_emojis', {
-            'y': '🔗',
-            'n': '❌',
+            'oui': '🔗',
+            'non': '❌', 
+            'maudit': '💀',
             'default': '🔮'
         })
-        self.rarity_emojis = config.get('rarity_emojis', {})
     
     def create_boutique_embed(self, items: List[Dict[str, str]], stats: Dict[str, any] = None, item_indices: List[int] = None) -> discord.Embed:
         """
-        Crée l'embed principal de la boutique pour OM_PRICE.
+        Crée l'embed principal de la boutique.
+        
+        Args:
+            items: Liste des objets sélectionnés
+            stats: Statistiques optionnelles
+            item_indices: Indices des objets dans la liste originale (pour les liens Google Sheets)
+            
+        Returns:
+            discord.Embed: Embed formaté pour Discord
         """
+        # Couleur aléatoire pour l'embed
         colors = [0x3498db, 0xe74c3c, 0x2ecc71, 0xf39c12, 0x9b59b6, 0x1abc9c]
         embed_color = colors[hash(str(len(items))) % len(colors)]
         
@@ -60,7 +69,7 @@ class BoutiqueResponseBuilderV2:
                 inline=False
             )
         
-        # Footer avec statistiques
+        # Ajout du footer avec des statistiques
         footer_text = self._create_footer_text(stats)
         embed.set_footer(text=footer_text)
         
@@ -68,108 +77,152 @@ class BoutiqueResponseBuilderV2:
     
     def _get_item_name(self, item: Dict[str, str], index: int) -> str:
         """
-        Formate le nom d'un objet OM_PRICE.
-        """
-        name = item.get("nom_display", f"Objet #{index}")
-        rarity = item.get("rarity_display", "")
+        Formate le nom d'un objet pour l'affichage.
         
-        # Mapping direct des emojis par rareté
-        emoji_map = {
+        Args:
+            item: Objet à formatter
+            index: Index de l'objet
+            
+        Returns:
+            str: Nom formaté
+        """
+        # Utiliser le nom d'affichage calculé lors de la validation
+        name = item.get("Nom de l'objet_display") or item.get("Nom de l'objet_1") or item.get("Nom de l'objet", f"Objet #{index}")
+        rarity = item.get("Rareté", "")
+        
+        # Emoji selon la rareté
+        rarity_emojis = {
             'commun': '⚪',
             'peu commun': '🟢',
             'rare': '🔵',
             'très rare': '🟣',
-            'légendaire': '🟡'
+            'légendaire': '🟡',
+            'artefact': '🔴'
         }
         
         rarity_lower = rarity.lower().strip()
-        emoji = emoji_map.get(rarity_lower, '✨')
+        emoji = rarity_emojis.get(rarity_lower, '✨')
         
         return f"{emoji} {name}"
     
     def _format_item_details(self, item: Dict[str, str], original_index: int = None) -> str:
         """
-        Formate les détails d'un objet OM_PRICE.
+        Formate les détails d'un objet.
+        
+        Args:
+            item: Objet à formatter
+            original_index: Index de l'objet dans la liste originale (pour le lien Google Sheets)
+            
+        Returns:
+            str: Détails formatés
         """
         details = []
         
         # Rareté
-        rarity = item.get("rarity_display", "Inconnue")
+        rarity = item.get("Rareté", "Inconnue")
         if rarity:
             details.append(f"**Rareté:** {rarity}")
         
         # Type
         item_type = item.get("Type", "")
         if item_type:
-            # Formatter le type (première lettre en majuscule, remplacer _ par espaces)
-            formatted_type = item_type.replace("_", " ").title()
-            details.append(f"**Type:** {formatted_type}")
+            details.append(f"**Type:** {item_type}")
         
-        # Lien magique
-        lien_display = item.get("lien_display", "")
-        if lien_display:
-            lien_formatted = self._format_lien_magique(lien_display)
+        # Lien magique (colonne G "Lien")
+        lien_magique = item.get("Lien", "")
+        if lien_magique and not lien_magique.startswith("http"):  # Pas un lien web
+            lien_formatted = self._format_lien_magique(lien_magique)
             if lien_formatted:
                 details.append(f"**Lien magique:** {lien_formatted}")
         
-        # Prix
-        price = item.get("price_display", "")
-        if price and price != "Prix non spécifié":
-            details.append(f"**Prix:** {price}")
+        # Prix d'achat
+        buy_price = item.get("Prix achat", "")
+        if buy_price and buy_price != "Non spécifié":
+            details.append(f"**Prix:** {buy_price}")
         
-        # Source
-        source = item.get("Source", "")
-        if source:
-            details.append(f"**Source:** {source}")
+        # Spécificités
+        specs = item.get("Spécificités", "")
+        if specs:
+            details.append(f"**Spécificités:** {specs}")
         
-        # Lien vers Google Sheets
+        # Effet (tronqué si trop long)
+        effect = item.get("Effet", "")
+        if effect and effect != "Effet mystérieux":
+            if len(effect) > 200:
+                effect = effect[:197] + "..."
+            details.append(f"**Effet:** {effect}")
+        
+        # Lien vers Google Sheets (nouvelle fonctionnalité)
         sheets_link = self._generate_sheets_link(item, original_index)
         if sheets_link:
             details.append(f"[📊 Voir dans Google Sheets]({sheets_link})")
+        
+        # Lien web vers la source (si c'est un lien HTTP dans une autre colonne)
+        link = item.get("Lien", "")
+        if link and link.startswith("http"):
+            details.append(f"[📖 Plus d'infos]({link})")
         
         return '\n'.join(details) if details else "Informations non disponibles"
     
     def _format_lien_magique(self, lien_value: str) -> str:
         """
-        Formate l'information de lien magique pour OM_PRICE.
+        Formate l'information de lien magique avec emojis.
+        
+        Args:
+            lien_value: Valeur de la colonne Lien
+            
+        Returns:
+            str: Lien magique formaté avec emoji
         """
         if not lien_value:
             return ""
         
         lien_lower = lien_value.lower().strip()
         
-        if lien_lower == 'oui':
-            return f"{self.lien_emojis['y']} Oui"
-        elif lien_lower == 'non':
-            return f"{self.lien_emojis['n']} Non"
+        if lien_lower in ['oui', 'yes']:
+            return f"{self.lien_emojis['oui']} Oui"
+        elif lien_lower in ['non', 'no']:
+            return f"{self.lien_emojis['non']} Non"
+        elif lien_lower == 'maudit':
+            return f"{self.lien_emojis['maudit']} Maudit"
         else:
+            # Pour les autres valeurs, on les affiche telles quelles
             return f"{self.lien_emojis['default']} {lien_value}"
     
     def _generate_sheets_link(self, item: Dict[str, str], original_index: int = None) -> str:
         """
-        Génère un lien direct vers Google Sheets pour OM_PRICE.
+        Génère un lien direct vers la ligne de l'objet dans Google Sheets.
+        
+        Args:
+            item: Objet pour lequel générer le lien
+            original_index: Index de l'objet dans la liste originale
+            
+        Returns:
+            str: URL vers Google Sheets ou chaîne vide si impossible
         """
         try:
             # Récupérer la configuration
             config = get_config()
             sheet_id = config['google_sheets']['sheet_id']
-            sheet_gid = config['google_sheets'].get('sheet_gid', '0')
+            sheet_gid = config['google_sheets'].get('sheet_gid', '775953869')
             
             if not sheet_id or not item:
                 return ""
             
             # Méthode 1: Si on a l'index original, utiliser le numéro de ligne
             if original_index is not None:
-                # +2 car indices Python commencent à 0 et il y a une ligne d'en-tête
+                # +2 car les indices Python commencent à 0 et il y a une ligne d'en-tête
                 row_number = original_index + 2
-                # URL pour aller directement à une ligne spécifique (colonne A pour OM_PRICE)
-                return f"https://docs.google.com/spreadsheets/d/{sheet_id}/edit?gid={sheet_gid}#gid={sheet_gid}&range=A{row_number}"
+                # URL pour aller directement à une ligne spécifique (colonne B)
+                # Format: https://docs.google.com/spreadsheets/d/{ID}/edit?gid={GID}#gid={GID}&range=B{ROW}
+                return f"https://docs.google.com/spreadsheets/d/{sheet_id}/edit?gid={sheet_gid}#gid={sheet_gid}&range=B{row_number}"
             
             # Méthode 2: Utiliser le nom de l'objet pour la recherche
-            nom_objet = item.get("nom_display", "")
+            nom_objet = item.get("Nom de l'objet_1") or item.get("Nom de l'objet", "")
             if nom_objet:
                 from urllib.parse import quote
                 nom_encoded = quote(nom_objet)
+                # URL avec recherche automatique sur la bonne feuille
                 return f"https://docs.google.com/spreadsheets/d/{sheet_id}/edit?gid={sheet_gid}#gid={sheet_gid}&search={nom_encoded}"
             
             # Méthode 3: Lien vers la feuille spécifique
@@ -182,6 +235,12 @@ class BoutiqueResponseBuilderV2:
     def _truncate_field_value(self, value: str) -> str:
         """
         Tronque la valeur d'un champ si elle est trop longue.
+        
+        Args:
+            value: Valeur à tronquer
+            
+        Returns:
+            str: Valeur tronquée
         """
         if len(value) <= self.max_field_length:
             return value
@@ -199,6 +258,12 @@ class BoutiqueResponseBuilderV2:
     def _create_footer_text(self, stats: Dict[str, any] = None) -> str:
         """
         Crée le texte du footer.
+        
+        Args:
+            stats: Statistiques optionnelles
+            
+        Returns:
+            str: Texte du footer
         """
         footer_parts = ["Boutique magique de Faerûn"]
         
@@ -213,6 +278,13 @@ class BoutiqueResponseBuilderV2:
     def create_error_embed(self, error_message: str, details: str = None) -> discord.Embed:
         """
         Crée un embed d'erreur.
+        
+        Args:
+            error_message: Message d'erreur principal
+            details: Détails optionnels sur l'erreur
+            
+        Returns:
+            discord.Embed: Embed d'erreur
         """
         embed = discord.Embed(
             title="❌ Erreur - Boutique Indisponible",
@@ -242,6 +314,9 @@ class BoutiqueResponseBuilderV2:
     def create_loading_embed(self) -> discord.Embed:
         """
         Crée un embed de chargement.
+        
+        Returns:
+            discord.Embed: Embed de chargement
         """
         embed = discord.Embed(
             title="🔄 Préparation de la Boutique...",

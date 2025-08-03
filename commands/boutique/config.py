@@ -1,70 +1,82 @@
-# commands/boutique/config.py
+# commands/boutique/config_v2.py
 """
-Configuration centralisée pour le module boutique avec variables d'environnement.
+Configuration pour le fichier OM_PRICE.csv - Structure différente
 """
 
 import os
 from typing import List, Dict, Any
 
-# Configuration Google Sheets (avec variables d'environnement)
+# Tentative de chargement automatique du fichier .env avec python-dotenv
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+    print("✅ Fichier .env chargé avec python-dotenv")
+except ImportError:
+    print("ℹ️ Aucun fichier .env trouvé, utilisation des valeurs par défaut")
+
+# Configuration Google Sheets pour OM_PRICE
 GOOGLE_SHEETS_CONFIG = {
     'sheet_id': os.getenv('BOUTIQUE_SHEET_ID', '1DsvQ5GmwBH-jXo3vHR-XqkpQjkyRHi5BaZ0gqkcrvI8'),
-    'sheet_name': os.getenv('BOUTIQUE_SHEET_NAME', 'Objets Magique'),
-    'sheet_gid': os.getenv('BOUTIQUE_SHEET_GID', '775953869'),  # GID de la feuille "Objets Magique"
+    'sheet_name': os.getenv('BOUTIQUE_SHEET_NAME', 'OM_PRICE'),  # Nouveau nom de feuille
+    'sheet_gid': os.getenv('BOUTIQUE_SHEET_GID', '0'),  # GID différent
     'base_url': 'https://docs.google.com/spreadsheets/d'
 }
 
-# Configuration de la sélection d'objets (basée sur l'analyse réelle)
+# Configuration de sélection avec les nouvelles raretés
 ITEM_SELECTION_CONFIG = {
     'min_items': int(os.getenv('BOUTIQUE_MIN_ITEMS', '3')),
     'max_items': int(os.getenv('BOUTIQUE_MAX_ITEMS', '8')),
-    'excluded_rarities': os.getenv('BOUTIQUE_EXCLUDED_RARITIES', 'Très rare,Légendaire,Artefact').split(','),
-    'rarity_column': os.getenv('BOUTIQUE_RARITY_COLUMN', 'Rareté')
+    # Nouvelles raretés à exclure (format différent)
+    'excluded_rarities': os.getenv('BOUTIQUE_EXCLUDED_RARITIES', '3-VERY RARE,4-LEGENDARY').split(','),
+    'rarity_column': os.getenv('BOUTIQUE_RARITY_COLUMN', 'RARETER')  # Nouvelle colonne
 }
 
-# Configuration des colonnes du Google Sheets (basée sur l'analyse du CSV réel)
+# Mapping des colonnes pour OM_PRICE
 COLUMNS_CONFIG = {
-    'nom_principal': os.getenv('BOUTIQUE_COL_NOM_PRINCIPAL', 'Nom de l\'objet'),
-    'nom_alternatif': os.getenv('BOUTIQUE_COL_NOM_ALTERNATIF', 'Nom de l\'objet_1'),  # Vraie colonne nom
-    'nom_vo': os.getenv('BOUTIQUE_COL_NOM_VO', 'Nom Vo '),  # Attention à l'espace à la fin
-    'nom_en_vo': os.getenv('BOUTIQUE_COL_NOM_EN_VO', 'Nom en VO'),
+    'nom_anglais': os.getenv('BOUTIQUE_COL_NOM_ANGLAIS', 'Name'),
+    'nom_francais': os.getenv('BOUTIQUE_COL_NOM_FRANCAIS', 'NameVF'),
     'type': os.getenv('BOUTIQUE_COL_TYPE', 'Type'),
-    'rarity': os.getenv('BOUTIQUE_COL_RARITY', 'Rareté'),
-    'link': os.getenv('BOUTIQUE_COL_LINK', 'Lien'),
-    'craft_cost': os.getenv('BOUTIQUE_COL_CRAFT_COST', 'Coût de craft'),
-    'profession': os.getenv('BOUTIQUE_COL_PROFESSION', 'Metier'),
-    'buy_price': os.getenv('BOUTIQUE_COL_BUY_PRICE', 'Prix achat'),
-    'specs': os.getenv('BOUTIQUE_COL_SPECS', 'Spécificités'),
-    'sell_price': os.getenv('BOUTIQUE_COL_SELL_PRICE', 'Prix vente'),
+    'rarity': os.getenv('BOUTIQUE_COL_RARITY', 'RARETER'),
+    'lien_magique': os.getenv('BOUTIQUE_COL_LIEN', 'Lien'),
     'source': os.getenv('BOUTIQUE_COL_SOURCE', 'Source'),
-    'effect': os.getenv('BOUTIQUE_COL_EFFECT', 'Effet')
+    'price_median': os.getenv('BOUTIQUE_COL_PRICE_MEDIAN', 'MEDIANNE'),
+    'price_costf': os.getenv('BOUTIQUE_COL_PRICE_COSTF', 'CostF'),
+    'price_magic_items': os.getenv('BOUTIQUE_COL_PRICE_MAGIC', 'Magic Item Prices.Price'),
+    'price_dungeonsport': os.getenv('BOUTIQUE_COL_PRICE_DUNGEON', 'DUNGEONSPORT.Cost'),
+    'grimoire_name': os.getenv('BOUTIQUE_COL_GRIMOIRE', 'GRIMOIRE_NAME')
 }
 
-# Configuration Discord
+# Configuration Discord (identique)
 DISCORD_CONFIG = {
     'max_field_length': int(os.getenv('BOUTIQUE_MAX_FIELD_LENGTH', '1024')),
     'max_embed_length': int(os.getenv('BOUTIQUE_MAX_EMBED_LENGTH', '6000')),
     'colors': {
-        'success': int(os.getenv('BOUTIQUE_COLOR_SUCCESS', '0x2ecc71'), 16),  # Vert
-        'error': int(os.getenv('BOUTIQUE_COLOR_ERROR', '0xe74c3c'), 16),     # Rouge
-        'warning': int(os.getenv('BOUTIQUE_COLOR_WARNING', '0xf39c12'), 16), # Orange
-        'info': int(os.getenv('BOUTIQUE_COLOR_INFO', '0x3498db'), 16),       # Bleu
-        'magic': int(os.getenv('BOUTIQUE_COLOR_MAGIC', '0x9b59b6'), 16)      # Violet
+        'success': int(os.getenv('BOUTIQUE_COLOR_SUCCESS', '0x2ecc71'), 16),
+        'error': int(os.getenv('BOUTIQUE_COLOR_ERROR', '0xe74c3c'), 16),
+        'warning': int(os.getenv('BOUTIQUE_COLOR_WARNING', '0xf39c12'), 16),
+        'info': int(os.getenv('BOUTIQUE_COLOR_INFO', '0x3498db'), 16),
+        'magic': int(os.getenv('BOUTIQUE_COLOR_MAGIC', '0x9b59b6'), 16)
     }
 }
 
-# Emojis par rareté
+# Emojis par rareté (adaptés au nouveau format)
 RARITY_EMOJIS = {
-    'commun': os.getenv('BOUTIQUE_EMOJI_COMMUN', '⚪'),
-    'peu commun': os.getenv('BOUTIQUE_EMOJI_PEU_COMMUN', '🟢'), 
-    'rare': os.getenv('BOUTIQUE_EMOJI_RARE', '🔵'),
-    'très rare': os.getenv('BOUTIQUE_EMOJI_TRES_RARE', '🟣'),
-    'légendaire': os.getenv('BOUTIQUE_EMOJI_LEGENDAIRE', '🟡'),
-    'artefact': os.getenv('BOUTIQUE_EMOJI_ARTEFACT', '🔴'),
-    'default': os.getenv('BOUTIQUE_EMOJI_DEFAULT', '✨')
+    '0-commun': '⚪',
+    '1-uncommun': '🟢',
+    '2-rare': '🔵',
+    '3-very rare': '🟣',
+    '4-legendary': '🟡',
+    'default': '✨'
 }
 
-# Messages de la boutique
+# Emojis pour le lien magique (Y/N au lieu de Oui/Non)
+LIEN_MAGIQUE_EMOJIS = {
+    'y': '🔗',
+    'n': '❌',
+    'default': '🔮'
+}
+
+# Messages adaptés
 BOUTIQUE_MESSAGES = {
     'title': os.getenv('BOUTIQUE_MSG_TITLE', '🏪 Boutique Magique - Objets Disponibles'),
     'loading_title': os.getenv('BOUTIQUE_MSG_LOADING_TITLE', '🔄 Préparation de la Boutique...'),
@@ -75,37 +87,23 @@ BOUTIQUE_MESSAGES = {
     'footer_error': os.getenv('BOUTIQUE_MSG_FOOTER_ERROR', 'Boutique temporairement fermée')
 }
 
-# Validation et valeurs par défaut
+# Valeurs par défaut adaptées
 DEFAULT_VALUES = {
     'item_name': os.getenv('BOUTIQUE_DEFAULT_ITEM_NAME', 'Objet mystérieux'),
-    'rarity': os.getenv('BOUTIQUE_DEFAULT_RARITY', 'Inconnue'),
+    'rarity': os.getenv('BOUTIQUE_DEFAULT_RARITY', '0-COMMUN'),
     'price': os.getenv('BOUTIQUE_DEFAULT_PRICE', 'Non spécifié'),
-    'effect': os.getenv('BOUTIQUE_DEFAULT_EFFECT', 'Effet mystérieux'),
-    'type': os.getenv('BOUTIQUE_DEFAULT_TYPE', 'Objet magique')
+    'type': os.getenv('BOUTIQUE_DEFAULT_TYPE', 'Objet magique'),
+    'lien': os.getenv('BOUTIQUE_DEFAULT_LIEN', 'N')
 }
 
-# Emojis pour le lien magique
-LIEN_MAGIQUE_EMOJIS = {
-    'oui': os.getenv('BOUTIQUE_EMOJI_LIEN_OUI', '🔗'),
-    'non': os.getenv('BOUTIQUE_EMOJI_LIEN_NON', '❌'),
-    'maudit': os.getenv('BOUTIQUE_EMOJI_LIEN_MAUDIT', '💀'),
-    'default': os.getenv('BOUTIQUE_EMOJI_LIEN_DEFAULT', '🔮')
-}
+# Configuration de logging
 LOGGING_CONFIG = {
     'level': os.getenv('BOUTIQUE_LOG_LEVEL', 'INFO'),
     'format': os.getenv('BOUTIQUE_LOG_FORMAT', '[%(asctime)s] [BOUTIQUE] %(levelname)s: %(message)s')
 }
 
 def get_config(section: str = None) -> Dict[str, Any]:
-    """
-    Récupère une section de configuration ou toute la configuration.
-    
-    Args:
-        section: Nom de la section à récupérer (optionnel)
-        
-    Returns:
-        dict: Configuration demandée
-    """
+    """Récupère une section de configuration ou toute la configuration."""
     all_config = {
         'google_sheets': GOOGLE_SHEETS_CONFIG,
         'item_selection': ITEM_SELECTION_CONFIG,
@@ -124,142 +122,62 @@ def get_config(section: str = None) -> Dict[str, Any]:
     return all_config
 
 def validate_config() -> bool:
-    """
-    Valide la configuration actuelle.
-    
-    Returns:
-        bool: True si la configuration est valide
-    """
+    """Valide la configuration actuelle."""
     try:
-        # Vérifications basiques
         assert GOOGLE_SHEETS_CONFIG['sheet_id'], "Sheet ID manquant"
         assert GOOGLE_SHEETS_CONFIG['sheet_name'], "Nom de feuille manquant"
         assert ITEM_SELECTION_CONFIG['min_items'] > 0, "min_items doit être > 0"
         assert ITEM_SELECTION_CONFIG['max_items'] >= ITEM_SELECTION_CONFIG['min_items'], "max_items doit être >= min_items"
-        assert ITEM_SELECTION_CONFIG['excluded_rarities'] is not None, "excluded_rarities ne peut pas être None"
         
         return True
     except AssertionError as e:
         print(f"Erreur de configuration: {e}")
         return False
 
-def print_env_template():
+# Fonction pour convertir les raretés
+def normalize_rarity_name(rarity: str) -> str:
     """
-    Affiche un template pour les variables d'environnement.
-    """
-    template = """
-# ============================================================================
-# VARIABLES D'ENVIRONNEMENT POUR LE MODULE BOUTIQUE
-# ============================================================================
-# Copiez ces variables dans votre fichier .env et modifiez les valeurs selon vos besoins
-
-# Configuration Google Sheets
-BOUTIQUE_SHEET_ID=1DsvQ5GmwBH-jXo3vHR-XqkpQjkyRHi5BaZ0gqkcrvI8
-BOUTIQUE_SHEET_NAME=Objets Magique
-
-# Configuration de sélection
-BOUTIQUE_MIN_ITEMS=3
-BOUTIQUE_MAX_ITEMS=8
-BOUTIQUE_EXCLUDED_RARITIES=très rare,légendaire
-BOUTIQUE_RARITY_COLUMN=Rareté
-
-# Configuration des colonnes (noms exacts dans le Google Sheets)
-BOUTIQUE_COL_NOM=Nom de l'objet
-BOUTIQUE_COL_NOM_VO=Nom Vo Nom en VO
-BOUTIQUE_COL_TYPE=Type
-BOUTIQUE_COL_RARITY=Rareté
-BOUTIQUE_COL_LINK=Lien
-BOUTIQUE_COL_CRAFT_COST=Coût de craft
-BOUTIQUE_COL_PROFESSION=Metier
-BOUTIQUE_COL_BUY_PRICE=Prix achat
-BOUTIQUE_COL_SPECS=Spécificités
-BOUTIQUE_COL_SELL_PRICE=Prix vente
-BOUTIQUE_COL_SOURCE=Source
-BOUTIQUE_COL_EFFECT=Effet
-
-# Configuration Discord
-BOUTIQUE_MAX_FIELD_LENGTH=1024
-BOUTIQUE_MAX_EMBED_LENGTH=6000
-
-# Couleurs Discord (format hexadécimal)
-BOUTIQUE_COLOR_SUCCESS=0x2ecc71
-BOUTIQUE_COLOR_ERROR=0xe74c3c
-BOUTIQUE_COLOR_WARNING=0xf39c12
-BOUTIQUE_COLOR_INFO=0x3498db
-BOUTIQUE_COLOR_MAGIC=0x9b59b6
-
-# Emojis par rareté
-BOUTIQUE_EMOJI_COMMUN=⚪
-BOUTIQUE_EMOJI_PEU_COMMUN=🟢
-BOUTIQUE_EMOJI_RARE=🔵
-BOUTIQUE_EMOJI_TRES_RARE=🟣
-BOUTIQUE_EMOJI_LEGENDAIRE=🟡
-BOUTIQUE_EMOJI_ARTEFACT=🔴
-BOUTIQUE_EMOJI_DEFAULT=✨
-
-# Messages personnalisés
-BOUTIQUE_MSG_TITLE=🏪 Boutique Magique - Objets Disponibles
-BOUTIQUE_MSG_LOADING_TITLE=🔄 Préparation de la Boutique...
-BOUTIQUE_MSG_LOADING_DESC=Le marchand sélectionne ses meilleurs objets magiques...
-BOUTIQUE_MSG_ERROR_TITLE=❌ Erreur - Boutique Indisponible
-BOUTIQUE_MSG_FOOTER_BASE=Boutique magique de Faerûn
-BOUTIQUE_MSG_FOOTER_LOADING=Veuillez patienter quelques instants
-BOUTIQUE_MSG_FOOTER_ERROR=Boutique temporairement fermée
-
-# Valeurs par défaut
-BOUTIQUE_DEFAULT_ITEM_NAME=Objet mystérieux
-BOUTIQUE_DEFAULT_RARITY=Inconnue
-BOUTIQUE_DEFAULT_PRICE=Non spécifié
-BOUTIQUE_DEFAULT_EFFECT=Effet mystérieux
-BOUTIQUE_DEFAULT_TYPE=Objet magique
-
-# Configuration de logging
-BOUTIQUE_LOG_LEVEL=INFO
-BOUTIQUE_LOG_FORMAT=[%(asctime)s] [BOUTIQUE] %(levelname)s: %(message)s
-
-# ============================================================================
-"""
-    print(template)
-
-def load_env_file(filepath: str = '.env') -> bool:
-    """
-    Charge un fichier .env manuellement (simple implémentation).
+    Convertit le format de rareté OM_PRICE vers un format lisible.
     
     Args:
-        filepath: Chemin vers le fichier .env
+        rarity: Rareté au format "X-NAME"
         
     Returns:
-        bool: True si le fichier a été chargé avec succès
+        str: Rareté lisible
     """
-    try:
-        if not os.path.exists(filepath):
-            return False
-        
-        with open(filepath, 'r', encoding='utf-8') as f:
-            for line in f:
-                line = line.strip()
-                if line and not line.startswith('#') and '=' in line:
-                    key, value = line.split('=', 1)
-                    os.environ[key.strip()] = value.strip()
-        
-        return True
-    except Exception as e:
-        print(f"Erreur lors du chargement du fichier .env: {e}")
-        return False
+    rarity_map = {
+        '0-COMMUN': 'Commun',
+        '1-UNCOMMUN': 'Peu commun',
+        '2-RARE': 'Rare',
+        '3-VERY RARE': 'Très rare',
+        '4-LEGENDARY': 'Légendaire'
+    }
+    
+    return rarity_map.get(rarity, rarity)
 
-# Tentative de chargement automatique du fichier .env
-if os.path.exists('.env'):
-    load_env_file('.env')
+def normalize_lien_magique(lien: str) -> str:
+    """
+    Convertit Y/N en Oui/Non.
+    
+    Args:
+        lien: Lien au format Y/N
+        
+    Returns:
+        str: Lien lisible
+    """
+    lien_map = {
+        'Y': 'Oui',
+        'N': 'Non'
+    }
+    
+    return lien_map.get(lien, lien)
 
-# Validation automatique au chargement du module
 if __name__ == "__main__":
-    print("🔧 Configuration du module boutique")
-    print("=" * 50)
+    print("🔧 Configuration du module boutique - Version OM_PRICE")
+    print("=" * 60)
     
     if validate_config():
         print("✅ Configuration valide")
-        
-        # Affichage de la configuration actuelle
         config = get_config()
         print(f"\n📋 Configuration actuelle:")
         print(f"   • Sheet ID: {config['google_sheets']['sheet_id']}")
@@ -267,8 +185,10 @@ if __name__ == "__main__":
         print(f"   • Min/Max items: {config['item_selection']['min_items']}-{config['item_selection']['max_items']}")
         print(f"   • Raretés exclues: {', '.join(config['item_selection']['excluded_rarities'])}")
         
+        # Test des fonctions de conversion
+        print(f"\n🔄 Test des conversions:")
+        print(f"   • '2-RARE' -> '{normalize_rarity_name('2-RARE')}'")
+        print(f"   • 'Y' -> '{normalize_lien_magique('Y')}'")
+        
     else:
         print("❌ Configuration invalide")
-    
-    print(f"\n💡 Pour personnaliser la configuration, créez un fichier .env avec:")
-    print("   python -c \"from commands.boutique.config import print_env_template; print_env_template()\"")
