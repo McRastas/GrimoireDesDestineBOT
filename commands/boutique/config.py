@@ -83,7 +83,13 @@ DEFAULT_VALUES = {
     'type': os.getenv('BOUTIQUE_DEFAULT_TYPE', 'Objet magique')
 }
 
-# Configuration de logging
+# Emojis pour le lien magique
+LIEN_MAGIQUE_EMOJIS = {
+    'oui': os.getenv('BOUTIQUE_EMOJI_LIEN_OUI', '🔗'),
+    'non': os.getenv('BOUTIQUE_EMOJI_LIEN_NON', '❌'),
+    'maudit': os.getenv('BOUTIQUE_EMOJI_LIEN_MAUDIT', '💀'),
+    'default': os.getenv('BOUTIQUE_EMOJI_LIEN_DEFAULT', '🔮')
+}
 LOGGING_CONFIG = {
     'level': os.getenv('BOUTIQUE_LOG_LEVEL', 'INFO'),
     'format': os.getenv('BOUTIQUE_LOG_FORMAT', '[%(asctime)s] [BOUTIQUE] %(levelname)s: %(message)s')
@@ -105,6 +111,7 @@ def get_config(section: str = None) -> Dict[str, Any]:
         'columns': COLUMNS_CONFIG,
         'discord': DISCORD_CONFIG,
         'rarity_emojis': RARITY_EMOJIS,
+        'lien_magique_emojis': LIEN_MAGIQUE_EMOJIS,
         'messages': BOUTIQUE_MESSAGES,
         'defaults': DEFAULT_VALUES,
         'logging': LOGGING_CONFIG

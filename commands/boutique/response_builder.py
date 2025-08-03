@@ -6,6 +6,7 @@ Constructeur de réponses Discord pour la commande boutique.
 import discord
 import logging
 from typing import List, Dict, Optional
+from .config import get_config
 
 logger = logging.getLogger(__name__)
 
@@ -18,6 +19,15 @@ class BoutiqueResponseBuilder:
         """Initialise le constructeur de réponses."""
         self.max_field_length = 1024  # Limite Discord pour les champs d'embed
         self.max_embed_length = 6000  # Limite Discord pour la longueur totale d'un embed
+        
+        # Charger la configuration
+        config = get_config()
+        self.lien_emojis = config.get('lien_magique_emojis', {
+            'oui': '🔗',
+            'non': '❌', 
+            'maudit': '💀',
+            'default': '🔮'
+        })
     
     def create_boutique_embed(self, items: List[Dict[str, str]], stats: Dict[str, any] = None) -> discord.Embed:
         """
@@ -113,21 +123,12 @@ class BoutiqueResponseBuilder:
         if item_type:
             details.append(f"**Type:** {item_type}")
         
-        # Information sur le lien (colonne G)
-        link_info = item.get("Lien", "").strip()
-        if link_info:
-            # Normaliser les valeurs possibles
-            link_normalized = link_info.lower()
-            if link_normalized in ["oui", "yes"]:
-                details.append("📖 **Objet avec lien source**")
-            elif link_normalized in ["non", "no"]:
-                details.append("📝 **Objet sans lien source**")
-            elif link_normalized == "maudit":
-                details.append("💀 **Objet maudit**")
-            else:
-                details.append(f"**Lien:** {link_info}")
-        else:
-            details.append("📝 **Objet sans lien source**")
+        # Lien magique (colonne G "Lien")
+        lien_magique = item.get("Lien", "")
+        if lien_magique and not lien_magique.startswith("http"):  # Pas un lien web
+            lien_formatted = self._format_lien_magique(lien_magique)
+            if lien_formatted:
+                details.append(f"**Lien magique:** {lien_formatted}")
         
         # Prix d'achat
         buy_price = item.get("Prix achat", "")
@@ -146,7 +147,37 @@ class BoutiqueResponseBuilder:
                 effect = effect[:197] + "..."
             details.append(f"**Effet:** {effect}")
         
+        # Lien web vers la source (si c'est un lien HTTP)
+        link = item.get("Lien", "")
+        if link and link.startswith("http"):
+            details.append(f"[📖 Plus d'infos]({link})")
+        
         return '\n'.join(details) if details else "Informations non disponibles"
+    
+    def _format_lien_magique(self, lien_value: str) -> str:
+        """
+        Formate l'information de lien magique avec emojis.
+        
+        Args:
+            lien_value: Valeur de la colonne Lien
+            
+        Returns:
+            str: Lien magique formaté avec emoji
+        """
+        if not lien_value:
+            return ""
+        
+        lien_lower = lien_value.lower().strip()
+        
+        if lien_lower in ['oui', 'yes']:
+            return f"{self.lien_emojis['oui']} Oui"
+        elif lien_lower in ['non', 'no']:
+            return f"{self.lien_emojis['non']} Non"
+        elif lien_lower == 'maudit':
+            return f"{self.lien_emojis['maudit']} Maudit"
+        else:
+            # Pour les autres valeurs, on les affiche telles quelles
+            return f"{self.lien_emojis['default']} {lien_value}"
     
     def _truncate_field_value(self, value: str) -> str:
         """
