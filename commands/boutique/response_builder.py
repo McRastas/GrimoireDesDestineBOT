@@ -187,6 +187,8 @@ class BoutiqueResponseBuilder:
             return f"{self.lien_emojis['maudit']} Maudit"
         else:
             # Pour les autres valeurs, on les affiche telles quelles
+            return f"{self.lien_emojis['default']} {lien_value}"
+    
     def _generate_sheets_link(self, item: Dict[str, str], original_index: int = None) -> str:
         """
         Génère un lien direct vers la ligne de l'objet dans Google Sheets.
