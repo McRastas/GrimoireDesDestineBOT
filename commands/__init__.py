@@ -34,8 +34,17 @@ except ImportError:
     print("⚠️ test_logs.py non trouvé - commande /test-logs non disponible")
     TEST_LOGS_AVAILABLE = False
 
-# Import conditionnel pour la commande boutique
-from .boutique.main_command_v2 import BoutiqueCommandV2
+# Import conditionnel pour la commande boutique (maintenant OM_PRICE par défaut)
+try:
+    from .boutique import BoutiqueCommand
+    BOUTIQUE_AVAILABLE = True
+    print("✅ Module boutique OM_PRICE chargé avec succès")
+except ImportError as e:
+    print(f"⚠️ Module boutique OM_PRICE non disponible: {e}")
+    print("   • Vérifiez que le dossier commands/boutique/ existe")
+    print("   • Vérifiez que tous les fichiers _v2.py sont présents")
+    print("   • Vérifiez que aiohttp est installé: pip install aiohttp")
+    BOUTIQUE_AVAILABLE = False
 
 # Liste de toutes les commandes disponibles
 ALL_COMMANDS = [
@@ -54,9 +63,16 @@ ALL_COMMANDS = [
     ConfigChannelsCommand,
     StatsLogsCommand,  # NOUVEAU - Commande pour les stats de logs
 ]
+
 # Ajouter les commandes optionnelles si disponibles
 if TEST_LOGS_AVAILABLE:
     ALL_COMMANDS.append(TestLogsCommand)
+    print("✅ Commande test-logs ajoutée")
 
+if BOUTIQUE_AVAILABLE:
+    ALL_COMMANDS.append(BoutiqueCommand)
+    print("✅ Commande boutique OM_PRICE ajoutée")
+
+print(f"📋 Total: {len(ALL_COMMANDS)} commandes chargées")
 
 __all__ = ['ALL_COMMANDS']
