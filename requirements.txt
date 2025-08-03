@@ -1,3 +1,17 @@
+# ============================================================================
+# REQUIREMENTS.TXT - DÉPENDANCES DU BOT FAERÛN
+# ============================================================================
+
+# === DÉPENDANCES EXISTANTES (probablement déjà présentes) ===
 discord.py >= 2.5.2
-flask >= 2.3.0
+
+# === NOUVELLES DÉPENDANCES POUR LA COMMANDE BOUTIQUE ===
+
+# aiohttp - Pour les requêtes HTTP asynchrones vers Google Sheets
+aiohttp>=3.8.0
+
+# === DÉPENDANCES OPTIONNELLES ===
+
+# python-dotenv - Pour charger automatiquement les fichiers .env (optionnel)
+# Si vous préférez gérer les variables d'environnement manuellement, vous pouvez commenter cette ligne
 python-dotenv>=1.0.0
