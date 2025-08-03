@@ -15,3 +15,4 @@ aiohttp>=3.8.0
 # python-dotenv - Pour charger automatiquement les fichiers .env (optionnel)
 # Si vous préférez gérer les variables d'environnement manuellement, vous pouvez commenter cette ligne
 python-dotenv>=1.0.0
+flask >= 2.3.0
