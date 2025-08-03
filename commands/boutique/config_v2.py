@@ -96,7 +96,20 @@ DEFAULT_VALUES = {
     'lien': os.getenv('BOUTIQUE_DEFAULT_LIEN', 'N')
 }
 
-# Configuration de logging
+# Valeurs considérées comme NA/invalides
+NA_VALUES = {
+    'strings': os.getenv('BOUTIQUE_NA_VALUES', 'NA,N/A,na,n/a,null,NULL,Null,,').split(','),
+    'numbers': ['0', '0.0', '-1']
+}
+
+# Configuration de filtrage OM_PRICE
+FILTERING_CONFIG = {
+    'exclude_na_values': os.getenv('BOUTIQUE_EXCLUDE_NA', 'true').lower() == 'true',
+    'critical_columns': ['Name', 'NameVF', 'RARETER', 'Type'],
+    'na_values': NA_VALUES['strings'],
+    'require_valid_name': True,
+    'require_valid_rarity': True
+}
 LOGGING_CONFIG = {
     'level': os.getenv('BOUTIQUE_LOG_LEVEL', 'INFO'),
     'format': os.getenv('BOUTIQUE_LOG_FORMAT', '[%(asctime)s] [BOUTIQUE] %(levelname)s: %(message)s')
@@ -113,6 +126,7 @@ def get_config(section: str = None) -> Dict[str, Any]:
         'lien_magique_emojis': LIEN_MAGIQUE_EMOJIS,
         'messages': BOUTIQUE_MESSAGES,
         'defaults': DEFAULT_VALUES,
+        'filtering': FILTERING_CONFIG,
         'logging': LOGGING_CONFIG
     }
     
@@ -171,6 +185,44 @@ def normalize_lien_magique(lien: str) -> str:
     }
     
     return lien_map.get(lien, lien)
+
+def is_na_value(value: str) -> bool:
+    """
+    Vérifie si une valeur est considérée comme NA.
+    
+    Args:
+        value: Valeur à vérifier
+        
+    Returns:
+        bool: True si la valeur est NA
+    """
+    if value is None:
+        return True
+    
+    value_str = str(value).strip()
+    
+    if not value_str:  # Chaîne vide
+        return True
+    
+    # Vérifier les valeurs NA configurées
+    na_values = FILTERING_CONFIG['na_values']
+    return value_str.upper() in [na.upper() for na in na_values]
+
+def clean_na_value(value: str, default: str = "") -> str:
+    """
+    Nettoie une valeur NA en la remplaçant par une valeur par défaut.
+    
+    Args:
+        value: Valeur à nettoyer
+        default: Valeur par défaut si NA
+        
+    Returns:
+        str: Valeur nettoyée
+    """
+    if is_na_value(value):
+        return default
+    
+    return str(value).strip()
 
 if __name__ == "__main__":
     print("🔧 Configuration du module boutique - Version OM_PRICE")
