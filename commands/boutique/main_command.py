@@ -13,6 +13,7 @@ from ..base import BaseCommand
 from .google_sheets_client import GoogleSheetsClient
 from .item_selector import ItemSelector
 from .response_builder import BoutiqueResponseBuilder
+from .config import get_config
 
 logger = logging.getLogger(__name__)
 
@@ -31,12 +32,21 @@ class BoutiqueCommand(BaseCommand):
         """
         super().__init__(bot)
         
-        # Configuration
-        self.sheet_id = '1DsvQ5GmwBH-jXo3vHR-XqkpQjkyRHi5BaZ0gqkcrvI8'
-        self.sheet_name = 'Objets Magique'
-        self.excluded_rarities = ['très rare', 'légendaire']
-        self.min_items = 3
-        self.max_items = 8
+        # Configuration depuis les variables d'environnement
+        config = get_config()
+        google_config = config['google_sheets']
+        selection_config = config['item_selection']
+        
+        self.sheet_id = google_config['sheet_id']
+        self.sheet_name = google_config['sheet_name']
+        self.excluded_rarities = selection_config['excluded_rarities']
+        self.min_items = selection_config['min_items']
+        self.max_items = selection_config['max_items']
+        
+        # Log de debug pour la configuration
+        logger.info(f"Configuration boutique - Sheet: {self.sheet_name}")
+        logger.info(f"Configuration boutique - Raretés exclues: {self.excluded_rarities}")
+        logger.info(f"Configuration boutique - Items: {self.min_items}-{self.max_items}")
         
         # Composants
         self.sheets_client = GoogleSheetsClient(self.sheet_id)
