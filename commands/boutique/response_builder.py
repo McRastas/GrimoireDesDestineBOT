@@ -89,7 +89,12 @@ class BoutiqueResponseBuilder:
         rarity_lower = rarity.lower().strip()
         emoji = rarity_emojis.get(rarity_lower, '✨')
         
-        return f"{emoji} {name}"
+        # Vérifier si l'objet a un lien
+        link = item.get("Lien", "")
+        has_link = link and link.startswith("http")
+        link_indicator = " 🔗" if has_link else " 📝"
+        
+        return f"{emoji} {name}{link_indicator}"
     
     def _format_item_details(self, item: Dict[str, str]) -> str:
         """
@@ -134,6 +139,9 @@ class BoutiqueResponseBuilder:
         link = item.get("Lien", "")
         if link and link.startswith("http"):
             details.append(f"[📖 Plus d'infos]({link})")
+        else:
+            # Indiquer explicitement qu'il n'y a pas de lien
+            details.append("📝 *Informations disponibles localement*")
         
         return '\n'.join(details) if details else "Informations non disponibles"
     
@@ -177,6 +185,9 @@ class BoutiqueResponseBuilder:
                 footer_parts.append(f"• {stats['total_items']} objets en base")
             if 'filtered_items' in stats:
                 footer_parts.append(f"• {stats['filtered_items']} objets disponibles")
+        
+        # Ajouter la légende des icônes
+        footer_parts.append("• 🔗 = Lien disponible • 📝 = Infos locales")
         
         return " ".join(footer_parts)
     
