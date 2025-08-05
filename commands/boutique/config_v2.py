@@ -26,9 +26,8 @@ GOOGLE_SHEETS_CONFIG = {
 ITEM_SELECTION_CONFIG = {
     'min_items': int(os.getenv('BOUTIQUE_MIN_ITEMS', '3')),
     'max_items': int(os.getenv('BOUTIQUE_MAX_ITEMS', '15')),
-    # Raretés à exclure selon tes données
     'excluded_rarities': os.getenv('BOUTIQUE_EXCLUDED_RARITIES', 'Très rare,Légendaire').split(','),
-    'rarity_column': os.getenv('BOUTIQUE_RARITY_COLUMN', 'Rareté')  # Ta colonne de rareté
+    'rarity_column': os.getenv('BOUTIQUE_RARITY_COLUMN', 'Rareté')  # TA colonne
 }
 
 # Mapping des colonnes selon tes noms

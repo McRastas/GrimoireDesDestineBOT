@@ -115,7 +115,8 @@ class BoutiqueCommandV2(BaseCommand):
             logger.info(f"Récupération OM_PRICE réussie: {len(raw_items)} objets trouvés")
             
             # Filtrage par rareté avec conservation des indices originaux
-            filtered_items, filtered_indices = self.item_selector.filter_items_by_rarity(raw_items, 'RARETER')
+            rarity_column = get_config()['item_selection']['rarity_column']
+            filtered_items, filtered_indices = self.item_selector.filter_items_by_rarity(raw_items, rarity_column)
             
             if not filtered_items:
                 error_embed = self.response_builder.create_error_embed(

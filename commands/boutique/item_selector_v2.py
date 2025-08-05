@@ -50,26 +50,17 @@ class ItemSelectorV2:
         return normalized
     
     def _is_rarity_excluded(self, rarity: str) -> bool:
-        """
-        Vérifie si une rareté doit être exclue.
-        
-        Args:
-            rarity: Rareté à vérifier (format OM_PRICE)
-            
-        Returns:
-            bool: True si la rareté doit être exclue
-        """
         if not rarity:
             return False
         
-        normalized_rarity = self._normalize_rarity(rarity)
+        cleaned_rarity = rarity.strip()
         
-        # Vérification exacte uniquement
-        if normalized_rarity in self.excluded_rarities_normalized:
-            logger.debug(f"Rareté '{rarity}' -> '{normalized_rarity}' : EXCLUE")
-            return True
+        for excluded in self.excluded_rarities:
+            if cleaned_rarity.lower() == excluded.strip().lower():
+                logger.debug(f"Rareté '{rarity}' EXCLUE")
+                return True
         
-        logger.debug(f"Rareté '{rarity}' -> '{normalized_rarity}' : AUTORISÉE")
+        logger.debug(f"Rareté '{rarity}' AUTORISÉE")
         return False
     
     def filter_items_by_rarity(self, items: List[Dict[str, str]], rarity_column: str = "RARETER") -> Tuple[List[Dict[str, str]], List[int]]:
