@@ -150,7 +150,7 @@ def validate_config() -> bool:
         print(f"Erreur de configuration: {e}")
         return False
 
-# Fonction pour convertir les raretés
+# Fonction de normalisation des raretés mise à jour pour tes données
 def normalize_rarity_name(rarity: str) -> str:
     """
     Convertit le format de rareté de ta feuille vers un format lisible.
