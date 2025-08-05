@@ -160,7 +160,7 @@ def normalize_rarity_name(rarity: str) -> str:
         str: Rareté lisible
     """
     rarity_map = {
-        'Commun': 'Commun';
+        'Commun': 'Commun',
         '0-COMMUN': 'Commun',
         'Peu commun': 'Peu commun',
         '1-UNCOMMUN': 'Peu commun',
