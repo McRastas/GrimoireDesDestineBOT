@@ -22,28 +22,30 @@ GOOGLE_SHEETS_CONFIG = {
     'base_url': 'https://docs.google.com/spreadsheets/d'
 }
 
-# Configuration de sélection avec les nouvelles raretés
+# Configuration de sélection mise à jour
 ITEM_SELECTION_CONFIG = {
     'min_items': int(os.getenv('BOUTIQUE_MIN_ITEMS', '3')),
-    'max_items': int(os.getenv('BOUTIQUE_MAX_ITEMS', '8')),
-    # Nouvelles raretés à exclure (format différent)
-    'excluded_rarities': os.getenv('BOUTIQUE_EXCLUDED_RARITIES', '3-VERY RARE,4-LEGENDARY').split(','),
-    'rarity_column': os.getenv('BOUTIQUE_RARITY_COLUMN', 'RARETER')  # Nouvelle colonne
+    'max_items': int(os.getenv('BOUTIQUE_MAX_ITEMS', '15')),
+    # Raretés à exclure selon tes données
+    'excluded_rarities': os.getenv('BOUTIQUE_EXCLUDED_RARITIES', 'Très rare,Légendaire').split(','),
+    'rarity_column': os.getenv('BOUTIQUE_RARITY_COLUMN', 'Rareté')  # Ta colonne de rareté
 }
 
-# Mapping des colonnes pour OM_PRICE
+# Mapping des colonnes selon tes noms
 COLUMNS_CONFIG = {
-    'nom_anglais': os.getenv('BOUTIQUE_COL_NOM_ANGLAIS', 'Name'),
-    'nom_francais': os.getenv('BOUTIQUE_COL_NOM_FRANCAIS', 'NameVF'),
+    'nom_francais': os.getenv('BOUTIQUE_COL_NOM_FRANCAIS', 'Nom de l\'objet'),
+    'nom_anglais': os.getenv('BOUTIQUE_COL_NOM_ANGLAIS', 'Nom en VO'), 
     'type': os.getenv('BOUTIQUE_COL_TYPE', 'Type'),
-    'rarity': os.getenv('BOUTIQUE_COL_RARITY', 'RARETER'),
+    'rarity': os.getenv('BOUTIQUE_COL_RARITY', 'Rareté'),
     'lien_magique': os.getenv('BOUTIQUE_COL_LIEN', 'Lien'),
     'source': os.getenv('BOUTIQUE_COL_SOURCE', 'Source'),
-    'price_median': os.getenv('BOUTIQUE_COL_PRICE_MEDIAN', 'MEDIANNE'),
-    'price_costf': os.getenv('BOUTIQUE_COL_PRICE_COSTF', 'CostF'),
-    'price_magic_items': os.getenv('BOUTIQUE_COL_PRICE_MAGIC', 'Magic Item Prices.Price'),
-    'price_dungeonsport': os.getenv('BOUTIQUE_COL_PRICE_DUNGEON', 'DUNGEONSPORT.Cost'),
-    'grimoire_name': os.getenv('BOUTIQUE_COL_GRIMOIRE', 'GRIMOIRE_NAME')
+    'price_achat': os.getenv('BOUTIQUE_COL_PRICE_ACHAT', 'Prix Achat'),
+    # Autres colonnes de prix si nécessaire
+    'price_median': os.getenv('BOUTIQUE_COL_PRICE_MEDIAN', 'Prix Achat'),  # Utilise Prix Achat par défaut
+    'price_costf': os.getenv('BOUTIQUE_COL_PRICE_COSTF', 'Prix Achat'),
+    'price_magic_items': os.getenv('BOUTIQUE_COL_PRICE_MAGIC', 'Prix Achat'),
+    'price_dungeonsport': os.getenv('BOUTIQUE_COL_PRICE_DUNGEON', 'Prix Achat'),
+    'grimoire_name': os.getenv('BOUTIQUE_COL_GRIMOIRE', 'Nom de l\'objet')
 }
 
 # Configuration Discord (identique)
@@ -105,8 +107,8 @@ NA_VALUES = {
 # Configuration de filtrage OM_PRICE
 FILTERING_CONFIG = {
     'exclude_na_values': os.getenv('BOUTIQUE_EXCLUDE_NA', 'true').lower() == 'true',
-    'critical_columns': ['Name', 'NameVF', 'RARETER', 'Type'],
-    'na_values': NA_VALUES['strings'],
+    'critical_columns': ['Nom de l\'objet', 'Nom en VO', 'Rareté', 'Type'],  # Tes noms de colonnes
+    'na_values': os.getenv('BOUTIQUE_NA_VALUES', 'NA,N/A,na,n/a,null,NULL,Null,,').split(','),
     'require_valid_name': True,
     'require_valid_rarity': True
 }
@@ -151,20 +153,19 @@ def validate_config() -> bool:
 # Fonction pour convertir les raretés
 def normalize_rarity_name(rarity: str) -> str:
     """
-    Convertit le format de rareté OM_PRICE vers un format lisible.
-    
-    Args:
-        rarity: Rareté au format "X-NAME"
-        
-    Returns:
-        str: Rareté lisible
+    Convertit le format de rareté de ta feuille vers un format lisible.
     """
     rarity_map = {
-        '0-COMMUN': 'Commun',
-        '1-UNCOMMUN': 'Peu commun',
-        '2-RARE': 'Rare',
-        '3-VERY RARE': 'Très rare',
-        '4-LEGENDARY': 'Légendaire'
+        'Commun': 'Commun',  # ← CORRIGÉ: virgule au lieu de point-virgule
+        'Peu commun': 'Peu commun',
+        'Rare': 'Rare',
+        'Très rare': 'Très rare', 
+        'Légendaire': 'Légendaire',
+        # Versions alternatives au cas où
+        'Common': 'Commun',
+        'Uncommon': 'Peu commun',
+        'Very Rare': 'Très rare',
+        'Legendary': 'Légendaire'
     }
     
     return rarity_map.get(rarity, rarity)

@@ -156,7 +156,7 @@ class ItemSelectorV2:
     
     def validate_item_data(self, item: Dict[str, str]) -> Dict[str, str]:
         """
-        Valide et nettoie les données d'un objet OM_PRICE.
+        Valide et nettoie les données d'un objet selon tes colonnes.
         """
         validated_item = {}
         
@@ -164,9 +164,9 @@ class ItemSelectorV2:
         for key, value in item.items():
             validated_item[key] = str(value).strip() if value else ""
         
-        # Utiliser le nom français en priorité, sinon anglais
-        nom_francais = validated_item.get("NameVF", "")
-        nom_anglais = validated_item.get("Name", "")
+        # Utiliser tes noms de colonnes
+        nom_francais = validated_item.get("Nom de l'objet", "")  # Ta colonne principale
+        nom_anglais = validated_item.get("Nom en VO", "")       # Ta colonne VO
         
         if nom_francais:
             validated_item["nom_display"] = nom_francais
@@ -176,21 +176,29 @@ class ItemSelectorV2:
             validated_item["nom_display"] = "Objet mystérieux"
         
         # Normaliser la rareté pour l'affichage
-        rarity_raw = validated_item.get("RARETER", "0-COMMUN")
+        rarity_raw = validated_item.get("Rareté", "Commun")  # Ta colonne de rareté
         validated_item["rarity_display"] = normalize_rarity_name(rarity_raw)
         
-        # Normaliser le lien magique
-        lien_raw = validated_item.get("Lien", "N")
-        validated_item["lien_display"] = normalize_lien_magique(lien_raw)
+        # Normaliser le lien magique - adaptation pour tes données
+        lien_raw = validated_item.get("Lien", "Non")
+        # Si tu as "Oui"/"Non" au lieu de "Y"/"N", on adapte
+        if lien_raw.lower() in ['oui', 'yes', 'y']:
+            validated_item["lien_display"] = "Oui"
+        elif lien_raw.lower() in ['non', 'no', 'n']:
+            validated_item["lien_display"] = "Non"
+        else:
+            validated_item["lien_display"] = lien_raw
         
-        # Gérer les prix (utiliser CostF en priorité)
-        price_costf = validated_item.get("CostF", "")
-        price_median = validated_item.get("MEDIANNE", "")
+        # Gérer le prix selon ta colonne
+        price_achat = validated_item.get("Prix Achat", "")
         
-        if price_costf and price_costf != "0":
-            validated_item["price_display"] = f"{price_costf} po"
-        elif price_median and price_median != "0":
-            validated_item["price_display"] = f"{price_median} po"
+        if price_achat and price_achat != "0" and price_achat.lower() not in ['na', 'n/a', '']:
+            # Nettoyer le prix s'il contient déjà "po" ou d'autres caractères
+            price_clean = price_achat.replace(' po', '').replace('po', '').strip()
+            if price_clean.isdigit():
+                validated_item["price_display"] = f"{price_clean} po"
+            else:
+                validated_item["price_display"] = price_achat
         else:
             validated_item["price_display"] = "Prix non spécifié"
         
