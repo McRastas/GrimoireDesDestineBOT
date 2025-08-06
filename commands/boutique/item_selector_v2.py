@@ -182,7 +182,7 @@ class ItemSelectorV2:
         
         # Gérer le prix selon ta colonne
         # REMPLACE cette section de prix
-        price_achat = validated_item.get("Prix Achat", "").strip()
+        price_achat = validated_item.get("OM_PRICE", "").strip()
 
         if price_achat and price_achat not in ['0', '0.0', '', 'NA', 'N/A']:
             try:
