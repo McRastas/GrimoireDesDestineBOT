@@ -96,9 +96,9 @@ class BoutiqueCommandV2(BaseCommand):
             else:
                 target_count = random.randint(self.min_items, self.max_items)
             
-            # Réponse immédiate avec embed de chargement
+            # MODIFICATION: Réponse immédiate avec embed de chargement TEMPORAIRE
             loading_embed = self.response_builder.create_loading_embed()
-            await interaction.response.send_message(embed=loading_embed)
+            await interaction.response.send_message(embed=loading_embed, ephemeral=True)
             
             # Récupération des données depuis Google Sheets
             logger.info(f"Récupération des objets OM_PRICE depuis la feuille '{self.sheet_name}'")
@@ -109,6 +109,7 @@ class BoutiqueCommandV2(BaseCommand):
                     "Aucun objet trouvé dans la base de données OM_PRICE.",
                     f"La feuille '{self.sheet_name}' semble être vide."
                 )
+                # MODIFICATION: Éditer le message initial temporaire
                 await interaction.edit_original_response(embed=error_embed)
                 return
             
@@ -123,6 +124,7 @@ class BoutiqueCommandV2(BaseCommand):
                     "Aucun objet disponible après filtrage OM_PRICE.",
                     f"Tous les objets ont des raretés exclues: {', '.join(self.excluded_rarities)}"
                 )
+                # MODIFICATION: Éditer le message initial temporaire
                 await interaction.edit_original_response(embed=error_embed)
                 return
             
@@ -132,9 +134,9 @@ class BoutiqueCommandV2(BaseCommand):
             if config['filtering'].get('require_valid_price', False):
                 price_column = config['filtering'].get('price_column', 'Prix Achat')
                 
-                # CORRECTION: Passer le tuple (items, indices) pour préserver les indices originaux
+                # Filtrage par prix en préservant les indices originaux
                 filtered_items, filtered_indices = self.item_selector.filter_items_by_price(
-                    (filtered_items, filtered_indices),  # ← CHANGEMENT ICI: tuple au lieu de juste filtered_items
+                    (filtered_items, filtered_indices),
                     price_column
                 )
                 
@@ -143,12 +145,13 @@ class BoutiqueCommandV2(BaseCommand):
                         "Aucun objet avec prix valide disponible.",
                         "Tous les objets filtrés n'ont pas de prix spécifié."
                     )
+                    # MODIFICATION: Éditer le message initial temporaire
                     await interaction.edit_original_response(embed=error_embed)
                     return
                 
                 logger.info(f"Filtrage prix terminé: {len(filtered_items)} objets avec prix valide")
 
-            # Sélection aléatoire  ← Cette ligne existe déjà, n'y touche pas
+            # Sélection aléatoire
             try:
                 selected_items, selected_indices = self.item_selector.select_random_items(
                     (filtered_items, filtered_indices), 
@@ -160,6 +163,7 @@ class BoutiqueCommandV2(BaseCommand):
                     "Erreur lors de la sélection des objets OM_PRICE.",
                     str(e)
                 )
+                # MODIFICATION: Éditer le message initial temporaire
                 await interaction.edit_original_response(embed=error_embed)
                 return
             
@@ -184,7 +188,7 @@ class BoutiqueCommandV2(BaseCommand):
                 selected_indices
             )
             
-            # Mise à jour de la réponse
+            # MODIFICATION: Mise à jour du message initial temporaire
             await interaction.edit_original_response(embed=boutique_embed)
             
             logger.info(f"Boutique OM_PRICE générée avec succès: {len(validated_items)} objets affichés")
@@ -199,7 +203,7 @@ class BoutiqueCommandV2(BaseCommand):
                     f"Erreur technique: {str(e)[:200]}..."
                 )
                 
-                # Vérifier si on peut encore répondre
+                # MODIFICATION: Vérifier si on peut encore répondre avec message temporaire
                 if not interaction.response.is_done():
                     await interaction.response.send_message(embed=error_embed, ephemeral=True)
                 else:
@@ -208,7 +212,7 @@ class BoutiqueCommandV2(BaseCommand):
             except Exception as fallback_error:
                 logger.error(f"Erreur lors de l'envoi du message d'erreur OM_PRICE: {fallback_error}")
                 
-                # Dernier recours: message texte simple
+                # MODIFICATION: Dernier recours avec message temporaire
                 try:
                     if not interaction.response.is_done():
                         await interaction.response.send_message(
