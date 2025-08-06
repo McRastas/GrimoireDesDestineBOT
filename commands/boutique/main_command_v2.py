@@ -67,41 +67,47 @@ class BoutiqueCommandV2(BaseCommand):
         
         @tree.command(name=self.name, description=self.description)
         @app_commands.describe(
-            nombre_objets="Nombre d'objets à afficher (entre 3 et 8, aléatoire par défaut)"
+            nombre_objets="Nombre d'objets à afficher (entre 3 et 8, aléatoire par défaut)",
+            public="Afficher la boutique publiquement (visible par tous) - défaut: non"
         )
         async def boutique_v2_command(
             interaction: discord.Interaction,
-            nombre_objets: Optional[int] = None
+            nombre_objets: Optional[int] = None,
+            public: Optional[bool] = False
         ):
-            await self.callback(interaction, nombre_objets)
+            await self.callback(interaction, nombre_objets, public)
     
-    async def callback(self, interaction: discord.Interaction, nombre_objets: Optional[int] = None):
+    async def callback(self, interaction: discord.Interaction, nombre_objets: Optional[int] = None, public: Optional[bool] = False):
         """
         Traite la commande boutique OM_PRICE.
         
         Args:
             interaction: Interaction Discord
             nombre_objets: Nombre d'objets à afficher (optionnel)
+            public: Si True, le message sera visible par tous, sinon temporaire (défaut: False)
         """
         try:
+            # Déterminer si le message doit être temporaire ou public
+            is_ephemeral = not public  # Si public=True, ephemeral=False, et vice versa
+            
             # Validation du nombre d'objets
             if nombre_objets is not None:
                 if nombre_objets < self.min_items or nombre_objets > self.max_items:
                     await interaction.response.send_message(
                         f"❌ Le nombre d'objets doit être entre {self.min_items} et {self.max_items}.",
-                        ephemeral=True
+                        ephemeral=True  # Les messages d'erreur restent toujours temporaires
                     )
                     return
                 target_count = nombre_objets
             else:
                 target_count = random.randint(self.min_items, self.max_items)
             
-            # MODIFICATION: Réponse immédiate avec embed de chargement TEMPORAIRE
+            # Réponse immédiate avec embed de chargement
             loading_embed = self.response_builder.create_loading_embed()
-            await interaction.response.send_message(embed=loading_embed, ephemeral=True)
+            await interaction.response.send_message(embed=loading_embed, ephemeral=is_ephemeral)
             
             # Récupération des données depuis Google Sheets
-            logger.info(f"Récupération des objets OM_PRICE depuis la feuille '{self.sheet_name}'")
+            logger.info(f"Récupération des objets OM_PRICE depuis la feuille '{self.sheet_name}' (public: {public})")
             raw_items = await self.sheets_client.fetch_sheet_data(self.sheet_name)
             
             if not raw_items:
@@ -109,7 +115,7 @@ class BoutiqueCommandV2(BaseCommand):
                     "Aucun objet trouvé dans la base de données OM_PRICE.",
                     f"La feuille '{self.sheet_name}' semble être vide."
                 )
-                # MODIFICATION: Éditer le message initial temporaire
+                # Éditer le message initial (garde le statut ephemeral/public)
                 await interaction.edit_original_response(embed=error_embed)
                 return
             
@@ -124,7 +130,6 @@ class BoutiqueCommandV2(BaseCommand):
                     "Aucun objet disponible après filtrage OM_PRICE.",
                     f"Tous les objets ont des raretés exclues: {', '.join(self.excluded_rarities)}"
                 )
-                # MODIFICATION: Éditer le message initial temporaire
                 await interaction.edit_original_response(embed=error_embed)
                 return
             
@@ -145,7 +150,6 @@ class BoutiqueCommandV2(BaseCommand):
                         "Aucun objet avec prix valide disponible.",
                         "Tous les objets filtrés n'ont pas de prix spécifié."
                     )
-                    # MODIFICATION: Éditer le message initial temporaire
                     await interaction.edit_original_response(embed=error_embed)
                     return
                 
@@ -163,7 +167,6 @@ class BoutiqueCommandV2(BaseCommand):
                     "Erreur lors de la sélection des objets OM_PRICE.",
                     str(e)
                 )
-                # MODIFICATION: Éditer le message initial temporaire
                 await interaction.edit_original_response(embed=error_embed)
                 return
             
@@ -188,10 +191,15 @@ class BoutiqueCommandV2(BaseCommand):
                 selected_indices
             )
             
-            # MODIFICATION: Mise à jour du message initial temporaire
+            # Ajouter une indication du mode d'affichage dans le footer si c'est public
+            if public:
+                current_footer = boutique_embed.footer.text if boutique_embed.footer else ""
+                boutique_embed.set_footer(text=f"{current_footer} • Message public partagé par {interaction.user.display_name}")
+            
+            # Mise à jour du message (garde le statut ephemeral/public du message initial)
             await interaction.edit_original_response(embed=boutique_embed)
             
-            logger.info(f"Boutique OM_PRICE générée avec succès: {len(validated_items)} objets affichés")
+            logger.info(f"Boutique OM_PRICE générée avec succès: {len(validated_items)} objets affichés (public: {public})")
             
         except Exception as e:
             logger.error(f"Erreur dans la commande boutique OM_PRICE: {e}", exc_info=True)
@@ -203,21 +211,21 @@ class BoutiqueCommandV2(BaseCommand):
                     f"Erreur technique: {str(e)[:200]}..."
                 )
                 
-                # MODIFICATION: Vérifier si on peut encore répondre avec message temporaire
+                # Vérifier si on peut encore répondre
                 if not interaction.response.is_done():
-                    await interaction.response.send_message(embed=error_embed, ephemeral=True)
+                    await interaction.response.send_message(embed=error_embed, ephemeral=True)  # Erreurs toujours temporaires
                 else:
                     await interaction.edit_original_response(embed=error_embed)
                     
             except Exception as fallback_error:
                 logger.error(f"Erreur lors de l'envoi du message d'erreur OM_PRICE: {fallback_error}")
                 
-                # MODIFICATION: Dernier recours avec message temporaire
+                # Dernier recours
                 try:
                     if not interaction.response.is_done():
                         await interaction.response.send_message(
                             "❌ Erreur: Impossible d'accéder à la boutique magique OM_PRICE pour le moment.",
-                            ephemeral=True
+                            ephemeral=True  # Erreurs toujours temporaires
                         )
                     else:
                         await interaction.edit_original_response(
