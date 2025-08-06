@@ -195,16 +195,16 @@ class ItemSelectorV2:
                 validated_item["price_display"] = f"{price_achat}"
         else:
             validated_item["price_display"] = "Prix non spécifié"
-            
+
     def filter_items_by_price(self, items: List[Dict[str, str]], price_column: str = "Prix Achat") -> Tuple[List[Dict[str, str]], List[int]]:
-    """Filtre les objets qui ont un prix valide."""
-    filtered_items = []
-    original_indices = []
-    
-    for i, item in enumerate(items):
-        price = item.get(price_column, "").strip()
-        if price and price not in ['0', '0.0', '', 'NA', 'N/A', '-']:
-            filtered_items.append(item)
-            original_indices.append(i)
-    
-    return filtered_items, original_indices
+        """Filtre les objets qui ont un prix valide."""
+        filtered_items = []
+        original_indices = []
+        
+        for i, item in enumerate(items):
+            price = item.get(price_column, "").strip()
+            if price and price not in ['0', '0.0', '', 'NA', 'N/A', '-']:
+                filtered_items.append(item)
+                original_indices.append(i)
+        
+        return filtered_items, original_indices
