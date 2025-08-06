@@ -132,7 +132,7 @@ class BoutiqueCommandV2(BaseCommand):
             if config['filtering'].get('require_valid_price', False):
                 price_column = config['filtering'].get('price_column', 'Prix Achat')
                 filtered_items, filtered_indices = self.item_selector.filter_items_by_price(
-                    (filtered_items, filtered_indices), 
+                    filtered_items, 
                     price_column
                 )
                 

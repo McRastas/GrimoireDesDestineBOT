@@ -84,7 +84,7 @@ class ItemSelectorV2:
                 filtered_items.append(item)
                 original_indices.append(i)
             else:
-                item_name = item.get("NameVF") or item.get("Name", "Inconnu")
+                item_name = item.get("Nom de l'objet") or item.get("Nom en VO", "Inconnu")
                 logger.debug(f"Objet exclu: {item_name} (Rareté: {rarity})")
         
         logger.info(f"Filtrage terminé: {len(filtered_items)}/{len(items)} objets retenus")
@@ -195,6 +195,8 @@ class ItemSelectorV2:
                 validated_item["price_display"] = f"{price_achat}"
         else:
             validated_item["price_display"] = "Prix non spécifié"
+            
+        return validated_item
 
     def filter_items_by_price(self, items: List[Dict[str, str]], price_column: str = "Prix Achat") -> Tuple[List[Dict[str, str]], List[int]]:
         """
