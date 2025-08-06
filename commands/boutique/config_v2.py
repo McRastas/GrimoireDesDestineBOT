@@ -110,8 +110,10 @@ FILTERING_CONFIG = {
     'na_values': os.getenv('BOUTIQUE_NA_VALUES', 'NA,N/A,na,n/a,null,NULL,Null,,').split(','),
     'require_valid_name': True,
     'require_valid_rarity': True,
-    'require_valid_price': os.getenv('BOUTIQUE_REQUIRE_PRICE', 'true').lower() == 'true',
-    'price_column': os.getenv('BOUTIQUE_COL_PRIX', 'Prix Achat')
+    # ASSUREZ-VOUS QUE C'EST TRUE :
+    'require_valid_price': True,  # Pour exclure les objets sans prix
+    # CORRIGEZ LE NOM DE LA COLONNE :
+    'price_column': 'OM_PRICE'  # Au lieu de 'Prix Achat'
 }
 LOGGING_CONFIG = {
     'level': os.getenv('BOUTIQUE_LOG_LEVEL', 'INFO'),

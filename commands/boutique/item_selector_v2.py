@@ -146,69 +146,98 @@ class ItemSelectorV2:
         return stats
     
     def validate_item_data(self, item: Dict[str, str]) -> Dict[str, str]:
-        """
-        Valide et nettoie les données d'un objet selon tes colonnes.
-        """
-        validated_item = {}
-        
-        # Copier toutes les données existantes
-        for key, value in item.items():
-            validated_item[key] = str(value).strip() if value else ""
-        
-        # Utiliser tes noms de colonnes
-        nom_francais = validated_item.get("Nom de l'objet", "")  # Ta colonne principale
-        nom_anglais = validated_item.get("Nom en VO", "")       # Ta colonne VO
-        
-        if nom_francais:
-            validated_item["nom_display"] = nom_francais
-        elif nom_anglais:
-            validated_item["nom_display"] = nom_anglais
-        else:
-            validated_item["nom_display"] = "Objet mystérieux"
-        
-        # Normaliser la rareté pour l'affichage
-        rarity_raw = validated_item.get("Rareté", "Commun")  # Ta colonne de rareté
-        validated_item["rarity_display"] = normalize_rarity_name(rarity_raw)
-        
-        # Normaliser le lien magique - adaptation pour tes données
-        lien_raw = validated_item.get("Lien", "Non")
-        # Si tu as "Oui"/"Non" au lieu de "Y"/"N", on adapte
-        if lien_raw.lower() in ['oui', 'yes', 'y']:
-            validated_item["lien_display"] = "Oui"
-        elif lien_raw.lower() in ['non', 'no', 'n']:
-            validated_item["lien_display"] = "Non"
-        else:
-            validated_item["lien_display"] = lien_raw
-        
-        # Gérer le prix selon ta colonne
-        # REMPLACE cette section de prix
-        price_achat = validated_item.get("OM_PRICE", "").strip()
-
-        if price_achat and price_achat not in ['0', '0.0', '', 'NA', 'N/A']:
-            try:
-                price_num = float(price_achat.replace(' po', '').replace('po', '').replace(',', '').strip())
-                if price_num > 0:
-                    validated_item["price_display"] = f"{price_num:.0f} po"
-                else:
-                    validated_item["price_display"] = "Prix non spécifié"
-            except ValueError:
-                validated_item["price_display"] = f"{price_achat}"
-        else:
-            validated_item["price_display"] = "Prix non spécifié"
+    """
+    Valide et nettoie les données d'un objet selon tes colonnes.
+    """
+    validated_item = {}
+    
+    # Copier toutes les données existantes
+    for key, value in item.items():
+        validated_item[key] = str(value).strip() if value else ""
+    
+    # Noms
+    nom_francais = validated_item.get("Nom de l'objet", "")
+    nom_anglais = validated_item.get("Nom en VO", "")
+    
+    if nom_francais:
+        validated_item["nom_display"] = nom_francais
+    elif nom_anglais:
+        validated_item["nom_display"] = nom_anglais
+    else:
+        validated_item["nom_display"] = "Objet mystérieux"
+    
+    # Rareté
+    rarity_raw = validated_item.get("Rareté", "Commun")
+    validated_item["rarity_display"] = normalize_rarity_name(rarity_raw)
+    
+    # Lien magique
+    lien_raw = validated_item.get("Lien", "Non")
+    if lien_raw.lower() in ['oui', 'yes', 'y']:
+        validated_item["lien_display"] = "Oui"
+    elif lien_raw.lower() in ['non', 'no', 'n']:
+        validated_item["lien_display"] = "Non"
+    else:
+        validated_item["lien_display"] = lien_raw
+    
+    # PRIX CORRIGÉ - Utiliser la bonne colonne OM_PRICE
+    price_om = validated_item.get("OM_PRICE", "").strip()
+    
+    if price_om and price_om not in ['0', '0.0', '', 'NA', 'N/A', 'null', '-']:
+        try:
+            price_num = float(price_om.replace(' po', '').replace('po', '').replace(',', '').strip())
+            if price_num > 0:
+                validated_item["price_display"] = f"{price_num:.0f} po"
+            else:
+                validated_item["price_display"] = "Prix non spécifié"
+        except ValueError:
+            # Si ce n'est pas un nombre, on garde tel quel
+            validated_item["price_display"] = f"{price_om}"
+    else:
+        validated_item["price_display"] = "Prix non spécifié"
             
-        return validated_item
+    return validated_item
 
-    def filter_items_by_price(self, items: List[Dict[str, str]], price_column: str = "Prix Achat") -> Tuple[List[Dict[str, str]], List[int]]:
-        """
-        Filtre les objets qui ont un prix valide.
-        """
-        filtered_items = []
-        original_indices = []
+    def filter_items_by_price(self, items: List[Dict[str, str]], price_column: str = "OM_PRICE") -> Tuple[List[Dict[str, str]], List[int]]:
+    """
+    Filtre les objets qui ont un prix valide et non nul.
+    EXCLUT tous les objets sans prix ou avec prix = 0.
+    """
+    filtered_items = []
+    original_indices = []
+    
+    config = get_config()
+    na_values = config['filtering']['na_values'] + ['0', '0.0', '-', 'null', 'None']
+    
+    logger.info(f"Filtrage par prix sur la colonne '{price_column}'")
+    excluded_count = 0
+    
+    for i, item in enumerate(items):
+        price_raw = item.get(price_column, "").strip()
         
-        for i, item in enumerate(items):
-            price = item.get(price_column, "").strip()
-            if price and price not in ['0', '0.0', '', 'NA', 'N/A', '-']:
+        # Vérifier si le prix est vide ou NA
+        if not price_raw or price_raw in na_values:
+            logger.debug(f"Objet exclu (pas de prix): {item.get('Nom de l\\'objet', 'inconnu')} - prix: '{price_raw}'")
+            excluded_count += 1
+            continue
+        
+        # Essayer de convertir en nombre pour vérifier que c'est > 0
+        try:
+            # Nettoyer le prix (enlever 'po', espaces, etc.)
+            clean_price = price_raw.replace(' po', '').replace('po', '').replace(',', '').strip()
+            price_num = float(clean_price)
+            
+            if price_num > 0:
                 filtered_items.append(item)
                 original_indices.append(i)
-        
-        return filtered_items, original_indices
+                logger.debug(f"Objet inclus: {item.get('Nom de l\\'objet', 'inconnu')} - prix: {price_num}")
+            else:
+                logger.debug(f"Objet exclu (prix = 0): {item.get('Nom de l\\'objet', 'inconnu')} - prix: {price_num}")
+                excluded_count += 1
+        except (ValueError, TypeError):
+            # Si on ne peut pas convertir en nombre, on considère que c'est invalide
+            logger.debug(f"Objet exclu (prix invalide): {item.get('Nom de l\\'objet', 'inconnu')} - prix: '{price_raw}'")
+            excluded_count += 1
+            continue
+    
+    logger.info(f"Filtrage prix terminé: {len(filtered_items)} objets gardés, {excluded_count} objets exclus")
+    return filtered_items, original_indices
