@@ -429,36 +429,3 @@ class SearchCommand(BaseCommand):
         
         embed.set_footer(text="Service temporairement indisponible")
         return embed
-
-
-# =====================================
-# MODIFICATION DE __init__.py
-# =====================================
-
-# Ajouter ces lignes dans commands/boutique/__init__.py après les autres imports:
-
-try:
-    from .search_command import SearchCommand
-    SEARCH_COMMAND_AVAILABLE = True
-    print("✅ Commande de recherche chargée avec succès")
-except ImportError as e:
-    SEARCH_COMMAND_AVAILABLE = False
-    print(f"⚠️ Commande de recherche non disponible: {e}")
-
-# Et dans la section __all__:
-if SEARCH_COMMAND_AVAILABLE:
-    __all__.append('SearchCommand')
-
-# =====================================
-# AJOUT DANS commands/__init__.py  
-# =====================================
-
-# Dans commands/__init__.py, ajouter après l'import de BoutiqueCommand:
-
-try:
-    from .boutique import SearchCommand
-    ALL_COMMANDS.append(SearchCommand)
-    print("✅ Commande de recherche ajoutée")
-except ImportError:
-    print("⚠️ Commande de recherche non disponible")
-    pass
