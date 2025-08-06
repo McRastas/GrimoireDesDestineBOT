@@ -181,16 +181,30 @@ class ItemSelectorV2:
             validated_item["lien_display"] = lien_raw
         
         # Gérer le prix selon ta colonne
-        price_achat = validated_item.get("Prix Achat", "")
-        
-        if price_achat and price_achat != "0" and price_achat.lower() not in ['na', 'n/a', '']:
-            # Nettoyer le prix s'il contient déjà "po" ou d'autres caractères
-            price_clean = price_achat.replace(' po', '').replace('po', '').strip()
-            if price_clean.isdigit():
-                validated_item["price_display"] = f"{price_clean} po"
-            else:
-                validated_item["price_display"] = price_achat
+        # REMPLACE cette section de prix
+        price_achat = validated_item.get("Prix Achat", "").strip()
+
+        if price_achat and price_achat not in ['0', '0.0', '', 'NA', 'N/A']:
+            try:
+                price_num = float(price_achat.replace(' po', '').replace('po', '').replace(',', '').strip())
+                if price_num > 0:
+                    validated_item["price_display"] = f"{price_num:.0f} po"
+                else:
+                    validated_item["price_display"] = "Prix non spécifié"
+            except ValueError:
+                validated_item["price_display"] = f"{price_achat}"
         else:
             validated_item["price_display"] = "Prix non spécifié"
-        
-        return validated_item
+            
+    def filter_items_by_price(self, items: List[Dict[str, str]], price_column: str = "Prix Achat") -> Tuple[List[Dict[str, str]], List[int]]:
+    """Filtre les objets qui ont un prix valide."""
+    filtered_items = []
+    original_indices = []
+    
+    for i, item in enumerate(items):
+        price = item.get(price_column, "").strip()
+        if price and price not in ['0', '0.0', '', 'NA', 'N/A', '-']:
+            filtered_items.append(item)
+            original_indices.append(i)
+    
+    return filtered_items, original_indices

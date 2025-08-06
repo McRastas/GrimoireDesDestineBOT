@@ -106,10 +106,12 @@ NA_VALUES = {
 # Configuration de filtrage OM_PRICE
 FILTERING_CONFIG = {
     'exclude_na_values': os.getenv('BOUTIQUE_EXCLUDE_NA', 'true').lower() == 'true',
-    'critical_columns': ['Nom de l\'objet', 'Nom en VO', 'Rareté', 'Type'],  # Tes noms de colonnes
+    'critical_columns': ['Nom de l\'objet', 'Nom en VO', 'Rareté', 'Type'],
     'na_values': os.getenv('BOUTIQUE_NA_VALUES', 'NA,N/A,na,n/a,null,NULL,Null,,').split(','),
     'require_valid_name': True,
-    'require_valid_rarity': True
+    'require_valid_rarity': True,
+    'require_valid_price': os.getenv('BOUTIQUE_REQUIRE_PRICE', 'true').lower() == 'true',
+    'price_column': os.getenv('BOUTIQUE_COL_PRIX', 'Prix Achat')
 }
 LOGGING_CONFIG = {
     'level': os.getenv('BOUTIQUE_LOG_LEVEL', 'INFO'),
