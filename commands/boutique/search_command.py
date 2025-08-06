@@ -87,23 +87,23 @@ class SearchCommand(BaseCommand):
             if not recherche or len(recherche.strip()) < 2:
                 await interaction.response.send_message(
                     "❌ La recherche doit contenir au moins 2 caractères.",
-                    ephemeral=True  # ✅ Déjà configuré
+                    ephemeral=True
                 )
                 return
 
             if limite < 1 or limite > 15:
                 await interaction.response.send_message(
                     "❌ La limite doit être entre 1 et 15 résultats.",
-                    ephemeral=True  # ✅ Déjà configuré
+                    ephemeral=True
                 )
                 return
 
             # Nettoyer le terme de recherche
             search_term = recherche.strip().lower()
 
-            # CHANGEMENT: Réponse immédiate avec embed de chargement (TEMPORAIRE)
+            # Réponse immédiate avec embed de chargement (TEMPORAIRE)
             loading_embed = self._create_loading_embed(search_term)
-            await interaction.response.send_message(embed=loading_embed, ephemeral=True)  # ← AJOUTER ephemeral=True
+            await interaction.response.send_message(embed=loading_embed, ephemeral=True)
 
             # Récupération des données depuis Google Sheets
             logger.info(f"Recherche d'objets pour: '{search_term}'")
@@ -114,8 +114,8 @@ class SearchCommand(BaseCommand):
                     "Base de données inaccessible",
                     "Impossible d'accéder à la base de données des objets magiques."
                 )
-                # CHANGEMENT: Utiliser followup au lieu d'edit car message initial temporaire
-                await interaction.followup.send(embed=error_embed, ephemeral=True)  # ← AJOUTER ephemeral=True
+                # Éditer le message initial temporaire
+                await interaction.edit_original_response(embed=error_embed)
                 return
 
             # Recherche avec scoring
@@ -123,15 +123,15 @@ class SearchCommand(BaseCommand):
 
             if not results:
                 no_result_embed = self._create_no_results_embed(search_term)
-                # CHANGEMENT: Utiliser followup temporaire
-                await interaction.followup.send(embed=no_result_embed, ephemeral=True)  # ← AJOUTER ephemeral=True
+                # Éditer le message initial temporaire
+                await interaction.edit_original_response(embed=no_result_embed)
                 return
 
-            # Générer l'embed des résultats
+            # CORRECTION CRITIQUE: Ordre des paramètres corrigé (search_term, results)
             results_embed = self._create_results_embed(search_term, results)
             
-            # CHANGEMENT: Utiliser followup temporaire
-            await interaction.followup.send(embed=results_embed, ephemeral=True)  # ← AJOUTER ephemeral=True
+            # Éditer le message initial temporaire
+            await interaction.edit_original_response(embed=results_embed)
 
             logger.info(f"Recherche terminée: {len(results)} résultats pour '{search_term}'")
 
@@ -142,12 +142,12 @@ class SearchCommand(BaseCommand):
                 f"Une erreur s'est produite: {str(e)}"
             )
             
-            # CHANGEMENT: Gestion d'erreur temporaire
+            # Gestion d'erreur temporaire
             try:
                 if not interaction.response.is_done():
                     await interaction.response.send_message(embed=error_embed, ephemeral=True)
                 else:
-                    await interaction.followup.send(embed=error_embed, ephemeral=True)
+                    await interaction.edit_original_response(embed=error_embed)
             except Exception as followup_error:
                 logger.error(f"Erreur lors de l'envoi du message d'erreur: {followup_error}")
 
@@ -266,15 +266,17 @@ class SearchCommand(BaseCommand):
 
     def _create_loading_embed(self, search_term: str) -> discord.Embed:
         """Crée un embed de chargement."""
-        return discord.Embed(
+        embed = discord.Embed(
             title="🔍 Recherche en cours...",
-            description=f"Recherche d'objets pour : **{search_term}**\n⏳ Veuillez patienter...",
-            color=0x3498db  # Bleu
+            description=f"Recherche d'objets correspondant à : **{search_term}**",
+            color=0xf39c12  # Orange
         )
+        embed.set_footer(text="Fouille dans les grimoires...")
+        return embed
 
     def _create_no_results_embed(self, search_term: str) -> discord.Embed:
         """Crée un embed quand aucun résultat n'est trouvé."""
-        return discord.Embed(
+        embed = discord.Embed(
             title="🔍 Aucun résultat",
             description=f"Aucun objet trouvé pour **{search_term}**\n\n"
                        f"💡 **Conseils :**\n"
@@ -283,12 +285,17 @@ class SearchCommand(BaseCommand):
                        f"• Utilisez des synonymes",
             color=0xf39c12  # Orange
         )
-
         embed.set_footer(text="Les objets légendaires sont parfois difficiles à trouver...")
         return embed
 
-    def _create_results_embed(self, results: List[Tuple[Dict[str, str], float, int]], search_term: str) -> discord.Embed:
-        """Crée l'embed avec les résultats de recherche."""
+    def _create_results_embed(self, search_term: str, results: List[Tuple[Dict[str, str], float, int]]) -> discord.Embed:
+        """
+        Crée l'embed avec les résultats de recherche.
+        
+        Args:
+            search_term: Terme de recherche
+            results: Liste des (objet, score, index_original)
+        """
         embed = discord.Embed(
             title=f"🔍 Résultats de recherche : {search_term}",
             description=f"**{len(results)} objet(s) trouvé(s)**",
@@ -410,7 +417,7 @@ class SearchCommand(BaseCommand):
 
     def _create_error_embed(self, title: str, description: str) -> discord.Embed:
         """Crée un embed d'erreur."""
-        return discord.Embed(
+        embed = discord.Embed(
             title=f"❌ {title}",
             description=description,
             color=0xe74c3c  # Rouge
