@@ -33,6 +33,8 @@ class BoutiqueResponseBuilderV2:
         """
         Crée l'embed principal de la boutique pour OM_PRICE.
         """
+        logger.info(f"Création embed boutique - {len(items)} objets, indices: {item_indices}")
+        
         colors = [0x3498db, 0xe74c3c, 0x2ecc71, 0xf39c12, 0x9b59b6, 0x1abc9c]
         embed_color = colors[hash(str(len(items))) % len(colors)]
         
@@ -48,6 +50,11 @@ class BoutiqueResponseBuilderV2:
             
             # Passer l'index de ligne si disponible
             original_index = item_indices[i-1] if item_indices and len(item_indices) >= i else None
+            
+            # Log pour debug
+            nom_objet = item.get("nom_display", "Inconnu")
+            logger.debug(f"Objet {i}: {nom_objet} - Index original: {original_index}")
+            
             value = self._format_item_details(item, original_index)
             
             # Vérifier la longueur du champ
@@ -155,28 +162,36 @@ class BoutiqueResponseBuilderV2:
             sheet_id = config['google_sheets']['sheet_id']
             sheet_gid = config['google_sheets'].get('sheet_gid', '0')
             
+            nom_objet = item.get("nom_display", "Objet inconnu")
+            
             if not sheet_id or not item:
+                logger.debug(f"Pas de lien généré pour {nom_objet}: sheet_id ou item manquant")
                 return ""
             
             # Méthode 1: Si on a l'index original, utiliser le numéro de ligne
             if original_index is not None:
                 # +2 car indices Python commencent à 0 et il y a une ligne d'en-tête
                 row_number = original_index + 2
-                # URL pour aller directement à une ligne spécifique (colonne A pour OM_PRICE)
-                return f"https://docs.google.com/spreadsheets/d/{sheet_id}/edit?gid={sheet_gid}#gid={sheet_gid}&range=A{row_number}"
+                url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/edit?gid={sheet_gid}#gid={sheet_gid}&range=A{row_number}"
+                logger.debug(f"Lien généré pour {nom_objet}: ligne {row_number} (index original {original_index})")
+                return url
             
             # Méthode 2: Utiliser le nom de l'objet pour la recherche
-            nom_objet = item.get("nom_display", "")
-            if nom_objet:
+            nom_objet_raw = item.get("nom_display", "")
+            if nom_objet_raw:
                 from urllib.parse import quote
-                nom_encoded = quote(nom_objet)
-                return f"https://docs.google.com/spreadsheets/d/{sheet_id}/edit?gid={sheet_gid}#gid={sheet_gid}&search={nom_encoded}"
+                nom_encoded = quote(nom_objet_raw)
+                url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/edit?gid={sheet_gid}#gid={sheet_gid}&search={nom_encoded}"
+                logger.debug(f"Lien de recherche généré pour {nom_objet}: {nom_encoded}")
+                return url
             
             # Méthode 3: Lien vers la feuille spécifique
-            return f"https://docs.google.com/spreadsheets/d/{sheet_id}/edit?gid={sheet_gid}#gid={sheet_gid}"
+            url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/edit?gid={sheet_gid}#gid={sheet_gid}"
+            logger.debug(f"Lien général généré pour {nom_objet}")
+            return url
             
         except Exception as e:
-            logger.debug(f"Erreur génération lien Google Sheets: {e}")
+            logger.error(f"Erreur génération lien Google Sheets pour {nom_objet}: {e}")
             return ""
     
     def _truncate_field_value(self, value: str) -> str:
