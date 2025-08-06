@@ -428,4 +428,4 @@ class SearchCommand(BaseCommand):
         )
 
         embed.set_footer(text="Service temporairement indisponible")
-    return embed
+        return embed
