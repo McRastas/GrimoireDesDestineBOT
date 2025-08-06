@@ -1,6 +1,7 @@
 # commands/boutique/search_command.py
 """
 Commande de recherche d'objets magiques avec recherche floue (fuzzy search).
+Version avec embeds éphémères (temporaires).
 """
 
 import discord
@@ -20,6 +21,7 @@ logger = logging.getLogger(__name__)
 class SearchCommand(BaseCommand):
     """
     Commande Discord pour rechercher des objets magiques dans la base de données.
+    Utilise des embeds temporaires (ephemeral=True).
     """
     
     def __init__(self, bot):
@@ -46,7 +48,7 @@ class SearchCommand(BaseCommand):
         self.min_similarity = 0.4  # Seuil de similarité minimum (40%)
         self.max_results = 10      # Nombre maximum de résultats
         
-        logger.info("Commande de recherche d'objets magiques initialisée")
+        logger.info("Commande de recherche d'objets magiques initialisée (mode éphémère)")
     
     @property
     def name(self) -> str:
@@ -56,7 +58,7 @@ class SearchCommand(BaseCommand):
     @property
     def description(self) -> str:
         """Description de la commande."""
-        return "Recherche des objets magiques par nom ou description"
+        return "Recherche des objets magiques par nom ou description (réponse temporaire)"
     
     def register(self, tree: app_commands.CommandTree):
         """Enregistre la commande dans l'arbre des commandes Discord."""
@@ -75,7 +77,7 @@ class SearchCommand(BaseCommand):
     
     async def callback(self, interaction: discord.Interaction, recherche: str, limite: Optional[int] = 5):
         """
-        Traite la commande de recherche.
+        Traite la commande de recherche avec des embeds éphémères.
         
         Args:
             interaction: Interaction Discord
@@ -86,14 +88,20 @@ class SearchCommand(BaseCommand):
             # Validation des paramètres
             if not recherche or len(recherche.strip()) < 2:
                 await interaction.response.send_message(
-                    "❌ La recherche doit contenir au moins 2 caractères.",
+                    embed=self._create_error_embed(
+                        "Recherche trop courte",
+                        "❌ La recherche doit contenir au moins 2 caractères."
+                    ),
                     ephemeral=True
                 )
                 return
             
             if limite < 1 or limite > 15:
                 await interaction.response.send_message(
-                    "❌ La limite doit être entre 1 et 15 résultats.",
+                    embed=self._create_error_embed(
+                        "Limite invalide",
+                        "❌ La limite doit être entre 1 et 15 résultats."
+                    ),
                     ephemeral=True
                 )
                 return
@@ -101,12 +109,12 @@ class SearchCommand(BaseCommand):
             # Nettoyer le terme de recherche
             search_term = recherche.strip().lower()
             
-            # Réponse immédiate avec embed de chargement
+            # Réponse immédiate avec embed de chargement (éphémère)
             loading_embed = self._create_loading_embed(search_term)
-            await interaction.response.send_message(embed=loading_embed)
+            await interaction.response.send_message(embed=loading_embed, ephemeral=True)
             
             # Récupération des données depuis Google Sheets
-            logger.info(f"Recherche d'objets pour: '{search_term}'")
+            logger.info(f"Recherche d'objets pour: '{search_term}' (mode éphémère)")
             raw_items = await self.sheets_client.fetch_sheet_data(self.sheet_name)
             
             if not raw_items:
@@ -125,14 +133,14 @@ class SearchCommand(BaseCommand):
                 await interaction.edit_original_response(embed=no_results_embed)
                 return
             
-            # Création de l'embed avec les résultats
+            # Création de l'embed avec les résultats (éphémère)
             results_embed = self._create_results_embed(search_results, search_term)
             await interaction.edit_original_response(embed=results_embed)
             
-            logger.info(f"Recherche terminée: {len(search_results)} résultats trouvés pour '{search_term}'")
+            logger.info(f"Recherche éphémère terminée: {len(search_results)} résultats trouvés pour '{search_term}'")
             
         except Exception as e:
-            logger.error(f"Erreur dans la commande de recherche: {e}", exc_info=True)
+            logger.error(f"Erreur dans la commande de recherche éphémère: {e}", exc_info=True)
             
             try:
                 error_embed = self._create_error_embed(
@@ -152,58 +160,36 @@ class SearchCommand(BaseCommand):
         Recherche des objets avec scoring de similarité.
         
         Args:
-            items: Liste des objets de la base de données
-            search_term: Terme de recherche (déjà nettoyé)
+            items: Liste des objets à rechercher
+            search_term: Terme de recherche
             limit: Nombre maximum de résultats
             
         Returns:
-            List[Tuple[Dict, float, int]]: Liste des (objet, score, index_original) triée par score décroissant
+            List[Tuple[Dict[str, str], float, int]]: Liste des résultats avec scores
         """
         results = []
         
-        for index, item in enumerate(items):
-            # Récupérer les champs à rechercher
-            nom_fr = item.get("Nom de l'objet", "").lower()
-            nom_en = item.get("Nom en VO", "").lower()
-            type_obj = item.get("Type", "").lower()
-            source = item.get("Source", "").lower()
+        for i, item in enumerate(items):
+            # Validation de base de l'objet
+            validated_item = self.item_selector.validate_item_data(item)
             
-            # Calculer les scores de similarité pour chaque champ
-            scores = []
+            # Calcul du score pour différents champs
+            name_score = self._calculate_similarity(search_term, validated_item.get("nom_display", ""))
+            name_en_score = self._calculate_similarity(search_term, validated_item.get("name_en", ""))
+            description_score = self._calculate_similarity(search_term, validated_item.get("description", ""))
             
-            # Nom français (priorité haute)
-            if nom_fr:
-                score_nom_fr = self._calculate_similarity(search_term, nom_fr)
-                if score_nom_fr > 0:
-                    scores.append(score_nom_fr * 2.0)  # Poids double pour le nom français
+            # Score global (pondéré)
+            global_score = max(
+                name_score * 1.0,        # Nom principal poids 100%
+                name_en_score * 0.9,     # Nom anglais poids 90%
+                description_score * 0.6   # Description poids 60%
+            )
             
-            # Nom anglais (priorité haute)
-            if nom_en:
-                score_nom_en = self._calculate_similarity(search_term, nom_en)
-                if score_nom_en > 0:
-                    scores.append(score_nom_en * 1.8)  # Poids élevé pour le nom anglais
-            
-            # Type d'objet (priorité moyenne)
-            if type_obj:
-                score_type = self._calculate_similarity(search_term, type_obj)
-                if score_type > 0:
-                    scores.append(score_type * 1.2)
-            
-            # Source (priorité faible)
-            if source:
-                score_source = self._calculate_similarity(search_term, source)
-                if score_source > 0:
-                    scores.append(score_source * 0.8)
-            
-            # Prendre le meilleur score
-            if scores:
-                best_score = max(scores)
-                
-                # Ne garder que les résultats au-dessus du seuil
-                if best_score >= self.min_similarity:
-                    results.append((item, best_score, index))
+            # Ajouter si au-dessus du seuil minimum
+            if global_score >= self.min_similarity:
+                results.append((validated_item, global_score, i))
         
-        # Trier par score décroissant et limiter les résultats
+        # Trier par score décroissant et limiter
         results.sort(key=lambda x: x[1], reverse=True)
         return results[:limit]
     
@@ -261,20 +247,20 @@ class SearchCommand(BaseCommand):
         return min(seq_similarity, 1.0)
     
     def _create_loading_embed(self, search_term: str) -> discord.Embed:
-        """Crée un embed de chargement."""
+        """Crée un embed de chargement temporaire."""
         embed = discord.Embed(
             title="🔍 Recherche en cours...",
-            description=f"Recherche d'objets correspondant à : **{search_term}**",
+            description=f"Recherche d'objets correspondant à : **{search_term}**\n\n⏳ *Cette réponse n'est visible que par vous*",
             color=0xf39c12  # Orange
         )
-        embed.set_footer(text="Fouille dans les grimoires...")
+        embed.set_footer(text="Fouille dans les grimoires... • Réponse temporaire")
         return embed
     
     def _create_no_results_embed(self, search_term: str) -> discord.Embed:
-        """Crée un embed quand aucun résultat n'est trouvé."""
+        """Crée un embed quand aucun résultat n'est trouvé (temporaire)."""
         embed = discord.Embed(
             title="🔍 Aucun résultat trouvé",
-            description=f"Aucun objet ne correspond à votre recherche : **{search_term}**",
+            description=f"Aucun objet ne correspond à votre recherche : **{search_term}**\n\n👤 *Cette réponse n'est visible que par vous*",
             color=0xe74c3c  # Rouge
         )
         
@@ -287,14 +273,14 @@ class SearchCommand(BaseCommand):
             inline=False
         )
         
-        embed.set_footer(text="Les objets légendaires sont parfois difficiles à trouver...")
+        embed.set_footer(text="Les objets légendaires sont parfois difficiles à trouver... • Réponse temporaire")
         return embed
     
     def _create_results_embed(self, results: List[Tuple[Dict[str, str], float, int]], search_term: str) -> discord.Embed:
-        """Crée l'embed avec les résultats de recherche."""
+        """Crée l'embed avec les résultats de recherche (temporaire)."""
         embed = discord.Embed(
             title=f"🔍 Résultats de recherche : {search_term}",
-            description=f"**{len(results)} objet(s) trouvé(s)**",
+            description=f"**{len(results)} objet(s) trouvé(s)**\n\n👤 *Cette réponse n'est visible que par vous*",
             color=0x2ecc71  # Vert
         )
         
@@ -315,7 +301,7 @@ class SearchCommand(BaseCommand):
                 inline=False
             )
         
-        embed.set_footer(text=f"Recherche effectuée sur {search_term} • Objets triés par pertinence")
+        embed.set_footer(text=f"Recherche effectuée sur {search_term} • Objets triés par pertinence • Réponse temporaire")
         return embed
     
     def _format_result_name(self, item: Dict[str, str], rank: int, score: float) -> str:
@@ -344,78 +330,41 @@ class SearchCommand(BaseCommand):
         """Formate les détails d'un résultat de recherche."""
         details = []
         
-        # Noms (français et anglais si différents)
-        nom_fr = item.get("Nom de l'objet", "")
-        nom_en = item.get("Nom en VO", "")
-        
-        if nom_fr and nom_en and nom_fr.lower() != nom_en.lower():
-            details.append(f"**Nom FR:** {nom_fr}")
-            details.append(f"**Nom EN:** {nom_en}")
-        elif nom_fr:
-            details.append(f"**Nom:** {nom_fr}")
-        elif nom_en:
-            details.append(f"**Nom:** {nom_en}")
-        
-        # Rareté et type
+        # Rareté
         rarity = item.get("rarity_display", "")
         if rarity:
-            details.append(f"**Rareté:** {rarity}")
+            details.append(f"**Rareté :** {rarity}")
         
-        type_obj = item.get("Type", "")
-        if type_obj:
-            formatted_type = type_obj.replace("_", " ").title()
-            details.append(f"**Type:** {formatted_type}")
+        # Prix (si disponible)
+        prix = item.get("prix_display", "")
+        if prix and prix != "Non spécifié":
+            details.append(f"**Prix :** {prix}")
         
         # Lien magique
-        lien_display = item.get("lien_display", "")
-        if lien_display:
-            lien_emoji = "🔗" if lien_display.lower() == "oui" else "❌"
-            details.append(f"**Lien magique:** {lien_emoji} {lien_display}")
+        lien_magique = item.get("lien_magique_display", "")
+        if lien_magique:
+            details.append(f"**Lien magique :** {lien_magique}")
         
-        # Prix
-        price = item.get("price_display", "")
-        if price and price != "Prix non spécifié":
-            details.append(f"**Prix:** {price}")
+        # Description courte
+        description = item.get("description", "")
+        if description:
+            # Limiter à 200 caractères pour la description
+            if len(description) > 200:
+                description = description[:200] + "..."
+            details.append(f"**Description :** {description}")
         
-        # Source
-        source = item.get("Source", "")
-        if source:
-            details.append(f"**Source:** {source}")
+        # Lien Google Sheets si index disponible
+        if original_index is not None:
+            sheet_url = f"https://docs.google.com/spreadsheets/d/{self.sheet_id}/edit#gid=0&range=A{original_index + 2}"
+            details.append(f"[📋 Voir dans Google Sheets]({sheet_url})")
         
-        # Lien vers Google Sheets
-        sheets_link = self._generate_sheets_link(item, original_index)
-        if sheets_link:
-            details.append(f"[📊 Voir dans Google Sheets]({sheets_link})")
-        
-        return '\n'.join(details) if details else "Informations non disponibles"
-    
-    def _generate_sheets_link(self, item: Dict[str, str], original_index: int = None) -> str:
-        """Génère un lien direct vers Google Sheets."""
-        try:
-            config = get_config()
-            sheet_id = config['google_sheets']['sheet_id']
-            sheet_gid = config['google_sheets'].get('sheet_gid', '0')
-            
-            if not sheet_id:
-                return ""
-            
-            # Lien direct vers la ligne si on a l'index
-            if original_index is not None:
-                row_number = original_index + 2  # +2 pour header et index 0
-                return f"https://docs.google.com/spreadsheets/d/{sheet_id}/edit?gid={sheet_gid}#gid={sheet_gid}&range=A{row_number}"
-            
-            # Sinon, lien vers la feuille
-            return f"https://docs.google.com/spreadsheets/d/{sheet_id}/edit?gid={sheet_gid}#gid={sheet_gid}"
-        
-        except Exception as e:
-            logger.debug(f"Erreur génération lien Google Sheets: {e}")
-            return ""
+        return "\n".join(details) if details else "*Aucun détail disponible*"
     
     def _create_error_embed(self, title: str, description: str) -> discord.Embed:
-        """Crée un embed d'erreur."""
+        """Crée un embed d'erreur temporaire."""
         embed = discord.Embed(
             title=f"❌ {title}",
-            description=description,
+            description=f"{description}\n\n👤 *Cette réponse n'est visible que par vous*",
             color=0xe74c3c  # Rouge
         )
         
@@ -427,5 +376,5 @@ class SearchCommand(BaseCommand):
             inline=False
         )
         
-        embed.set_footer(text="Service temporairement indisponible")
+        embed.set_footer(text="Service temporairement indisponible • Réponse temporaire")
         return embed
