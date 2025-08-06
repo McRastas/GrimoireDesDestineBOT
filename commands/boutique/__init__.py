@@ -70,6 +70,14 @@ except ImportError:
     CONFIG_AVAILABLE = False
     print("⚠️ Configuration V2 non disponible")
 
+try:
+    from .search_command import SearchCommand
+    SEARCH_COMMAND_AVAILABLE = True
+    print("✅ Commande de recherche chargée avec succès")
+except ImportError as e:
+    SEARCH_COMMAND_AVAILABLE = False
+    print(f"⚠️ Commande de recherche non disponible: {e}")
+
 # Export principal
 __all__ = []
 
@@ -87,6 +95,9 @@ if RESPONSE_BUILDER_AVAILABLE:
 
 if CONFIG_AVAILABLE:
     __all__.extend(['get_config', 'validate_config'])
+
+if SEARCH_COMMAND_AVAILABLE:
+    __all__.append('SearchCommand')
 
 # Métadonnées du module
 __version__ = "2.0.0-OM_PRICE"
