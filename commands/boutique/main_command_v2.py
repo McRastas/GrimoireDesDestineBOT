@@ -131,21 +131,22 @@ class BoutiqueCommandV2(BaseCommand):
             config = get_config()
             if config['filtering'].get('require_valid_price', False):
                 price_column = config['filtering'].get('price_column', 'Prix Achat')
-                # Passer le tuple (items, indices) pour préserver les indices originaux
+                
+                # CORRECTION: Passer le tuple (items, indices) pour préserver les indices originaux
                 filtered_items, filtered_indices = self.item_selector.filter_items_by_price(
-                    (filtered_items, filtered_indices), 
+                    (filtered_items, filtered_indices),  # ← CHANGEMENT ICI: tuple au lieu de juste filtered_items
                     price_column
-                )   
-            
+                )
+                
                 if not filtered_items:
                     error_embed = self.response_builder.create_error_embed(
                         "Aucun objet avec prix valide disponible.",
                         "Tous les objets filtrés n'ont pas de prix spécifié."
                     )
-                await interaction.edit_original_response(embed=error_embed)
-                return
-            
-            logger.info(f"Filtrage prix terminé: {len(filtered_items)} objets avec prix valide")
+                    await interaction.edit_original_response(embed=error_embed)
+                    return
+                
+                logger.info(f"Filtrage prix terminé: {len(filtered_items)} objets avec prix valide")
 
             # Sélection aléatoire  ← Cette ligne existe déjà, n'y touche pas
             try:
