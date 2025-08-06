@@ -197,7 +197,9 @@ class ItemSelectorV2:
             validated_item["price_display"] = "Prix non spécifié"
 
     def filter_items_by_price(self, items: List[Dict[str, str]], price_column: str = "Prix Achat") -> Tuple[List[Dict[str, str]], List[int]]:
-        """Filtre les objets qui ont un prix valide."""
+        """
+        Filtre les objets qui ont un prix valide.
+        """
         filtered_items = []
         original_indices = []
         
