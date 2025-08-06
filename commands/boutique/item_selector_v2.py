@@ -96,56 +96,57 @@ class ItemSelectorV2:
     # À AJOUTER À LA FIN DE VOTRE FICHIER item_selector_v2.py APRÈS LA LIGNE 94 :
 
     def filter_items_by_price(self, items: List[Dict[str, str]], price_column: str = "OM_PRICE") -> Tuple[List[Dict[str, str]], List[int]]:
-        """
-        Filtre les objets qui ont un prix valide et non nul.
-        EXCLUT tous les objets sans prix ou avec prix = 0.
+    """
+    Filtre les objets qui ont un prix valide et non nul.
+    EXCLUT tous les objets sans prix ou avec prix = 0.
+    
+    Args:
+        items: Liste des objets à filtrer
+        price_column: Nom de la colonne contenant le prix
         
-        Args:
-            items: Liste des objets à filtrer
-            price_column: Nom de la colonne contenant le prix
+    Returns:
+        Tuple: (Liste des objets avec prix valide, Liste des indices originaux)
+    """
+    filtered_items = []
+    original_indices = []
+    
+    config = get_config()
+    na_values = config['filtering']['na_values'] + ['0', '0.0', '-', 'null', 'None']
+    
+    logger.info(f"Filtrage par prix sur la colonne '{price_column}'")
+    excluded_count = 0
+    
+    for i, item in enumerate(items):
+        price_raw = item.get(price_column, "").strip()
+        nom_objet = item.get('Nom de l\'objet', 'inconnu')  # Extraire le nom AVANT la f-string
+        
+        # Vérifier si le prix est vide ou NA
+        if not price_raw or price_raw in na_values:
+            logger.debug(f"Objet exclu (pas de prix): {nom_objet} - prix: '{price_raw}'")
+            excluded_count += 1
+            continue
+        
+        # Essayer de convertir en nombre pour vérifier que c'est > 0
+        try:
+            # Nettoyer le prix (enlever 'po', espaces, etc.)
+            clean_price = price_raw.replace(' po', '').replace('po', '').replace(',', '').strip()
+            price_num = float(clean_price)
             
-        Returns:
-            Tuple: (Liste des objets avec prix valide, Liste des indices originaux)
-        """
-        filtered_items = []
-        original_indices = []
-        
-        config = get_config()
-        na_values = config['filtering']['na_values'] + ['0', '0.0', '-', 'null', 'None']
-        
-        logger.info(f"Filtrage par prix sur la colonne '{price_column}'")
-        excluded_count = 0
-        
-        for i, item in enumerate(items):
-            price_raw = item.get(price_column, "").strip()
-            
-            # Vérifier si le prix est vide ou NA
-            if not price_raw or price_raw in na_values:
-                logger.debug(f"Objet exclu (pas de prix): {item.get('Nom de l\\'objet', 'inconnu')} - prix: '{price_raw}'")
+            if price_num > 0:
+                filtered_items.append(item)
+                original_indices.append(i)
+                logger.debug(f"Objet inclus: {nom_objet} - prix: {price_num}")
+            else:
+                logger.debug(f"Objet exclu (prix = 0): {nom_objet} - prix: {price_num}")
                 excluded_count += 1
-                continue
-            
-            # Essayer de convertir en nombre pour vérifier que c'est > 0
-            try:
-                # Nettoyer le prix (enlever 'po', espaces, etc.)
-                clean_price = price_raw.replace(' po', '').replace('po', '').replace(',', '').strip()
-                price_num = float(clean_price)
-                
-                if price_num > 0:
-                    filtered_items.append(item)
-                    original_indices.append(i)
-                    logger.debug(f"Objet inclus: {item.get('Nom de l\\'objet', 'inconnu')} - prix: {price_num}")
-                else:
-                    logger.debug(f"Objet exclu (prix = 0): {item.get('Nom de l\\'objet', 'inconnu')} - prix: {price_num}")
-                    excluded_count += 1
-            except (ValueError, TypeError):
-                # Si on ne peut pas convertir en nombre, on considère que c'est invalide
-                logger.debug(f"Objet exclu (prix invalide): {item.get('Nom de l\\'objet', 'inconnu')} - prix: '{price_raw}'")
-                excluded_count += 1
-                continue
-        
-        logger.info(f"Filtrage prix terminé: {len(filtered_items)} objets gardés, {excluded_count} objets exclus")
-        return filtered_items, original_indices
+        except (ValueError, TypeError):
+            # Si on ne peut pas convertir en nombre, on considère que c'est invalide
+            logger.debug(f"Objet exclu (prix invalide): {nom_objet} - prix: '{price_raw}'")
+            excluded_count += 1
+            continue
+    
+    logger.info(f"Filtrage prix terminé: {len(filtered_items)} objets gardés, {excluded_count} objets exclus")
+    return filtered_items, original_indices
     
     def select_random_items(self, items_with_indices: Tuple[List[Dict[str, str]], List[int]], min_count: int = 3, max_count: int = 8) -> Tuple[List[Dict[str, str]], List[int]]:
         """
