@@ -87,23 +87,23 @@ class SearchCommand(BaseCommand):
             if not recherche or len(recherche.strip()) < 2:
                 await interaction.response.send_message(
                     "❌ La recherche doit contenir au moins 2 caractères.",
-                    ephemeral=True
+                    ephemeral=True  # ✅ Déjà configuré
                 )
                 return
 
             if limite < 1 or limite > 15:
                 await interaction.response.send_message(
                     "❌ La limite doit être entre 1 et 15 résultats.",
-                    ephemeral=True
+                    ephemeral=True  # ✅ Déjà configuré
                 )
                 return
 
             # Nettoyer le terme de recherche
             search_term = recherche.strip().lower()
 
-            # Réponse immédiate avec embed de chargement
+            # CHANGEMENT: Réponse immédiate avec embed de chargement (TEMPORAIRE)
             loading_embed = self._create_loading_embed(search_term)
-            await interaction.response.send_message(embed=loading_embed)
+            await interaction.response.send_message(embed=loading_embed, ephemeral=True)  # ← AJOUTER ephemeral=True
 
             # Récupération des données depuis Google Sheets
             logger.info(f"Recherche d'objets pour: '{search_term}'")
@@ -114,38 +114,42 @@ class SearchCommand(BaseCommand):
                     "Base de données inaccessible",
                     "Impossible d'accéder à la base de données des objets magiques."
                 )
-                await interaction.edit_original_response(embed=error_embed)
+                # CHANGEMENT: Utiliser followup au lieu d'edit car message initial temporaire
+                await interaction.followup.send(embed=error_embed, ephemeral=True)  # ← AJOUTER ephemeral=True
                 return
 
-            # Recherche avec scoring de similarité
-            search_results = self._search_items(raw_items, search_term, limite)
+            # Recherche avec scoring
+            results = self._search_items(raw_items, search_term, limite)
 
-            if not search_results:
-                no_results_embed = self._create_no_results_embed(search_term)
-                await interaction.edit_original_response(embed=no_results_embed)
+            if not results:
+                no_result_embed = self._create_no_results_embed(search_term)
+                # CHANGEMENT: Utiliser followup temporaire
+                await interaction.followup.send(embed=no_result_embed, ephemeral=True)  # ← AJOUTER ephemeral=True
                 return
 
-            # Création de l'embed avec les résultats
-            results_embed = self._create_results_embed(search_results, search_term)
-            await interaction.edit_original_response(embed=results_embed)
+            # Générer l'embed des résultats
+            results_embed = self._create_results_embed(search_term, results)
+            
+            # CHANGEMENT: Utiliser followup temporaire
+            await interaction.followup.send(embed=results_embed, ephemeral=True)  # ← AJOUTER ephemeral=True
 
-            logger.info(f"Recherche terminée: {len(search_results)} résultats trouvés pour '{search_term}'")
+            logger.info(f"Recherche terminée: {len(results)} résultats pour '{search_term}'")
 
         except Exception as e:
-            logger.error(f"Erreur dans la commande de recherche: {e}", exc_info=True)
-
+            logger.error(f"Erreur lors de la recherche: {e}", exc_info=True)
+            error_embed = self._create_error_embed(
+                "Erreur inattendue",
+                f"Une erreur s'est produite: {str(e)}"
+            )
+            
+            # CHANGEMENT: Gestion d'erreur temporaire
             try:
-                error_embed = self._create_error_embed(
-                    "Erreur lors de la recherche",
-                    f"Une erreur inattendue s'est produite: {str(e)[:200]}"
-                )
-
                 if not interaction.response.is_done():
                     await interaction.response.send_message(embed=error_embed, ephemeral=True)
                 else:
-                    await interaction.edit_original_response(embed=error_embed)
-            except:
-                logger.error("Impossible d'envoyer une réponse d'erreur à l'utilisateur")
+                    await interaction.followup.send(embed=error_embed, ephemeral=True)
+            except Exception as followup_error:
+                logger.error(f"Erreur lors de l'envoi du message d'erreur: {followup_error}")
 
     def _search_items(self, items: List[Dict[str, str]], search_term: str, limit: int) -> List[Tuple[Dict[str, str], float, int]]:
         """
@@ -262,29 +266,22 @@ class SearchCommand(BaseCommand):
 
     def _create_loading_embed(self, search_term: str) -> discord.Embed:
         """Crée un embed de chargement."""
-        embed = discord.Embed(
+        return discord.Embed(
             title="🔍 Recherche en cours...",
-            description=f"Recherche d'objets correspondant à : **{search_term}**",
-            color=0xf39c12  # Orange
+            description=f"Recherche d'objets pour : **{search_term}**\n⏳ Veuillez patienter...",
+            color=0x3498db  # Bleu
         )
-        embed.set_footer(text="Fouille dans les grimoires...")
-        return embed
 
     def _create_no_results_embed(self, search_term: str) -> discord.Embed:
         """Crée un embed quand aucun résultat n'est trouvé."""
-        embed = discord.Embed(
-            title="🔍 Aucun résultat trouvé",
-            description=f"Aucun objet ne correspond à votre recherche : **{search_term}**",
-            color=0xe74c3c  # Rouge
-        )
-
-        embed.add_field(
-            name="💡 Suggestions",
-            value="• Vérifiez l'orthographe\n"
-                  "• Essayez des termes plus courts\n"
-                  "• Utilisez des synonymes\n"
-                  "• Essayez le nom en anglais",
-            inline=False
+        return discord.Embed(
+            title="🔍 Aucun résultat",
+            description=f"Aucun objet trouvé pour **{search_term}**\n\n"
+                       f"💡 **Conseils :**\n"
+                       f"• Vérifiez l'orthographe\n"
+                       f"• Essayez des termes plus courts\n"
+                       f"• Utilisez des synonymes",
+            color=0xf39c12  # Orange
         )
 
         embed.set_footer(text="Les objets légendaires sont parfois difficiles à trouver...")
@@ -413,7 +410,7 @@ class SearchCommand(BaseCommand):
 
     def _create_error_embed(self, title: str, description: str) -> discord.Embed:
         """Crée un embed d'erreur."""
-        embed = discord.Embed(
+        return discord.Embed(
             title=f"❌ {title}",
             description=description,
             color=0xe74c3c  # Rouge
