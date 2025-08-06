@@ -46,13 +46,14 @@ except ImportError as e:
     print("   • Vérifiez que aiohttp est installé: pip install aiohttp")
     BOUTIQUE_AVAILABLE = False
 
+# Import conditionnel pour la commande de recherche
 try:
     from .boutique import SearchCommand
-    ALL_COMMANDS.append(SearchCommand)
-    print("✅ Commande de recherche ajoutée")
+    SEARCH_COMMAND_AVAILABLE = True
+    print("✅ Commande de recherche chargée avec succès")
 except ImportError:
+    SEARCH_COMMAND_AVAILABLE = False
     print("⚠️ Commande de recherche non disponible")
-    pass
 
 # Liste de toutes les commandes disponibles
 ALL_COMMANDS = [
@@ -81,7 +82,9 @@ if BOUTIQUE_AVAILABLE:
     ALL_COMMANDS.append(BoutiqueCommand)
     print("✅ Commande boutique OM_PRICE ajoutée")
 
-
+if SEARCH_COMMAND_AVAILABLE:
+    ALL_COMMANDS.append(SearchCommand)
+    print("✅ Commande de recherche ajoutée")
 
 print(f"📋 Total: {len(ALL_COMMANDS)} commandes chargées")
 
