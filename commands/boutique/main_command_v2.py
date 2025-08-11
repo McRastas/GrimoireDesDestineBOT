@@ -119,7 +119,7 @@ class BoutiqueCommandV2(BaseCommand):
                 return
             
             # Filtrage par rareté
-            filtered_items = self.item_selector.filter_by_rarity(raw_items)
+            filtered_items = self.item_selector.filter_items_by_rarity(raw_items)
             
             if len(filtered_items) < target_count:
                 # Ajuster le nombre cible si pas assez d'objets disponibles
