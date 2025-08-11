@@ -68,16 +68,18 @@ class BoutiqueCommandV2(BaseCommand):
         @tree.command(name=self.name, description=self.description)
         @app_commands.describe(
             nombre_objets="Nombre d'objets à afficher (entre 3 et 8, aléatoire par défaut)",
-            public="Afficher la boutique publiquement (visible par tous) - défaut: non"
+            public="Afficher la boutique publiquement (visible par tous) - défaut: non",
+            format_copiable="Inclure une version markdown copiable - défaut: non"
         )
         async def boutique_v2_command(
             interaction: discord.Interaction,
             nombre_objets: Optional[int] = None,
-            public: Optional[bool] = False
+            public: Optional[bool] = False,
+            format_copiable: Optional[bool] = False
         ):
-            await self.callback(interaction, nombre_objets, public)
+            await self.callback(interaction, nombre_objets, public, format_copiable)
     
-    async def callback(self, interaction: discord.Interaction, nombre_objets: Optional[int] = None, public: Optional[bool] = False):
+    async def callback(self, interaction: discord.Interaction, nombre_objets: Optional[int] = None, public: Optional[bool] = False, format_copiable: Optional[bool] = False):
         """
         Traite la commande boutique OM_PRICE.
         
@@ -183,10 +185,15 @@ class BoutiqueCommandV2(BaseCommand):
             # Mise à jour du message avec l'embed principal
             await interaction.edit_original_response(embed=boutique_embed)
             
-            # === NOUVEAU : Génération et envoi de la version markdown copiable ===
-            
-            # Création du contenu markdown copiable
-            markdown_content = self.response_builder.create_markdown_output(validated_items, stats)
+            # === VERSION MARKDOWN COPIABLE (OPTIONNELLE) ===
+
+            if format_copiable:
+                # [Tout le code de génération markdown existant]
+                markdown_content = self.response_builder.create_markdown_output(validated_items, stats)
+                # [Reste du code pour l'envoi...]
+                logger.info(f"Boutique OM_PRICE générée avec succès: {len(validated_items)} objets affichés (public: {public}, copiable: {format_copiable})")
+            else:
+                logger.info(f"Boutique OM_PRICE générée avec succès: {len(validated_items)} objets affichés (public: {public})")
             
             # Vérifier si le contenu markdown est trop long pour Discord
             if len(markdown_content) > 1900:  # Limite Discord avec marge de sécurité
