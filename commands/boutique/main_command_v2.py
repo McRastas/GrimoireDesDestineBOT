@@ -55,7 +55,7 @@ class BoutiqueCommandV2(BaseCommand):
     @property
     def name(self) -> str:
         """Nom de la commande."""
-        return "boutique-v2"
+        return "boutique"
     
     @property
     def description(self) -> str:
