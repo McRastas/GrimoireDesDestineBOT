@@ -267,3 +267,88 @@ class BoutiqueResponseBuilderV2:
         embed.set_footer(text="Veuillez patienter quelques instants")
         
         return embed
+
+    def create_markdown_output(self, items: List[Dict[str, str]], stats: Dict[str, any] = None) -> str:
+    """
+    Crée une version markdown copiable des objets de la boutique.
+    
+    Args:
+        items: Liste des objets sélectionnés
+        stats: Statistiques optionnelles
+        
+    Returns:
+        str: Contenu formaté en markdown facilement copiable
+    """
+    markdown_lines = []
+    
+    # En-tête
+    markdown_lines.append("# 🏪 Boutique Magique - Objets Disponibles")
+    markdown_lines.append("")
+    markdown_lines.append(f"*{len(items)} objets magiques disponibles aujourd'hui*")
+    markdown_lines.append("")
+    
+    # Liste des objets
+    for i, item in enumerate(items, 1):
+        # Nom avec emoji de rareté
+        nom = item.get("nom_display", f"Objet #{i}")
+        rarity = item.get("rarity_display", "")
+        
+        # Emoji selon la rareté
+        emoji_map = {
+            'commun': '⚪',
+            'peu commun': '🟢', 
+            'rare': '🔵',
+            'très rare': '🟣',
+            'légendaire': '🟡'
+        }
+        
+        rarity_lower = rarity.lower().strip()
+        emoji = emoji_map.get(rarity_lower, '✨')
+        
+        markdown_lines.append(f"## {emoji} {i}. {nom}")
+        
+        # Détails de l'objet
+        if rarity:
+            markdown_lines.append(f"**Rareté :** {rarity}")
+        
+        item_type = item.get("Type", "")
+        if item_type:
+            formatted_type = item_type.replace("_", " ").title()
+            markdown_lines.append(f"**Type :** {formatted_type}")
+        
+        # Lien magique avec emojis
+        lien_display = item.get("lien_display", "")
+        if lien_display:
+            lien_lower = lien_display.lower().strip()
+            if lien_lower == 'oui':
+                markdown_lines.append("**Lien magique :** 🔗 Oui")
+            elif lien_lower == 'non':
+                markdown_lines.append("**Lien magique :** ❌ Non")
+            else:
+                markdown_lines.append(f"**Lien magique :** 🔮 {lien_display}")
+        
+        # Prix
+        price = item.get("price_display", "")
+        if price and price != "Prix non spécifié":
+            markdown_lines.append(f"**Prix :** {price}")
+        
+        # Source
+        source = item.get("Source", "")
+        if source:
+            markdown_lines.append(f"**Source :** {source}")
+        
+        markdown_lines.append("")  # Ligne vide entre les objets
+    
+    # Footer avec statistiques
+    if stats:
+        markdown_lines.append("---")
+        markdown_lines.append("### 📊 Statistiques")
+        if 'total_items' in stats:
+            markdown_lines.append(f"- **Objets en base :** {stats['total_items']}")
+        if 'filtered_items' in stats:
+            markdown_lines.append(f"- **Objets disponibles :** {stats['filtered_items']}")
+        markdown_lines.append("")
+    
+    markdown_lines.append("*Boutique magique de Faerûn*")
+    
+    return "\n".join(markdown_lines)
