@@ -87,6 +87,7 @@ class BoutiqueCommandV2(BaseCommand):
             interaction: Interaction Discord
             nombre_objets: Nombre d'objets à afficher (optionnel)
             public: Si True, le message sera visible par tous, sinon temporaire (défaut: False)
+            format_copiable: Si True, inclut une version markdown copiable (défaut: False)
         """
         try:
             # Déterminer si le message doit être temporaire ou public
@@ -109,7 +110,7 @@ class BoutiqueCommandV2(BaseCommand):
             await interaction.response.send_message(embed=loading_embed, ephemeral=is_ephemeral)
             
             # Récupération des données depuis Google Sheets
-            logger.info(f"Récupération des objets OM_PRICE depuis la feuille '{self.sheet_name}' (public: {public})")
+            logger.info(f"Récupération des objets OM_PRICE depuis la feuille '{self.sheet_name}' (public: {public}, copiable: {format_copiable})")
             raw_items = await self.sheets_client.fetch_sheet_data(self.sheet_name)
             
             if not raw_items:
@@ -120,7 +121,7 @@ class BoutiqueCommandV2(BaseCommand):
                 await interaction.edit_original_response(embed=error_embed)
                 return
             
-            # Filtrage par rareté
+            # Filtrage par rareté avec préservation des indices originaux
             filtered_items, filtered_indices = self.item_selector.filter_items_by_rarity(raw_items)
 
             if len(filtered_items) < target_count:
@@ -186,38 +187,34 @@ class BoutiqueCommandV2(BaseCommand):
             await interaction.edit_original_response(embed=boutique_embed)
             
             # === VERSION MARKDOWN COPIABLE (OPTIONNELLE) ===
-
-            if format_copiable:
-                # [Tout le code de génération markdown existant]
-                markdown_content = self.response_builder.create_markdown_output(validated_items, stats)
-                # [Reste du code pour l'envoi...]
-                logger.info(f"Boutique OM_PRICE générée avec succès: {len(validated_items)} objets affichés (public: {public}, copiable: {format_copiable})")
-            else:
-                logger.info(f"Boutique OM_PRICE générée avec succès: {len(validated_items)} objets affichés (public: {public})")
             
-            # Vérifier si le contenu markdown est trop long pour Discord
-            if len(markdown_content) > 1900:  # Limite Discord avec marge de sécurité
-                # Diviser en plusieurs parties
-                parts = self._split_markdown_content(markdown_content)
+            if format_copiable:
+                # Création du contenu markdown copiable
+                markdown_content = self.response_builder.create_markdown_output(validated_items, stats)
                 
-                # Envoyer les parties markdown
-                for i, part in enumerate(parts):
+                # Vérifier si le contenu markdown est trop long pour Discord
+                if len(markdown_content) > 1900:  # Limite Discord avec marge de sécurité
+                    # Diviser en plusieurs parties
+                    parts = self._split_markdown_content(markdown_content)
+                    
+                    # Envoyer les parties markdown
+                    for i, part in enumerate(parts):
+                        markdown_embed = discord.Embed(
+                            title=f"📋 Version Copiable (partie {i+1}/{len(parts)})",
+                            description=f"```markdown\n{part}\n```",
+                            color=0x3498db
+                        )
+                        await interaction.followup.send(embed=markdown_embed, ephemeral=is_ephemeral)
+                else:
+                    # Envoyer la version markdown copiable en un seul message
                     markdown_embed = discord.Embed(
-                        title=f"📋 Version Copiable (partie {i+1}/{len(parts)})",
-                        description=f"```markdown\n{part}\n```",
+                        title="📋 Version Copiable",
+                        description=f"```markdown\n{markdown_content}\n```",
                         color=0x3498db
                     )
                     await interaction.followup.send(embed=markdown_embed, ephemeral=is_ephemeral)
-            else:
-                # Envoyer la version markdown copiable en un seul message
-                markdown_embed = discord.Embed(
-                    title="📋 Version Copiable",
-                    description=f"```markdown\n{markdown_content}\n```",
-                    color=0x3498db
-                )
-                await interaction.followup.send(embed=markdown_embed, ephemeral=is_ephemeral)
             
-            logger.info(f"Boutique OM_PRICE générée avec succès: {len(validated_items)} objets affichés (public: {public})")
+            logger.info(f"Boutique OM_PRICE générée avec succès: {len(validated_items)} objets affichés (public: {public}, copiable: {format_copiable})")
             
         except Exception as e:
             logger.error(f"Erreur dans la commande boutique OM_PRICE: {e}", exc_info=True)
