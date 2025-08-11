@@ -7,7 +7,7 @@ import discord
 from discord import app_commands
 import logging
 import random
-from typing import Optional
+from typing import Optional, List
 
 from ..base import BaseCommand
 from .google_sheets_client import GoogleSheetsClient
@@ -78,171 +78,171 @@ class BoutiqueCommandV2(BaseCommand):
             await self.callback(interaction, nombre_objets, public)
     
     async def callback(self, interaction: discord.Interaction, nombre_objets: Optional[int] = None, public: Optional[bool] = False):
-    """
-    Traite la commande boutique OM_PRICE.
-    
-    Args:
-        interaction: Interaction Discord
-        nombre_objets: Nombre d'objets à afficher (optionnel)
-        public: Si True, le message sera visible par tous, sinon temporaire (défaut: False)
-    """
-    try:
-        # Déterminer si le message doit être temporaire ou public
-        is_ephemeral = not public  # Si public=True, ephemeral=False, et vice versa
+        """
+        Traite la commande boutique OM_PRICE.
         
-        # Validation du nombre d'objets
-        if nombre_objets is not None:
-            if nombre_objets < self.min_items or nombre_objets > self.max_items:
-                await interaction.response.send_message(
-                    f"❌ Le nombre d'objets doit être entre {self.min_items} et {self.max_items}.",
-                    ephemeral=True  # Les messages d'erreur restent toujours temporaires
-                )
-                return
-            target_count = nombre_objets
-        else:
-            target_count = random.randint(self.min_items, self.max_items)
-        
-        # Réponse immédiate avec embed de chargement
-        loading_embed = self.response_builder.create_loading_embed()
-        await interaction.response.send_message(embed=loading_embed, ephemeral=is_ephemeral)
-        
-        # Récupération des données depuis Google Sheets
-        logger.info(f"Récupération des objets OM_PRICE depuis la feuille '{self.sheet_name}' (public: {public})")
-        raw_items = await self.sheets_client.fetch_sheet_data(self.sheet_name)
-        
-        if not raw_items:
-            error_embed = self.response_builder.create_error_embed(
-                "Aucun objet trouvé dans la base de données OM_PRICE.",
-                f"La feuille '{self.sheet_name}' semble être vide."
-            )
-            await interaction.edit_original_response(embed=error_embed)
-            return
-        
-        # Filtrage par rareté
-        filtered_items = self.item_selector.filter_by_rarity(raw_items)
-        
-        if len(filtered_items) < target_count:
-            # Ajuster le nombre cible si pas assez d'objets disponibles
-            logger.warning(f"Seulement {len(filtered_items)} objets disponibles, ajustement du nombre cible")
-            target_count = len(filtered_items)
-        
-        if target_count == 0:
-            error_embed = self.response_builder.create_error_embed(
-                "Aucun objet disponible après filtrage.",
-                f"Tous les objets sont dans les raretés exclues : {', '.join(self.excluded_rarities)}"
-            )
-            await interaction.edit_original_response(embed=error_embed)
-            return
-        
-        # Sélection aléatoire d'objets avec leurs indices
+        Args:
+            interaction: Interaction Discord
+            nombre_objets: Nombre d'objets à afficher (optionnel)
+            public: Si True, le message sera visible par tous, sinon temporaire (défaut: False)
+        """
         try:
-            selected_items, selected_indices = self.item_selector.select_random_items_with_indices(
-                filtered_items, target_count
-            )
+            # Déterminer si le message doit être temporaire ou public
+            is_ephemeral = not public  # Si public=True, ephemeral=False, et vice versa
             
-            if not selected_items:
-                raise ValueError("Aucun objet sélectionné après le processus de sélection")
+            # Validation du nombre d'objets
+            if nombre_objets is not None:
+                if nombre_objets < self.min_items or nombre_objets > self.max_items:
+                    await interaction.response.send_message(
+                        f"❌ Le nombre d'objets doit être entre {self.min_items} et {self.max_items}.",
+                        ephemeral=True  # Les messages d'erreur restent toujours temporaires
+                    )
+                    return
+                target_count = nombre_objets
+            else:
+                target_count = random.randint(self.min_items, self.max_items)
+            
+            # Réponse immédiate avec embed de chargement
+            loading_embed = self.response_builder.create_loading_embed()
+            await interaction.response.send_message(embed=loading_embed, ephemeral=is_ephemeral)
+            
+            # Récupération des données depuis Google Sheets
+            logger.info(f"Récupération des objets OM_PRICE depuis la feuille '{self.sheet_name}' (public: {public})")
+            raw_items = await self.sheets_client.fetch_sheet_data(self.sheet_name)
+            
+            if not raw_items:
+                error_embed = self.response_builder.create_error_embed(
+                    "Aucun objet trouvé dans la base de données OM_PRICE.",
+                    f"La feuille '{self.sheet_name}' semble être vide."
+                )
+                await interaction.edit_original_response(embed=error_embed)
+                return
+            
+            # Filtrage par rareté
+            filtered_items = self.item_selector.filter_by_rarity(raw_items)
+            
+            if len(filtered_items) < target_count:
+                # Ajuster le nombre cible si pas assez d'objets disponibles
+                logger.warning(f"Seulement {len(filtered_items)} objets disponibles, ajustement du nombre cible")
+                target_count = len(filtered_items)
+            
+            if target_count == 0:
+                error_embed = self.response_builder.create_error_embed(
+                    "Aucun objet disponible après filtrage.",
+                    f"Tous les objets sont dans les raretés exclues : {', '.join(self.excluded_rarities)}"
+                )
+                await interaction.edit_original_response(embed=error_embed)
+                return
+            
+            # Sélection aléatoire d'objets avec leurs indices
+            try:
+                selected_items, selected_indices = self.item_selector.select_random_items_with_indices(
+                    filtered_items, target_count
+                )
                 
-        except Exception as e:
-            logger.error(f"Erreur lors de la sélection des objets: {e}")
-            error_embed = self.response_builder.create_error_embed(
-                "Erreur lors de la sélection des objets magiques OM_PRICE.",
-                str(e)
-            )
-            await interaction.edit_original_response(embed=error_embed)
-            return
-        
-        # Validation des objets sélectionnés
-        validated_items = [
-            self.item_selector.validate_item_data(item) 
-            for item in selected_items
-        ]
-        
-        # Statistiques
-        stats = {
-            'total_items': len(raw_items),
-            'filtered_items': len(filtered_items),
-            'selected_items': len(validated_items),
-            'target_count': target_count
-        }
-        
-        # Création de la réponse finale avec les indices pour les liens Google Sheets
-        boutique_embed = self.response_builder.create_boutique_embed(
-            validated_items, 
-            stats,
-            selected_indices
-        )
-        
-        # Ajouter une indication du mode d'affichage dans le footer si c'est public
-        if public:
-            current_footer = boutique_embed.footer.text if boutique_embed.footer else ""
-            boutique_embed.set_footer(text=f"{current_footer} • Message public partagé par {interaction.user.display_name}")
-        
-        # Mise à jour du message avec l'embed principal
-        await interaction.edit_original_response(embed=boutique_embed)
-        
-        # === NOUVEAU : Génération et envoi de la version markdown copiable ===
-        
-        # Création du contenu markdown copiable
-        markdown_content = self.response_builder.create_markdown_output(validated_items, stats)
-        
-        # Vérifier si le contenu markdown est trop long pour Discord
-        if len(markdown_content) > 1900:  # Limite Discord avec marge de sécurité
-            # Diviser en plusieurs parties
-            parts = self._split_markdown_content(markdown_content)
+                if not selected_items:
+                    raise ValueError("Aucun objet sélectionné après le processus de sélection")
+                    
+            except Exception as e:
+                logger.error(f"Erreur lors de la sélection des objets: {e}")
+                error_embed = self.response_builder.create_error_embed(
+                    "Erreur lors de la sélection des objets magiques OM_PRICE.",
+                    str(e)
+                )
+                await interaction.edit_original_response(embed=error_embed)
+                return
             
-            # Envoyer les parties markdown
-            for i, part in enumerate(parts):
+            # Validation des objets sélectionnés
+            validated_items = [
+                self.item_selector.validate_item_data(item) 
+                for item in selected_items
+            ]
+            
+            # Statistiques
+            stats = {
+                'total_items': len(raw_items),
+                'filtered_items': len(filtered_items),
+                'selected_items': len(validated_items),
+                'target_count': target_count
+            }
+            
+            # Création de la réponse finale avec les indices pour les liens Google Sheets
+            boutique_embed = self.response_builder.create_boutique_embed(
+                validated_items, 
+                stats,
+                selected_indices
+            )
+            
+            # Ajouter une indication du mode d'affichage dans le footer si c'est public
+            if public:
+                current_footer = boutique_embed.footer.text if boutique_embed.footer else ""
+                boutique_embed.set_footer(text=f"{current_footer} • Message public partagé par {interaction.user.display_name}")
+            
+            # Mise à jour du message avec l'embed principal
+            await interaction.edit_original_response(embed=boutique_embed)
+            
+            # === NOUVEAU : Génération et envoi de la version markdown copiable ===
+            
+            # Création du contenu markdown copiable
+            markdown_content = self.response_builder.create_markdown_output(validated_items, stats)
+            
+            # Vérifier si le contenu markdown est trop long pour Discord
+            if len(markdown_content) > 1900:  # Limite Discord avec marge de sécurité
+                # Diviser en plusieurs parties
+                parts = self._split_markdown_content(markdown_content)
+                
+                # Envoyer les parties markdown
+                for i, part in enumerate(parts):
+                    markdown_embed = discord.Embed(
+                        title=f"📋 Version Copiable (partie {i+1}/{len(parts)})",
+                        description=f"```markdown\n{part}\n```",
+                        color=0x3498db
+                    )
+                    await interaction.followup.send(embed=markdown_embed, ephemeral=is_ephemeral)
+            else:
+                # Envoyer la version markdown copiable en un seul message
                 markdown_embed = discord.Embed(
-                    title=f"📋 Version Copiable (partie {i+1}/{len(parts)})",
-                    description=f"```markdown\n{part}\n```",
+                    title="📋 Version Copiable",
+                    description=f"```markdown\n{markdown_content}\n```",
                     color=0x3498db
                 )
                 await interaction.followup.send(embed=markdown_embed, ephemeral=is_ephemeral)
-        else:
-            # Envoyer la version markdown copiable en un seul message
-            markdown_embed = discord.Embed(
-                title="📋 Version Copiable",
-                description=f"```markdown\n{markdown_content}\n```",
-                color=0x3498db
-            )
-            await interaction.followup.send(embed=markdown_embed, ephemeral=is_ephemeral)
-        
-        logger.info(f"Boutique OM_PRICE générée avec succès: {len(validated_items)} objets affichés (public: {public})")
-        
-    except Exception as e:
-        logger.error(f"Erreur dans la commande boutique OM_PRICE: {e}", exc_info=True)
-        
-        # Gestion d'erreur robuste
-        try:
-            error_embed = self.response_builder.create_error_embed(
-                "Une erreur inattendue s'est produite avec OM_PRICE.",
-                f"Erreur technique: {str(e)[:200]}..."
-            )
             
-            # Vérifier si on peut encore répondre
-            if not interaction.response.is_done():
-                await interaction.response.send_message(embed=error_embed, ephemeral=True)  # Erreurs toujours temporaires
-            else:
-                await interaction.edit_original_response(embed=error_embed)
-                
-        except Exception as fallback_error:
-            logger.error(f"Erreur lors de l'envoi du message d'erreur OM_PRICE: {fallback_error}")
+            logger.info(f"Boutique OM_PRICE générée avec succès: {len(validated_items)} objets affichés (public: {public})")
             
-            # Dernier recours
+        except Exception as e:
+            logger.error(f"Erreur dans la commande boutique OM_PRICE: {e}", exc_info=True)
+            
+            # Gestion d'erreur robuste
             try:
+                error_embed = self.response_builder.create_error_embed(
+                    "Une erreur inattendue s'est produite avec OM_PRICE.",
+                    f"Erreur technique: {str(e)[:200]}..."
+                )
+                
+                # Vérifier si on peut encore répondre
                 if not interaction.response.is_done():
-                    await interaction.response.send_message(
-                        "❌ Erreur: Impossible d'accéder à la boutique magique OM_PRICE pour le moment.",
-                        ephemeral=True  # Erreurs toujours temporaires
-                    )
+                    await interaction.response.send_message(embed=error_embed, ephemeral=True)  # Erreurs toujours temporaires
                 else:
-                    await interaction.edit_original_response(
-                        content="❌ Erreur: Impossible d'accéder à la boutique magique OM_PRICE pour le moment.",
-                        embed=None
-                    )
-            except:
-                logger.error("Impossible d'envoyer une réponse d'erreur à l'utilisateur")
+                    await interaction.edit_original_response(embed=error_embed)
+                    
+            except Exception as fallback_error:
+                logger.error(f"Erreur lors de l'envoi du message d'erreur OM_PRICE: {fallback_error}")
+                
+                # Dernier recours
+                try:
+                    if not interaction.response.is_done():
+                        await interaction.response.send_message(
+                            "❌ Erreur: Impossible d'accéder à la boutique magique OM_PRICE pour le moment.",
+                            ephemeral=True  # Erreurs toujours temporaires
+                        )
+                    else:
+                        await interaction.edit_original_response(
+                            content="❌ Erreur: Impossible d'accéder à la boutique magique OM_PRICE pour le moment.",
+                            embed=None
+                        )
+                except:
+                    logger.error("Impossible d'envoyer une réponse d'erreur à l'utilisateur")
 
     def _split_markdown_content(self, content: str, max_length: int = 1800) -> List[str]:
         """
@@ -280,7 +280,7 @@ class BoutiqueCommandV2(BaseCommand):
             parts.append('\n'.join(current_part))
         
         return parts
-    
+
     async def test_connection(self) -> bool:
         """
         Test la connexion au Google Sheets OM_PRICE.
@@ -310,5 +310,3 @@ class BoutiqueCommandV2(BaseCommand):
             'sheet_url': self.sheets_client.get_sheet_url(self.sheet_name),
             'version': 'OM_PRICE_v2'
         }
-
-    
