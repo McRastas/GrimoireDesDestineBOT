@@ -119,13 +119,13 @@ class BoutiqueCommandV2(BaseCommand):
                 return
             
             # Filtrage par rareté
-            filtered_items = self.item_selector.filter_items_by_rarity(raw_items)
-            
+            filtered_items, filtered_indices = self.item_selector.filter_items_by_rarity(raw_items)
+
             if len(filtered_items) < target_count:
                 # Ajuster le nombre cible si pas assez d'objets disponibles
                 logger.warning(f"Seulement {len(filtered_items)} objets disponibles, ajustement du nombre cible")
                 target_count = len(filtered_items)
-            
+
             if target_count == 0:
                 error_embed = self.response_builder.create_error_embed(
                     "Aucun objet disponible après filtrage.",
@@ -133,13 +133,15 @@ class BoutiqueCommandV2(BaseCommand):
                 )
                 await interaction.edit_original_response(embed=error_embed)
                 return
-            
+
             # Sélection aléatoire d'objets avec leurs indices
             try:
-                selected_items, selected_indices = self.item_selector.select_random_items_with_indices(
-                    filtered_items, target_count
+                selected_items, selected_indices = self.item_selector.select_random_items(
+                    (filtered_items, filtered_indices), 
+                    min_count=target_count, 
+                    max_count=target_count
                 )
-                
+                            
                 if not selected_items:
                     raise ValueError("Aucun objet sélectionné après le processus de sélection")
                     
