@@ -66,13 +66,14 @@ class ItemSelectorV2:
         logger.debug(f"Rareté '{rarity}' AUTORISÉE")
         return False
     
-    def filter_items_by_rarity(self, items: List[Dict[str, str]], rarity_column: str = "RARETER") -> Tuple[List[Dict[str, str]], List[int]]:
+    def filter_items_by_specific_rarity(self, items: List[Dict[str, str]], rarity_column: str, target_rarity: str) -> Tuple[List[Dict[str, str]], List[int]]:
         """
-        Filtre les objets selon leur rareté en gardant les indices originaux.
+        Filtre les objets pour ne garder que ceux d'une rareté spécifique.
         
         Args:
             items: Liste des objets à filtrer
             rarity_column: Nom de la colonne contenant la rareté
+            target_rarity: Rareté cible à conserver
             
         Returns:
             Tuple[List[Dict[str, str]], List[int]]: (Liste des objets filtrés, Liste des indices originaux)
@@ -80,17 +81,24 @@ class ItemSelectorV2:
         filtered_items = []
         original_indices = []
         
+        target_rarity_lower = target_rarity.lower().strip()
+        
         for i, item in enumerate(items):
-            rarity = item.get(rarity_column, "")
+            rarity = item.get(rarity_column, "").lower().strip()
             
-            if not self._is_rarity_excluded(rarity):
+            # Comparaison flexible pour différents formats de rareté
+            if (rarity == target_rarity_lower or 
+                rarity.replace(' ', '') == target_rarity_lower.replace(' ', '') or
+                rarity in target_rarity_lower or 
+                target_rarity_lower in rarity):
+                
                 filtered_items.append(item)
                 original_indices.append(i)
-            else:
+                
                 item_name = item.get("Nom de l'objet") or item.get("Nom en VO", "Inconnu")
-                logger.debug(f"Objet exclu: {item_name} (Rareté: {rarity})")
+                logger.debug(f"Objet inclus: {item_name} (Rareté: {rarity})")
         
-        logger.info(f"Filtrage terminé: {len(filtered_items)}/{len(items)} objets retenus")
+        logger.info(f"Filtrage par rareté '{target_rarity}' terminé: {len(filtered_items)}/{len(items)} objets retenus")
         return filtered_items, original_indices
 
     def filter_items_by_price(self, items_with_indices: Tuple[List[Dict[str, str]], List[int]], price_column: str = "OM_PRICE") -> Tuple[List[Dict[str, str]], List[int]]:

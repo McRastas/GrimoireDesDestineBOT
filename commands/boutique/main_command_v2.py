@@ -69,17 +69,27 @@ class BoutiqueCommandV2(BaseCommand):
         @app_commands.describe(
             nombre_objets="Nombre d'objets à afficher (entre 3 et 8, aléatoire par défaut)",
             public="Afficher la boutique publiquement (visible par tous) - défaut: non",
-            format_copiable="Inclure une version markdown copiable - défaut: non"
+            format_copiable="Inclure une version markdown copiable - défaut: non",
+            rarete="Rareté spécifique à afficher (commun, peu commun, rare, très rare, légendaire)"
         )
+        @app_commands.choices(rarete=[
+            app_commands.Choice(name="Commun", value="commun"),
+            app_commands.Choice(name="Peu commun", value="peu commun"),
+            app_commands.Choice(name="Rare", value="rare"),
+            app_commands.Choice(name="Très rare", value="très rare"),
+            app_commands.Choice(name="Légendaire", value="légendaire"),
+            app_commands.Choice(name="Artefact", value="artefact")
+        ])
         async def boutique_v2_command(
             interaction: discord.Interaction,
             nombre_objets: Optional[int] = None,
             public: Optional[bool] = False,
-            format_copiable: Optional[bool] = False
+            format_copiable: Optional[bool] = False,
+            rarete: Optional[str] = None
         ):
-            await self.callback(interaction, nombre_objets, public, format_copiable)
+            await self.callback(interaction, nombre_objets, public, format_copiable, rarete)
     
-    async def callback(self, interaction: discord.Interaction, nombre_objets: Optional[int] = None, public: Optional[bool] = False, format_copiable: Optional[bool] = False):
+    async def callback(self, interaction: discord.Interaction, nombre_objets: Optional[int] = None, public: Optional[bool] = False, format_copiable: Optional[bool] = False, rarete: Optional[str] = None):
         """
         Traite la commande boutique OM_PRICE.
         
@@ -88,6 +98,7 @@ class BoutiqueCommandV2(BaseCommand):
             nombre_objets: Nombre d'objets à afficher (optionnel)
             public: Si True, le message sera visible par tous, sinon temporaire (défaut: False)
             format_copiable: Si True, inclut une version markdown copiable (défaut: False)
+            rarete: Rareté spécifique à afficher (optionnel)
         """
         try:
             # Déterminer si le message doit être temporaire ou public
@@ -110,7 +121,7 @@ class BoutiqueCommandV2(BaseCommand):
             await interaction.response.send_message(embed=loading_embed, ephemeral=is_ephemeral)
             
             # Récupération des données depuis Google Sheets
-            logger.info(f"Récupération des objets OM_PRICE depuis la feuille '{self.sheet_name}' (public: {public}, copiable: {format_copiable})")
+            logger.info(f"Récupération des objets OM_PRICE depuis la feuille '{self.sheet_name}' (public: {public}, copiable: {format_copiable}, rareté: {rarete})")
             raw_items = await self.sheets_client.fetch_sheet_data(self.sheet_name)
             
             if not raw_items:
@@ -123,7 +134,13 @@ class BoutiqueCommandV2(BaseCommand):
             
             # Filtrage par rareté avec préservation des indices originaux
             rarity_column = get_config()['item_selection']['rarity_column']
-            filtered_items, filtered_indices = self.item_selector.filter_items_by_rarity(raw_items, rarity_column)
+            
+            if rarete:
+                # Filtrage pour une rareté spécifique
+                filtered_items, filtered_indices = self.item_selector.filter_items_by_specific_rarity(raw_items, rarity_column, rarete)
+            else:
+                # Filtrage normal (exclut les raretés configurées)
+                filtered_items, filtered_indices = self.item_selector.filter_items_by_rarity(raw_items, rarity_column)
             
             # Filtrage par prix pour ignorer les objets sans prix valide
             config = get_config()
@@ -152,9 +169,10 @@ class BoutiqueCommandV2(BaseCommand):
                 target_count = len(filtered_items)
 
             if target_count == 0:
+                rarity_msg = f" de rareté '{rarete}'" if rarete else ""
                 error_embed = self.response_builder.create_error_embed(
-                    "Aucun objet disponible après filtrage.",
-                    f"Tous les objets sont dans les raretés exclues : {', '.join(self.excluded_rarities)}"
+                    f"Aucun objet{rarity_msg} disponible après filtrage.",
+                    f"Aucun objet trouvé avec les critères demandés."
                 )
                 await interaction.edit_original_response(embed=error_embed)
                 return
@@ -236,7 +254,7 @@ class BoutiqueCommandV2(BaseCommand):
                     )
                     await interaction.followup.send(embed=markdown_embed, ephemeral=is_ephemeral)
             
-            logger.info(f"Boutique OM_PRICE générée avec succès: {len(validated_items)} objets affichés (public: {public}, copiable: {format_copiable})")
+            logger.info(f"Boutique OM_PRICE générée avec succès: {len(validated_items)} objets affichés (public: {public}, copiable: {format_copiable}, rareté: {rarete or 'toutes'})")
             
         except Exception as e:
             logger.error(f"Erreur dans la commande boutique OM_PRICE: {e}", exc_info=True)
