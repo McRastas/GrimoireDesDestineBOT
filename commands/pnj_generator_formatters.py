@@ -105,7 +105,7 @@ Devotion: {details.get('info_extra', 'Serviteur fidèle')}"""
             return f"""Classe: {details.get('classe', 'Guerrier')}
 Niveau: {details.get('niveau_estime', 'Expérimenté')}
 Specialite: {details.get('specialite', 'Exploration')}
-Experience: {details.get('info_extra', 'Quelques années d\'aventure')}"""
+Experience: {details.get('info_extra', "Quelques années d'aventure")}"""
         
         elif type_pnj == "artisan":
             return f"""Metier: {details.get('metier', 'Artisan')}
@@ -171,7 +171,7 @@ Experience: {details.get('info_extra', 'Étudie la magie')}"""
             return f"""• **Classe :** {details.get('classe', 'Guerrier')}
 • **Niveau :** {details.get('niveau_estime', 'Expérimenté')}
 • **Spécialité :** {details.get('specialite', 'Exploration')}
-• **Expérience :** {details.get('info_extra', 'Quelques années d\'aventure')}"""
+• **Expérience :** {details.get('info_extra', "Quelques années d'aventure")}"""
         
         elif type_pnj == "artisan":
             return f"""• **Métier :** {details.get('metier', 'Artisan')}
