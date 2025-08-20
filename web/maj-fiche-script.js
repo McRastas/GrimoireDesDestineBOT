@@ -83,6 +83,77 @@ function deleteQuete(index) {
     }
 }
 
+function addRecompense(index) {
+    const container = document.getElementById(`recompenses-container-${index}`);
+    if (!container) return;
+
+    if (recompenseCounters[index] === undefined) {
+        recompenseCounters[index] = container.querySelectorAll('.recompense-item').length;
+    }
+
+    const recompenseIndex = recompenseCounters[index]++;
+
+    const html = `
+        <div class="recompense-item" data-recompense="${recompenseIndex}">
+            <select style="flex: 0 0 120px;">
+                <option value="monnaie" selected>💰 Monnaie</option>
+                <option value="item">🎒 Objet</option>
+            </select>
+            <div class="recompense-details" style="flex: 1; display: flex; gap: 5px;">
+                <input type="number" placeholder="PC" style="flex: 1;">
+                <input type="number" placeholder="PA" style="flex: 1;">
+                <input type="number" placeholder="PO" style="flex: 1;">
+                <input type="number" placeholder="PP" style="flex: 1;">
+            </div>
+            <button type="button" class="delete-recompense">🗑️</button>
+        </div>
+    `;
+
+    container.insertAdjacentHTML('beforeend', html);
+
+    setupRecompenseItem(index, recompenseIndex);
+}
+
+function deleteRecompense(queteIndex, recompenseIndex) {
+    const item = document.querySelector(`#recompenses-container-${queteIndex} .recompense-item[data-recompense="${recompenseIndex}"]`);
+    if (item) {
+        item.remove();
+        regenerateIfNeeded();
+    }
+}
+
+function setupRecompenseItem(queteIndex, recompenseIndex) {
+    const item = document.querySelector(`#recompenses-container-${queteIndex} .recompense-item[data-recompense="${recompenseIndex}"]`);
+    if (!item) return;
+
+    const select = item.querySelector('select');
+    const updateFields = function() {
+        const details = item.querySelector('.recompense-details');
+        if (this.value === 'item') {
+            details.innerHTML = `<input type="text" placeholder="Description" style="flex: 1;">`;
+        } else {
+            details.innerHTML = `
+                <input type="number" placeholder="PC" style="flex: 1;">
+                <input type="number" placeholder="PA" style="flex: 1;">
+                <input type="number" placeholder="PO" style="flex: 1;">
+                <input type="number" placeholder="PP" style="flex: 1;">
+            `;
+        }
+
+        details.querySelectorAll('input').forEach(inp => {
+            if (!inp.hasAttribute('data-listener-added')) {
+                inp.addEventListener('input', regenerateIfNeeded);
+                inp.setAttribute('data-listener-added', 'true');
+            }
+        });
+
+        regenerateIfNeeded();
+    };
+
+    select.addEventListener('change', updateFields);
+    updateFields.call(select);
+}
+
 function createQueteHTML(index) {
     return `
         <div class="quete-bloc" data-quete="${index}">
@@ -182,6 +253,33 @@ function setupQueteListeners(index) {
             input.setAttribute('data-listener-added', 'true');
         }
     });
+
+    const addBtn = document.querySelector(`[data-quete="${index}"] .add-recompense`);
+    const recompenseContainer = document.getElementById(`recompenses-container-${index}`);
+
+    if (recompenseContainer && recompenseCounters[index] === undefined) {
+        recompenseCounters[index] = recompenseContainer.querySelectorAll('.recompense-item').length;
+    }
+
+    if (addBtn) {
+        addBtn.addEventListener('click', () => addRecompense(index));
+    }
+
+    if (recompenseContainer) {
+        const items = recompenseContainer.querySelectorAll('.recompense-item');
+        items.forEach(item => {
+            const rIndex = item.getAttribute('data-recompense');
+            setupRecompenseItem(index, rIndex);
+        });
+
+        recompenseContainer.addEventListener('click', function(e) {
+            if (e.target.classList.contains('delete-recompense')) {
+                const item = e.target.closest('.recompense-item');
+                const recompenseIndex = item.getAttribute('data-recompense');
+                deleteRecompense(index, recompenseIndex);
+            }
+        });
+    }
 }
 
 // ===== GÉNÉRATION DES QUÊTES =====
