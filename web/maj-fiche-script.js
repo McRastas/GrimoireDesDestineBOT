@@ -25,23 +25,23 @@ let recompenseCounters = {}; // Pour tracker les compteurs de récompenses par q
 
 // ===== GESTION DES ONGLETS =====
 
-function showTab(tabName) {
+function showTab(tabName, event) {
     // Cacher tous les contenus d'onglets
     const contents = document.querySelectorAll('.tab-content');
     contents.forEach(content => content.classList.remove('active'));
-    
+
     // Désactiver tous les boutons d'onglets
     const buttons = document.querySelectorAll('.tab-btn');
     buttons.forEach(btn => btn.classList.remove('active'));
-    
+
     // Afficher le contenu sélectionné
     const targetTab = document.getElementById(`tab-${tabName}`);
     if (targetTab) {
         targetTab.classList.add('active');
     }
-    
+
     // Activer le bouton sélectionné
-    event.target.classList.add('active');
+    event.currentTarget.classList.add('active');
 }
 
 // ===== GESTION DES QUÊTES =====
@@ -708,7 +708,7 @@ function regenerateIfNeeded() {
     }
 }
 
-async function copyToClipboard() {
+async function copyToClipboard(event) {
     const outputEl = document.getElementById('discord-output');
     if (!outputEl) return;
     
@@ -721,7 +721,7 @@ async function copyToClipboard() {
 
     try {
         await navigator.clipboard.writeText(output);
-        const btn = event.target;
+        const btn = event.currentTarget;
         const originalText = btn.textContent;
         
         btn.textContent = '✅ Copié !';
@@ -739,7 +739,7 @@ async function copyToClipboard() {
         textArea.select();
         try {
             document.execCommand('copy');
-            const btn = event.target;
+            const btn = event.currentTarget;
             const originalText = btn.textContent;
             
             btn.textContent = '✅ Copié !';
