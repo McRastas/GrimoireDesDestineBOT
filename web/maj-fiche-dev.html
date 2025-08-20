@@ -220,7 +220,55 @@
                             <input type="number" id="xp-actuels" placeholder="3" min="0" max="10" value="8">
                             <div class="help-text">Points d'XP déjà obtenus</div>
                         </div>
-                        <!-- Reste du contenu niveau... -->
+
+                        <div class="form-group">
+                            <label for="niveau-actuel">Niveau actuel :</label>
+                            <input type="number" id="niveau-actuel" placeholder="11" min="1" max="20" value="11">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="niveau-cible">Niveau visé :</label>
+                            <input type="number" id="niveau-cible" placeholder="12" min="1" max="20" value="12">
+                            <div class="help-text">Indiquez le niveau après gain d'XP</div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="classe-gain-niveau">Classe gagnée :</label>
+                            <select id="classe-gain-niveau">
+                                <option value="">Sélectionnez une classe</option>
+                                <option value="Artificier">Artificier</option>
+                                <option value="Barbare">Barbare</option>
+                                <option value="Barde">Barde</option>
+                                <option value="Clerc">Clerc</option>
+                                <option value="Druide">Druide</option>
+                                <option value="Ensorceleur">Ensorceleur</option>
+                                <option value="Guerrier">Guerrier</option>
+                                <option value="Magicien" selected>Magicien</option>
+                                <option value="Moine">Moine</option>
+                                <option value="Occultiste">Occultiste</option>
+                                <option value="Paladin">Paladin</option>
+                                <option value="Rôdeur">Rôdeur</option>
+                                <option value="Roublard">Roublard</option>
+                                <option value="Sorcier">Sorcier</option>
+                            </select>
+                            <div class="help-text">Classe pour laquelle le niveau est gagné</div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="pv-actuels">PV actuels :</label>
+                            <input type="number" id="pv-actuels" placeholder="56" min="1">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="mod-constitution">Modificateur de Constitution :</label>
+                            <input type="number" id="mod-constitution" placeholder="2" min="-5" max="10" value="0">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="bonus-pv">Bonus de PV (optionnel) :</label>
+                            <input type="text" id="bonus-pv" placeholder="2 (Robuste)">
+                            <div class="help-text">Ex : 2 (Robuste)</div>
+                        </div>
                     </div>
 
                     <!-- Autres onglets cachés pour la démo -->
