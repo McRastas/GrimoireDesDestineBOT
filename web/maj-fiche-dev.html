@@ -171,35 +171,37 @@
                                 </div>
 
                                 <div class="form-group">
-                                    <h5 style="color: #2c3e50; margin-bottom: 10px;">🎁 Récompenses obtenues :</h5>
-                                    <div id="recompenses-container-0">
-                                        <div class="recompense-item" data-recompense="0">
-                                            <select style="flex: 0 0 120px;">
-                                                <option value="monnaie" selected>💰 Monnaie</option>
-                                                <option value="item">🎒 Objet</option>
-                                            </select>
-                                            <div style="flex: 1; display: flex; gap: 5px;">
-                                                <input type="number" placeholder="PC" style="flex: 1;" value="0">
-                                                <input type="number" placeholder="PA" style="flex: 1;" value="0">
-                                                <input type="number" placeholder="PO" style="flex: 1;" value="150">
-                                                <input type="number" placeholder="PP" style="flex: 1;" value="0">
-                                            </div>
-                                            <button type="button" class="delete-recompense">🗑️</button>
-                                        </div>
-                                        <div class="recompense-item" data-recompense="1">
-                                            <select style="flex: 0 0 120px;">
-                                                <option value="monnaie">💰 Monnaie</option>
-                                                <option value="item" selected>🎒 Objet</option>
-                                            </select>
-                                            <div style="flex: 1; display: flex; gap: 5px;">
-                                                <input type="text" placeholder="Description" style="flex: 1;" value="Baguette de Boules de Feu (+1)">
-                                            </div>
-                                            <button type="button" class="delete-recompense">🗑️</button>
+                                    <h5 style="color: #2c3e50; margin-bottom: 10px;">🎁 Récompenses (optionnelles) :</h5>
+
+                                    <div class="checkbox-group">
+                                        <label for="include-monnaies-0">
+                                            <input type="checkbox" id="include-monnaies-0" style="width: auto; margin-right: 8px;">
+                                            Inclure monnaies
+                                        </label>
+                                    </div>
+                                    <div id="monnaie-container-0" style="display: none;">
+                                        <div class="monnaie-inputs" style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 5px;">
+                                            <input type="number" id="pc-quete-0" placeholder="PC" min="0">
+                                            <input type="number" id="pa-quete-0" placeholder="PA" min="0">
+                                            <input type="number" id="po-quete-0" placeholder="PO" min="0">
+                                            <input type="number" id="pp-quete-0" placeholder="PP" min="0">
                                         </div>
                                     </div>
-                                    <button type="button" class="add-recompense" data-quete="0">
-                                        ➕ Ajouter une récompense
-                                    </button>
+
+                                    <div class="checkbox-group">
+                                        <label for="include-objets-0">
+                                            <input type="checkbox" id="include-objets-0" style="width: auto; margin-right: 8px;">
+                                            Inclure objets
+                                        </label>
+                                    </div>
+                                    <div id="objets-container-0" style="display: none;">
+                                        <textarea id="objets-quete-0" rows="2" placeholder="2 émeraudes d'une valeur de 200PO, un étrange engrenage en rotation perpétuelle"></textarea>
+                                    </div>
+
+                                    <div class="reward-type">
+                                        <label>⭐ Autres récompenses :</label>
+                                        <textarea id="autres-quete-0" rows="2" placeholder="Don du fruit blanc à Kornélius, Sort Interdiction dans le grimoire"></textarea>
+                                    </div>
                                 </div>
 
                                 <button type="button" class="delete-quete" onclick="deleteQuete(0)" style="display: none;">

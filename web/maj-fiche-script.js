@@ -189,32 +189,39 @@ function createQueteHTML(index) {
                 <input type="number" id="xp-quete-${index}" placeholder="1" min="0" max="10" value="1">
             </div>
 
-            <div class="form-group">
-                <h5 style="color: #2c3e50; margin-bottom: 10px;">🎁 Récompenses (optionnelles) :</h5>
-                
-                <!-- XP est géré au-dessus, ici on a Monnaie, Objets, Autre -->
-                <div class="reward-section">
-                    <div class="reward-type">
-                        <label>💰 Monnaies :</label>
-                        <div class="monnaie-inputs" style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 5px;">
-                            <input type="number" id="pc-quete-${index}" placeholder="PC" min="0">
-                            <input type="number" id="pa-quete-${index}" placeholder="PA" min="0">
-                            <input type="number" id="po-quete-${index}" placeholder="PO" min="0">
-                            <input type="number" id="pp-quete-${index}" placeholder="PP" min="0">
-                        </div>
-                    </div>
-                    
-                    <div class="reward-type">
-                        <label>🎒 Objets :</label>
-                        <textarea id="objets-quete-${index}" rows="2" placeholder="2 émeraudes d'une valeur de 200PO, un étrange engrenage en rotation perpétuelle"></textarea>
-                    </div>
-                    
-                    <div class="reward-type">
-                        <label>⭐ Autres récompenses :</label>
-                        <textarea id="autres-quete-${index}" rows="2" placeholder="Don du fruit blanc à Kornélius, Sort Interdiction dans le grimoire"></textarea>
-                    </div>
+        <div class="form-group">
+            <h5 style="color: #2c3e50; margin-bottom: 10px;">🎁 Récompenses (optionnelles) :</h5>
+
+            <div class="checkbox-group">
+                <label for="include-monnaies-${index}">
+                    <input type="checkbox" id="include-monnaies-${index}" style="width: auto; margin-right: 8px;">
+                    Inclure monnaies
+                </label>
+            </div>
+            <div id="monnaie-container-${index}" style="display: none;">
+                <div class="monnaie-inputs" style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 5px;">
+                    <input type="number" id="pc-quete-${index}" placeholder="PC" min="0">
+                    <input type="number" id="pa-quete-${index}" placeholder="PA" min="0">
+                    <input type="number" id="po-quete-${index}" placeholder="PO" min="0">
+                    <input type="number" id="pp-quete-${index}" placeholder="PP" min="0">
                 </div>
             </div>
+
+            <div class="checkbox-group">
+                <label for="include-objets-${index}">
+                    <input type="checkbox" id="include-objets-${index}" style="width: auto; margin-right: 8px;">
+                    Inclure objets
+                </label>
+            </div>
+            <div id="objets-container-${index}" style="display: none;">
+                <textarea id="objets-quete-${index}" rows="2" placeholder="2 émeraudes d'une valeur de 200PO, un étrange engrenage en rotation perpétuelle"></textarea>
+            </div>
+
+            <div class="reward-type">
+                <label>⭐ Autres récompenses :</label>
+                <textarea id="autres-quete-${index}" rows="2" placeholder="Don du fruit blanc à Kornélius, Sort Interdiction dans le grimoire"></textarea>
+            </div>
+        </div>
 
             <button type="button" class="delete-quete" onclick="deleteQuete(${index})" style="display: none;">
                 🗑️ Supprimer cette quête
@@ -243,6 +250,34 @@ function setupQueteListeners(index) {
             
             regenerateIfNeeded();
         });
+    }
+
+    // Toggle monnaies section
+    const includeMonnaies = document.getElementById(`include-monnaies-${index}`);
+    if (includeMonnaies) {
+        const updateMonnaies = function() {
+            const container = document.getElementById(`monnaie-container-${index}`);
+            if (container) {
+                container.style.display = this.checked ? 'block' : 'none';
+            }
+            regenerateIfNeeded();
+        };
+        includeMonnaies.addEventListener('change', updateMonnaies);
+        updateMonnaies.call(includeMonnaies);
+    }
+
+    // Toggle objets section
+    const includeObjets = document.getElementById(`include-objets-${index}`);
+    if (includeObjets) {
+        const updateObjets = function() {
+            const container = document.getElementById(`objets-container-${index}`);
+            if (container) {
+                container.style.display = this.checked ? 'block' : 'none';
+            }
+            regenerateIfNeeded();
+        };
+        includeObjets.addEventListener('change', updateObjets);
+        updateObjets.call(includeObjets);
     }
     
     // Event listeners pour tous les champs de cette quête
@@ -310,38 +345,44 @@ function generateQuestesSection() {
         let recompensesText = '';
         
         // Monnaies
-        const pcEl = document.getElementById(`pc-quete-${dataIndex}`);
-        const paEl = document.getElementById(`pa-quete-${dataIndex}`);
-        const poEl = document.getElementById(`po-quete-${dataIndex}`);
-        const ppEl = document.getElementById(`pp-quete-${dataIndex}`);
-        
-        const pc = pcEl ? parseInt(pcEl.value) || 0 : 0;
-        const pa = paEl ? parseInt(paEl.value) || 0 : 0;
-        const po = poEl ? parseInt(poEl.value) || 0 : 0;
-        const pp = ppEl ? parseInt(ppEl.value) || 0 : 0;
-        
-        // Ajouter aux totaux
-        totalMonnaies.PC += pc;
-        totalMonnaies.PA += pa;
-        totalMonnaies.PO += po;
-        totalMonnaies.PP += pp;
-        
-        // Construire le texte des monnaies
-        let monnaieText = [];
-        if (pc !== 0) monnaieText.push(`${pc > 0 ? '+' : ''}${pc} PC`);
-        if (pa !== 0) monnaieText.push(`${pa > 0 ? '+' : ''}${pa} PA`);
-        if (po !== 0) monnaieText.push(`${po > 0 ? '+' : ''}${po} PO`);
-        if (pp !== 0) monnaieText.push(`${pp > 0 ? '+' : ''}${pp} PP`);
-        
-        if (monnaieText.length > 0) {
-            recompensesText += ', ' + monnaieText.join(' ');
+        const includeMonnaies = document.getElementById(`include-monnaies-${dataIndex}`);
+        if (includeMonnaies && includeMonnaies.checked) {
+            const pcEl = document.getElementById(`pc-quete-${dataIndex}`);
+            const paEl = document.getElementById(`pa-quete-${dataIndex}`);
+            const poEl = document.getElementById(`po-quete-${dataIndex}`);
+            const ppEl = document.getElementById(`pp-quete-${dataIndex}`);
+
+            const pc = pcEl ? parseInt(pcEl.value) || 0 : 0;
+            const pa = paEl ? parseInt(paEl.value) || 0 : 0;
+            const po = poEl ? parseInt(poEl.value) || 0 : 0;
+            const pp = ppEl ? parseInt(ppEl.value) || 0 : 0;
+
+            // Ajouter aux totaux
+            totalMonnaies.PC += pc;
+            totalMonnaies.PA += pa;
+            totalMonnaies.PO += po;
+            totalMonnaies.PP += pp;
+
+            // Construire le texte des monnaies
+            let monnaieText = [];
+            if (pc !== 0) monnaieText.push(`${pc > 0 ? '+' : ''}${pc} PC`);
+            if (pa !== 0) monnaieText.push(`${pa > 0 ? '+' : ''}${pa} PA`);
+            if (po !== 0) monnaieText.push(`${po > 0 ? '+' : ''}${po} PO`);
+            if (pp !== 0) monnaieText.push(`${pp > 0 ? '+' : ''}${pp} PP`);
+
+            if (monnaieText.length > 0) {
+                recompensesText += ', ' + monnaieText.join(' ');
+            }
         }
-        
+
         // Objets
-        const objetsEl = document.getElementById(`objets-quete-${dataIndex}`);
-        if (objetsEl && objetsEl.value.trim()) {
-            recompensesText += ', ' + objetsEl.value.trim();
-            objetsQuetes.push(objetsEl.value.trim());
+        const includeObjets = document.getElementById(`include-objets-${dataIndex}`);
+        if (includeObjets && includeObjets.checked) {
+            const objetsEl = document.getElementById(`objets-quete-${dataIndex}`);
+            if (objetsEl && objetsEl.value.trim()) {
+                recompensesText += ', ' + objetsEl.value.trim();
+                objetsQuetes.push(objetsEl.value.trim());
+            }
         }
         
         // Autres
