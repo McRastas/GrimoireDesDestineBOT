@@ -127,7 +127,7 @@
                     <div class="tab-buttons">
                         <button class="tab-btn active" onclick="showTab('quete', event)">🎯 Quête</button>
                         <button class="tab-btn" onclick="showTab('niveau', event)">📈 Niveau</button>
-                        <button class="tab-btn" onclick="showTab('sorts', event)">✨ Sorts</button>
+                        <button class="tab-btn" onclick="showTab('capacites', event)">🛡️ Capacités</button>
                         <button class="tab-btn" onclick="showTab('items', event)">🎒 Items</button>
                         <button class="tab-btn" onclick="showTab('argent', event)">💰 Argent</button>
                         <button class="tab-btn" onclick="showTab('special', event)">⭐ Spécial</button>
@@ -274,8 +274,21 @@
                     </div>
 
                     <!-- Autres onglets cachés pour la démo -->
-                    <div id="tab-sorts" class="tab-content">
-                        <p>🚧 Section Sorts en développement...</p>
+                    <div id="tab-capacites" class="tab-content">
+                        <div class="form-group">
+                            <label for="nouvelles-capacites">Nouvelles capacités / ASI :</label>
+                            <textarea id="nouvelles-capacites" rows="3" placeholder="Indiquez les nouvelles capacités ou ASI"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="nouveaux-sorts">Nouveaux sorts appris :</label>
+                            <textarea id="nouveaux-sorts" rows="3" placeholder="Un sort par ligne"></textarea>
+                            <div class="help-text">Une entrée par ligne</div>
+                        </div>
+                        <div class="form-group">
+                            <label for="sorts-remplaces">Sorts remplacés :</label>
+                            <textarea id="sorts-remplaces" rows="3" placeholder="Un sort par ligne"></textarea>
+                            <div class="help-text">Une entrée par ligne</div>
+                        </div>
                     </div>
                     <div id="tab-items" class="tab-content">
                         <p>🚧 Section Items en développement...</p>
