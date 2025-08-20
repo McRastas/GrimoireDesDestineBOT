@@ -21,7 +21,6 @@ const SPELL_LEARNING_COSTS = {
 
 // Variables globales
 let queteCounter = 0;
-let recompenseCounters = {}; // Pour tracker les compteurs de récompenses par quête
 
 // ===== GESTION DES ONGLETS =====
 
