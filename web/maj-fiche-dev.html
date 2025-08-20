@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎲 Générateur de Mise à Jour de Fiche D&D - DEV</title>
+    <link rel="stylesheet" href="maj-fiche-styles.css">
+    <style>
+        /* Badge DEV en haut à droite */
+        .dev-badge {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: #e74c3c;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            z-index: 1000;
+            box-shadow: 0 2px 10px rgba(231, 76, 60, 0.3);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 2px 10px rgba(231, 76, 60, 0.3); }
+            50% { box-shadow: 0 2px 20px rgba(231, 76, 60, 0.6); }
+            100% { box-shadow: 0 2px 10px rgba(231, 76, 60, 0.3); }
+        }
+
+        /* Navigation entre les pages */
+        .nav-links {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+        }
+
+        .nav-link {
+            display: inline-block;
+            background: rgba(255, 255, 255, 0.9);
+            color: #2c3e50;
+            padding: 8px 16px;
+            border-radius: 20px;
+            text-decoration: none;
+            font-size: 12px;
+            font-weight: bold;
+            margin-right: 10px;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .nav-link:hover {
+            background: white;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .header {
+            position: relative;
+        }
+    </style>
+</head>
+<body>
+    <div class="dev-badge">
+        🚧 VERSION DÉVELOPPEMENT
+    </div>
+
+    <div class="nav-links">
+        <a href="index.html" class="nav-link">🎲 Calculateur PV</a>
+        <a href="maj-fiche-dev.html" class="nav-link">📝 Générateur Fiche (DEV)</a>
+    </div>
+
+    <div class="container">
+        <div class="header">
+            <h1>🎲 Générateur de Mise à Jour de Fiche</h1>
+            <p>Créez facilement vos messages Discord de mise à jour D&D 5e</p>
+            <div style="margin-top: 10px; font-size: 0.9rem; opacity: 0.8;">
+                🚧 Version de développement - Fonctionnalités en cours de test
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="form-section">
+                <h3>📋 Informations du Personnage</h3>
+                
+                <div class="form-group">
+                    <label for="nom-pj">Nom du PJ :</label>
+                    <input type="text" id="nom-pj" placeholder="Nom de votre personnage" value="Gandalf le Gris">
+                </div>
+
+                <div class="form-group">
+                    <label for="multiclasse-toggle">
+                        <input type="checkbox" id="multiclasse-toggle" style="width: auto; margin-right: 8px;">
+                        Personnage multiclassé
+                    </label>
+                </div>
+
+                <div id="classe-simple" class="form-group">
+                    <label for="classe">Classe :</label>
+                    <select id="classe">
+                        <option value="">Sélectionnez une classe</option>
+                        <option value="Artificier">Artificier</option>
+                        <option value="Barbare">Barbare</option>
+                        <option value="Barde">Barde</option>
+                        <option value="Clerc">Clerc</option>
+                        <option value="Druide">Druide</option>
+                        <option value="Ensorceleur">Ensorceleur</option>
+                        <option value="Guerrier">Guerrier</option>
+                        <option value="Magicien" selected>Magicien</option>
+                        <option value="Moine">Moine</option>
+                        <option value="Occultiste">Occultiste</option>
+                        <option value="Paladin">Paladin</option>
+                        <option value="Rôdeur">Rôdeur</option>
+                        <option value="Roublard">Roublard</option>
+                        <option value="Sorcier">Sorcier</option>
+                    </select>
+                </div>
+
+                <div id="classe-multi" class="form-group" style="display: none;">
+                    <label>Classes (ex: Magicien 13 / Artificier 1) :</label>
+                    <input type="text" id="classe-complete" placeholder="Magicien 13 / Artificier 1">
+                    <div class="help-text">Format : Classe1 Niveau / Classe2 Niveau / ...</div>
+                </div>
+
+                <div class="tab-container">
+                    <div class="tab-buttons">
+                        <button class="tab-btn active" onclick="showTab('quete')">🎯 Quête</button>
+                        <button class="tab-btn" onclick="showTab('niveau')">📈 Niveau</button>
+                        <button class="tab-btn" onclick="showTab('sorts')">✨ Sorts</button>
+                        <button class="tab-btn" onclick="showTab('items')">🎒 Items</button>
+                        <button class="tab-btn" onclick="showTab('argent')">💰 Argent</button>
+                        <button class="tab-btn" onclick="showTab('special')">⭐ Spécial</button>
+                    </div>
+
+                    <!-- Tab Content: Quête -->
+                    <div id="tab-quete" class="tab-content active">
+                        <div id="quetes-container">
+                            <div class="quete-bloc" data-quete="0">
+                                <h4 style="color: #3498db; margin-bottom: 15px;">🎯 Quête 1</h4>
+                                
+                                <div class="form-group">
+                                    <label for="titre-quete-0">Titre de la Quête :</label>
+                                    <input type="text" id="titre-quete-0" placeholder="L'Art de la Paix" value="La Tour du Mage Noir">
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="nom-mj-0">Nom du MJ :</label>
+                                    <input type="text" id="nom-mj-0" placeholder="@hugotlieb" value="@MasterJean">
+                                </div>
+
+                                <div class="checkbox-group">
+                                    <input type="checkbox" id="quete-multiple-0">
+                                    <label for="quete-multiple-0">Quête avec plusieurs sessions</label>
+                                </div>
+
+                                <div id="quete-simple-0" class="form-group">
+                                    <label for="lien-recompense-0">Lien vers les récompenses :</label>
+                                    <input type="text" id="lien-recompense-0" placeholder="https://discord.com/channels/..." value="https://discord.com/channels/123456789/987654321/111222333">
+                                    <div class="help-text">Clic droit sur le message → Copier le lien</div>
+                                </div>
+
+                                <div id="quete-multiple-details-0" class="form-group" style="display: none;">
+                                    <label for="sessions-quete-0">Sessions de la quête :</label>
+                                    <textarea id="sessions-quete-0" rows="4" placeholder="- https://discord.com/channels/.../... + 1XP,&#10;- https://discord.com/channels/.../... + 1 XP - 1 item"></textarea>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="xp-quete-0">XP de cette quête :</label>
+                                    <input type="number" id="xp-quete-0" placeholder="2" min="0" max="10" value="3">
+                                </div>
+
+                                <div class="form-group">
+                                    <h5 style="color: #2c3e50; margin-bottom: 10px;">🎁 Récompenses obtenues :</h5>
+                                    <div id="recompenses-container-0">
+                                        <div class="recompense-item" data-recompense="0">
+                                            <select style="flex: 0 0 120px;">
+                                                <option value="monnaie" selected>💰 Monnaie</option>
+                                                <option value="item">🎒 Objet</option>
+                                            </select>
+                                            <div style="flex: 1; display: flex; gap: 5px;">
+                                                <input type="number" placeholder="PC" style="flex: 1;" value="0">
+                                                <input type="number" placeholder="PA" style="flex: 1;" value="0">
+                                                <input type="number" placeholder="PO" style="flex: 1;" value="150">
+                                                <input type="number" placeholder="PP" style="flex: 1;" value="0">
+                                            </div>
+                                            <button type="button" class="delete-recompense">🗑️</button>
+                                        </div>
+                                        <div class="recompense-item" data-recompense="1">
+                                            <select style="flex: 0 0 120px;">
+                                                <option value="monnaie">💰 Monnaie</option>
+                                                <option value="item" selected>🎒 Objet</option>
+                                            </select>
+                                            <div style="flex: 1; display: flex; gap: 5px;">
+                                                <input type="text" placeholder="Description" style="flex: 1;" value="Baguette de Boules de Feu (+1)">
+                                            </div>
+                                            <button type="button" class="delete-recompense">🗑️</button>
+                                        </div>
+                                    </div>
+                                    <button type="button" class="add-recompense" onclick="addRecompense(0)">
+                                        ➕ Ajouter une récompense
+                                    </button>
+                                </div>
+
+                                <button type="button" class="delete-quete" onclick="deleteQuete(0)" style="display: none;">
+                                    🗑️ Supprimer cette quête
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <button type="button" class="add-quete" onclick="addQuete()">
+                            ➕ Ajouter une autre quête
+                        </button>
+                    </div>
+
+                    <!-- Autres onglets... -->
+                    <div id="tab-niveau" class="tab-content">
+                        <div class="form-group">
+                            <label for="xp-actuels">XP Actuels :</label>
+                            <input type="number" id="xp-actuels" placeholder="3" min="0" max="10" value="8">
+                            <div class="help-text">Points d'XP déjà obtenus</div>
+                        </div>
+                        <!-- Reste du contenu niveau... -->
+                    </div>
+
+                    <!-- Autres onglets cachés pour la démo -->
+                    <div id="tab-sorts" class="tab-content">
+                        <p>🚧 Section Sorts en développement...</p>
+                    </div>
+                    <div id="tab-items" class="tab-content">
+                        <p>🚧 Section Items en développement...</p>
+                    </div>
+                    <div id="tab-argent" class="tab-content">
+                        <p>🚧 Section Argent en développement...</p>
+                    </div>
+                    <div id="tab-special" class="tab-content">
+                        <p>🚧 Section Spécial en développement...</p>
+                    </div>
+                </div>
+
+                <button class="copy-btn generate-btn" onclick="generateTemplate()">
+                    🔄 Générer le Template
+                </button>
+            </div>
+
+            <div class="output-section">
+                <h3 class="preview-title">📝 Aperçu Discord</h3>
+                <div class="discord-output" id="discord-output">Nom du PJ : Gandalf le Gris
+Classe : Magicien
+
+** / =======================  PJ  ========================= \ **
+**Quête :** [
+- La Tour du Mage Noir + @MasterJean ⁠- https://discord.com/channels/123456789/987654321/111222333, +3 XP, +150 PO, +Baguette de Boules de Feu (+1)
+] +3 XP
+**Solde XP :** 8/5 + 3XP obtenue = 11 ==> 11/5 ==> passage au niveau 12 Magicien ✅
+**Gain de niveau :** Niveau 11 → **Niveau 12** 🎉
+** \ =======================  PJ  ========================= / **
+**¤ Solde :**
+ANCIEN SOLDE [SOLDE] + [CHANGEMENTS] = [NOUVEAU_SOLDE]
+*Fiche R20 à jour.*</div>
+                <button class="copy-btn" onclick="copyToClipboard()">
+                    📋 Copier le Message
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="maj-fiche-script.js"></script>
+</body>
+</html>
