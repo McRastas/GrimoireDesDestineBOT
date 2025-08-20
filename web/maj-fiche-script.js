@@ -662,8 +662,9 @@ ${questesText}
     const achatsVentesEl = document.getElementById('achats-ventes');
     const ancienSoldeEl = document.getElementById('ancien-solde');
     const poRecuesEl = document.getElementById('po-recues');
-    
-    const objetsLootes = objetsLootesEl ? objetsLootesEl.value || '' : '';
+
+    const objetsLootesList = objetsLootesEl ? parseList(objetsLootesEl) : [];
+    const objetsLootes = objetsLootesList.length ? objetsLootesList.join(', ') : '';
     const poLootees = poLootesEl ? parseInt(poLootesEl.value) || 0 : 0;
     const achatsVentes = achatsVentesEl ? achatsVentesEl.value || '' : '';
     const ancienSolde = ancienSoldeEl ? ancienSoldeEl.value || '[ANCIEN_SOLDE]' : '[ANCIEN_SOLDE]';
@@ -772,12 +773,11 @@ Monnaies lootées: ${monnaiesText}`;
 ** \\ =======================  PJ  ========================= / **`;
 
     // Section Marchand si demandée
-    if (includeMarchand && achatsVentes !== '') {
+    if (includeMarchand && achatsVentes.trim() !== '') {
         template += `
-**/ ===================== Marchand ===================== \\ **
-**¤ Inventaire**
+/ =======================  MARCHAND  ========================= \\
 ${achatsVentes}
-** \\ ==================== Marchand ====================== / **`;
+\\ =======================  MARCHAND  ========================= /`;
     }
 
     // Calcul nouveau solde
@@ -885,7 +885,18 @@ document.addEventListener('DOMContentLoaded', function() {
     setupQueteListeners(0);
     
     // Listeners pour tous les autres champs
-    const inputs = document.querySelectorAll('input:not([id*="quete"]):not([data-listener-added]), select:not([data-listener-added]), textarea:not([id*="quete"]):not([data-listener-added]), textarea#don-quete:not([data-listener-added])');
+    const inputs = document.querySelectorAll(
+        'input:not([id*="quete"]):not([data-listener-added]),'
+        + ' select:not([data-listener-added]),'
+        + ' textarea:not([id*="quete"]):not([data-listener-added]),'
+        + ' textarea#don-quete:not([data-listener-added]),'
+        + ' textarea#objets-lootes:not([data-listener-added]),'
+        + ' textarea#achats-ventes:not([data-listener-added]),'
+        + ' input#po-lootees:not([data-listener-added]),'
+        + ' input#po-recues:not([data-listener-added]),'
+        + ' input#ancien-solde:not([data-listener-added]),'
+        + ' input#section-marchand:not([data-listener-added])'
+    );
     inputs.forEach(input => {
         input.addEventListener('input', regenerateIfNeeded);
         input.setAttribute('data-listener-added', 'true');

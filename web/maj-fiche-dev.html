@@ -299,10 +299,39 @@
                         </div>
                     </div>
                     <div id="tab-items" class="tab-content">
-                        <p>🚧 Section Items en développement...</p>
+                        <div class="form-group">
+                            <label for="objets-lootes">Objets lootés (hors quêtes) :</label>
+                            <textarea id="objets-lootes" rows="3" placeholder="Une ligne par objet"></textarea>
+                            <div class="help-text">Une ligne par objet looté hors quête.</div>
+                        </div>
+                        <div class="form-group">
+                            <label for="achats-ventes">Achats / Ventes :</label>
+                            <textarea id="achats-ventes" rows="3" placeholder="Achat de composant X : 100 PO"></textarea>
+                            <div class="help-text">Une ligne par achat/vente (ex. « Achat de composant X : 100 PO »)</div>
+                        </div>
                     </div>
                     <div id="tab-argent" class="tab-content">
-                        <p>🚧 Section Argent en développement...</p>
+                        <div class="argent-grid">
+                            <div class="form-group">
+                                <label for="po-lootees">PO lootées (hors quêtes) :</label>
+                                <input type="number" id="po-lootees" placeholder="0">
+                            </div>
+                            <div class="form-group">
+                                <label for="po-recues">PO reçues / dépensées :</label>
+                                <input type="number" id="po-recues" placeholder="0">
+                                <div class="help-text">Valeurs négatives possibles</div>
+                            </div>
+                            <div class="form-group">
+                                <label for="ancien-solde">Ancien solde :</label>
+                                <input type="text" id="ancien-solde" placeholder="Solde avant session">
+                            </div>
+                            <div class="form-group">
+                                <label for="section-marchand">
+                                    <input type="checkbox" id="section-marchand" style="width: auto; margin-right: 8px;">
+                                    Activer le bloc Marchand
+                                </label>
+                            </div>
+                        </div>
                     </div>
                     <div id="tab-special" class="tab-content">
                         <p>🚧 Section Spécial en développement...</p>
