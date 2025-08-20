@@ -636,6 +636,8 @@ ${questesText}
     
     // Sorts et capacités
     const nouvellesCapacitesEl = document.getElementById('nouvelles-capacites');
+    const nouveauDonEl = document.getElementById('nouveau-don');
+    const donQueteEl = document.getElementById('don-quete');
     const nouveauxSortsEl = document.getElementById('nouveaux-sorts');
     const sortsRemplacesEl = document.getElementById('sorts-remplaces');
 
@@ -645,8 +647,12 @@ ${questesText}
     };
 
     const nouvellesCapacites = nouvellesCapacitesEl ? nouvellesCapacitesEl.value || '-' : '-';
+    const nouveauDonList = parseList(nouveauDonEl);
+    const donQueteList = parseList(donQueteEl);
     const nouveauxSortsList = parseList(nouveauxSortsEl);
     const sortsRemplacesList = parseList(sortsRemplacesEl);
+    const nouveauxDons = nouveauDonList.length ? nouveauDonList.join(', ') : '-';
+    const donsQuete = donQueteList.length ? donQueteList.join(', ') : '-';
     const nouveauxSorts = nouveauxSortsList.length ? nouveauxSortsList.join(', ') : '-';
     const sortsRemplaces = sortsRemplacesList.length ? sortsRemplacesList.join(', ') : '-';
     
@@ -719,6 +725,10 @@ ${affichageXP}`;
 **¤ Capacités et sorts supplémentaires :**
 Nouvelle(s) capacité(s) :
 ${nouvellesCapacites}
+Nouveau(x) don(s) :
+${nouveauxDons}
+Don(s) (gain de quête) :
+${donsQuete}
 Nouveau(x) sort(s) :
 ${nouveauxSorts}
 Sort(s) remplacé(s) :
@@ -875,7 +885,7 @@ document.addEventListener('DOMContentLoaded', function() {
     setupQueteListeners(0);
     
     // Listeners pour tous les autres champs
-    const inputs = document.querySelectorAll('input:not([id*="quete"]):not([data-listener-added]), select:not([data-listener-added]), textarea:not([id*="quete"]):not([data-listener-added])');
+    const inputs = document.querySelectorAll('input:not([id*="quete"]):not([data-listener-added]), select:not([data-listener-added]), textarea:not([id*="quete"]):not([data-listener-added]), textarea#don-quete:not([data-listener-added])');
     inputs.forEach(input => {
         input.addEventListener('input', regenerateIfNeeded);
         input.setAttribute('data-listener-added', 'true');
