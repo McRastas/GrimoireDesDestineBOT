@@ -49,19 +49,19 @@ function showTab(tabName, event) {
 function addQuete() {
     queteCounter++;
     const container = document.getElementById('quetes-container');
-    
+
     const queteHtml = createQueteHTML(queteCounter);
     container.insertAdjacentHTML('beforeend', queteHtml);
-    
+
     // Ajouter les event listeners pour la nouvelle quête
     setupQueteListeners(queteCounter);
-    
-    // Afficher le bouton de suppression de la première quête
-    const firstDeleteBtn = document.querySelector('[data-quete="0"] .delete-quete');
-    if (firstDeleteBtn) {
-        firstDeleteBtn.style.display = 'block';
+
+    // Afficher le bouton de suppression de la quête nouvellement créée si ce n'est pas la première
+    const newDeleteBtn = document.querySelector(`[data-quete="${queteCounter}"] .delete-quete`);
+    if (newDeleteBtn && queteCounter > 0) {
+        newDeleteBtn.style.display = 'block';
     }
-    
+
     regenerateIfNeeded();
 }
 
@@ -73,7 +73,7 @@ function deleteQuete(index) {
         // Masquer le bouton de suppression s'il ne reste qu'une quête
         const remainingQuetes = document.querySelectorAll('.quete-bloc');
         if (remainingQuetes.length === 1) {
-            const deleteBtn = document.querySelector('.delete-quete');
+            const deleteBtn = document.querySelector('[data-quete="0"] .delete-quete');
             if (deleteBtn) {
                 deleteBtn.style.display = 'none';
             }
