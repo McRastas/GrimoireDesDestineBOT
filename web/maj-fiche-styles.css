@@ -220,6 +220,24 @@ input:focus, select:focus, textarea:focus {
     min-height: 60px;
 }
 
+/* Items et Argent */
+#tab-items textarea {
+    min-height: 60px;
+    resize: vertical;
+}
+
+#tab-argent .argent-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 15px;
+}
+
+@media (min-width: 768px) {
+    #tab-argent .argent-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
 /* Gestion des quêtes */
 .quete-bloc {
     background: #f8f9fa;
