@@ -1,16 +1,22 @@
 // ===== CONFIGURATION ET DONNÉES =====
 
-// Table XP système serveur (points d'XP pour passer au niveau suivant)
+// Table XP système serveur (extraite du CSV)
 const XP_TABLE = {
     1: 1, 2: 2, 3: 2, 4: 3, 5: 3, 6: 4, 7: 4, 8: 4, 9: 4, 10: 4,
     11: 5, 12: 5, 13: 5, 14: 6, 15: 6, 16: 7, 17: 8, 18: 9, 19: 10, 20: 0
 };
 
-// PV par niveau par classe (dé de vie moyen)
-const HP_PER_LEVEL = {
-    'Artificier': 5, 'Barbare': 7, 'Barde': 5, 'Clerc': 5, 'Druide': 5,
-    'Ensorceleur': 4, 'Guerrier': 6, 'Magicien': 4, 'Moine': 5, 
-    'Occultiste': 5, 'Paladin': 6, 'Rôdeur': 6, 'Roublard': 5, 'Sorcier': 5
+// PV moyens par classe (basé sur les dés de vie)
+const HP_AVERAGES = {
+    'Magicien': 4, 'Ensorceleur': 4,  // d6 → 4
+    'Artificier': 5, 'Barde': 5, 'Clerc': 5, 'Druide': 5, 'Moine': 5, 'Occultiste': 5, 'Roublard': 5,  // d8 → 5
+    'Guerrier': 6, 'Paladin': 6, 'Rôdeur': 6,  // d10 → 6
+    'Barbare': 7  // d12 → 7
+};
+
+// Coûts d'apprentissage de sorts (Niveau × 50 PO)
+const SPELL_LEARNING_COSTS = {
+    1: 50, 2: 100, 3: 150, 4: 200, 5: 250, 6: 300, 7: 350, 8: 400, 9: 450
 };
 
 // Variables globales
@@ -56,11 +62,7 @@ function addQuete() {
         firstDeleteBtn.style.display = 'block';
     }
     
-    // Régénérer si au moins le nom est rempli
-    const nomPJ = document.getElementById('nom-pj');
-    if (nomPJ && nomPJ.value) {
-        generateTemplate();
-    }
+    regenerateIfNeeded();
 }
 
 function deleteQuete(index) {
@@ -77,11 +79,7 @@ function deleteQuete(index) {
             }
         }
         
-        // Régénérer le template
-        const nomPJ = document.getElementById('nom-pj');
-        if (nomPJ && nomPJ.value) {
-            generateTemplate();
-        }
+        regenerateIfNeeded();
     }
 }
 
@@ -117,18 +115,37 @@ function createQueteHTML(index) {
 
             <div class="form-group">
                 <label for="xp-quete-${index}">XP de cette quête :</label>
-                <input type="number" id="xp-quete-${index}" placeholder="1" min="0" max="10">
+                <input type="number" id="xp-quete-${index}" placeholder="1" min="0" max="10" value="1">
             </div>
 
             <div class="form-group">
-                <h5 style="color: #2c3e50; margin-bottom: 10px;">🎁 Récompenses obtenues :</h5>
-                <div id="recompenses-container-${index}"></div>
-                <button type="button" class="add-recompense" onclick="addRecompense(${index})">
-                    ➕ Ajouter une récompense
-                </button>
+                <h5 style="color: #2c3e50; margin-bottom: 10px;">🎁 Récompenses (optionnelles) :</h5>
+                
+                <!-- XP est géré au-dessus, ici on a Monnaie, Objets, Autre -->
+                <div class="reward-section">
+                    <div class="reward-type">
+                        <label>💰 Monnaies :</label>
+                        <div class="monnaie-inputs" style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 5px;">
+                            <input type="number" id="pc-quete-${index}" placeholder="PC" min="0">
+                            <input type="number" id="pa-quete-${index}" placeholder="PA" min="0">
+                            <input type="number" id="po-quete-${index}" placeholder="PO" min="0">
+                            <input type="number" id="pp-quete-${index}" placeholder="PP" min="0">
+                        </div>
+                    </div>
+                    
+                    <div class="reward-type">
+                        <label>🎒 Objets :</label>
+                        <textarea id="objets-quete-${index}" rows="2" placeholder="2 émeraudes d'une valeur de 200PO, un étrange engrenage en rotation perpétuelle"></textarea>
+                    </div>
+                    
+                    <div class="reward-type">
+                        <label>⭐ Autres récompenses :</label>
+                        <textarea id="autres-quete-${index}" rows="2" placeholder="Don du fruit blanc à Kornélius, Sort Interdiction dans le grimoire"></textarea>
+                    </div>
+                </div>
             </div>
 
-            <button type="button" class="delete-quete" onclick="deleteQuete(${index})">
+            <button type="button" class="delete-quete" onclick="deleteQuete(${index})" style="display: none;">
                 🗑️ Supprimer cette quête
             </button>
         </div>
@@ -158,119 +175,16 @@ function setupQueteListeners(index) {
     }
     
     // Event listeners pour tous les champs de cette quête
-    const queteInputs = document.querySelectorAll(`[id*="-${index}"]`);
+    const queteInputs = document.querySelectorAll(`[id*="-${index}"], [id*="-quete-${index}"]`);
     queteInputs.forEach(input => {
-        input.addEventListener('input', regenerateIfNeeded);
+        if (!input.hasAttribute('data-listener-added')) {
+            input.addEventListener('input', regenerateIfNeeded);
+            input.setAttribute('data-listener-added', 'true');
+        }
     });
 }
 
-// ===== GESTION DES RÉCOMPENSES =====
-
-function addRecompense(queteIndex) {
-    if (!recompenseCounters[queteIndex]) {
-        recompenseCounters[queteIndex] = 0;
-    }
-    
-    const recompenseId = recompenseCounters[queteIndex]++;
-    const container = document.getElementById(`recompenses-container-${queteIndex}`);
-    
-    if (container) {
-        const recompenseHtml = createRecompenseHTML(queteIndex, recompenseId);
-        container.insertAdjacentHTML('beforeend', recompenseHtml);
-        
-        // Ajouter event listeners pour la nouvelle récompense
-        setupRecompenseListeners(queteIndex, recompenseId);
-        
-        // Générer le contenu initial
-        updateRecompenseContent(queteIndex, recompenseId);
-        
-        regenerateIfNeeded();
-    }
-}
-
-function deleteRecompense(queteIndex, recompenseId) {
-    const recompenseItem = document.querySelector(`[data-recompense="${recompenseId}"]`);
-    if (recompenseItem && recompenseItem.closest(`#recompenses-container-${queteIndex}`)) {
-        recompenseItem.remove();
-        regenerateIfNeeded();
-    }
-}
-
-function createRecompenseHTML(queteIndex, recompenseId) {
-    return `
-        <div class="recompense-item" data-recompense="${recompenseId}">
-            <select id="type-recompense-${queteIndex}-${recompenseId}" style="flex: 0 0 120px;">
-                <option value="monnaie">💰 Monnaie</option>
-                <option value="item">🎒 Objet</option>
-                <option value="reputation">⭐ Réputation</option>
-                <option value="babiole">✨ Babiole</option>
-                <option value="ration">🍖 Ration</option>
-                <option value="potion">🧪 Potion</option>
-                <option value="equipement">⚔️ Équipement</option>
-                <option value="materiau">🔨 Matériau</option>
-                <option value="autre">❓ Autre</option>
-            </select>
-            <div id="content-recompense-${queteIndex}-${recompenseId}" style="flex: 1; display: flex; gap: 5px;"></div>
-            <button type="button" class="delete-recompense" onclick="deleteRecompense(${queteIndex}, ${recompenseId})">
-                🗑️
-            </button>
-        </div>
-    `;
-}
-
-function setupRecompenseListeners(queteIndex, recompenseId) {
-    const typeSelect = document.getElementById(`type-recompense-${queteIndex}-${recompenseId}`);
-    
-    if (typeSelect) {
-        typeSelect.addEventListener('change', function() {
-            updateRecompenseContent(queteIndex, recompenseId);
-            regenerateIfNeeded();
-        });
-    }
-}
-
-function updateRecompenseContent(queteIndex, recompenseId) {
-    const typeSelect = document.getElementById(`type-recompense-${queteIndex}-${recompenseId}`);
-    const contentDiv = document.getElementById(`content-recompense-${queteIndex}-${recompenseId}`);
-    
-    if (!typeSelect || !contentDiv) return;
-    
-    const type = typeSelect.value;
-    
-    if (type === 'monnaie') {
-        // 4 champs pour les monnaies
-        contentDiv.innerHTML = `
-            <input type="number" id="pc-${queteIndex}-${recompenseId}" placeholder="PC" style="flex: 1;" title="Pièces de Cuivre">
-            <input type="number" id="pa-${queteIndex}-${recompenseId}" placeholder="PA" style="flex: 1;" title="Pièces d'Argent">
-            <input type="number" id="po-${queteIndex}-${recompenseId}" placeholder="PO" style="flex: 1;" title="Pièces d'Or">
-            <input type="number" id="pp-${queteIndex}-${recompenseId}" placeholder="PP" style="flex: 1;" title="Pièces de Platine">
-        `;
-    } else {
-        // Champ texte simple pour les autres types
-        const placeholders = {
-            'item': '1 Épée +1',
-            'reputation': '+1 Faction des Mages',
-            'babiole': '1 Pierre précieuse',
-            'ration': '3 rations',
-            'potion': '2 potions de soin',
-            'equipement': '1 armure de cuir',
-            'materiau': '5 lingots de fer',
-            'autre': 'Description libre'
-        };
-        
-        contentDiv.innerHTML = `
-            <input type="text" id="desc-recompense-${queteIndex}-${recompenseId}" placeholder="${placeholders[type] || 'Description'}" style="flex: 1;">
-        `;
-    }
-    
-    // Ajouter les event listeners pour les nouveaux champs
-    const newInputs = contentDiv.querySelectorAll('input');
-    newInputs.forEach(input => {
-        input.addEventListener('input', regenerateIfNeeded);
-    });
-}
-
-// ===== GÉNÉRATION DU TEMPLATE =====
+// ===== GÉNÉRATION DES QUÊTES =====
 
 function generateQuestesSection() {
     const quetes = document.querySelectorAll('.quete-bloc');
@@ -278,6 +192,7 @@ function generateQuestesSection() {
     let totalXPQuetes = 0;
     let totalMonnaies = { PC: 0, PA: 0, PO: 0, PP: 0 };
     let objetsQuetes = [];
+    let autresQuetes = [];
     
     quetes.forEach((quete, index) => {
         const dataIndex = quete.getAttribute('data-quete');
@@ -293,66 +208,49 @@ function generateQuestesSection() {
         
         totalXPQuetes += xpQuete;
         
-        // Récupérer les récompenses de cette quête
-        const recompensesContainer = document.getElementById(`recompenses-container-${dataIndex}`);
+        // Récupérer les récompenses
         let recompensesText = '';
         
-        if (recompensesContainer) {
-            const recompenseItems = recompensesContainer.querySelectorAll('.recompense-item');
-            recompenseItems.forEach(item => {
-                const typeSelect = item.querySelector('select');
-                
-                if (typeSelect) {
-                    const type = typeSelect.value;
-                    
-                    if (type === 'monnaie') {
-                        // Traiter les 4 types de monnaies
-                        const recompenseId = item.getAttribute('data-recompense');
-                        const pcEl = document.getElementById(`pc-${dataIndex}-${recompenseId}`);
-                        const paEl = document.getElementById(`pa-${dataIndex}-${recompenseId}`);
-                        const poEl = document.getElementById(`po-${dataIndex}-${recompenseId}`);
-                        const ppEl = document.getElementById(`pp-${dataIndex}-${recompenseId}`);
-                        
-                        const pc = pcEl ? parseInt(pcEl.value) || 0 : 0;
-                        const pa = paEl ? parseInt(paEl.value) || 0 : 0;
-                        const po = poEl ? parseInt(poEl.value) || 0 : 0;
-                        const pp = ppEl ? parseInt(ppEl.value) || 0 : 0;
-                        
-                        // Ajouter aux totaux
-                        totalMonnaies.PC += pc;
-                        totalMonnaies.PA += pa;
-                        totalMonnaies.PO += po;
-                        totalMonnaies.PP += pp;
-                        
-                        // Construire le texte des récompenses avec gestion des signes
-                        let monnaieText = [];
-                        if (pc !== 0) {
-                            monnaieText.push(`${pc > 0 ? '+' : ''}${pc} PC`);
-                        }
-                        if (pa !== 0) {
-                            monnaieText.push(`${pa > 0 ? '+' : ''}${pa} PA`);
-                        }
-                        if (po !== 0) {
-                            monnaieText.push(`${po > 0 ? '+' : ''}${po} PO`);
-                        }
-                        if (pp !== 0) {
-                            monnaieText.push(`${pp > 0 ? '+' : ''}${pp} PP`);
-                        }
-                        
-                        if (monnaieText.length > 0) {
-                            recompensesText += `, ${monnaieText.join(' ')}`;
-                        }
-                    } else {
-                        // Autres récompenses
-                        const descInput = item.querySelector('input[type="text"]');
-                        if (descInput && descInput.value.trim()) {
-                            const desc = descInput.value.trim();
-                            recompensesText += `, +${desc}`;
-                            objetsQuetes.push(desc);
-                        }
-                    }
-                }
-            });
+        // Monnaies
+        const pcEl = document.getElementById(`pc-quete-${dataIndex}`);
+        const paEl = document.getElementById(`pa-quete-${dataIndex}`);
+        const poEl = document.getElementById(`po-quete-${dataIndex}`);
+        const ppEl = document.getElementById(`pp-quete-${dataIndex}`);
+        
+        const pc = pcEl ? parseInt(pcEl.value) || 0 : 0;
+        const pa = paEl ? parseInt(paEl.value) || 0 : 0;
+        const po = poEl ? parseInt(poEl.value) || 0 : 0;
+        const pp = ppEl ? parseInt(ppEl.value) || 0 : 0;
+        
+        // Ajouter aux totaux
+        totalMonnaies.PC += pc;
+        totalMonnaies.PA += pa;
+        totalMonnaies.PO += po;
+        totalMonnaies.PP += pp;
+        
+        // Construire le texte des monnaies
+        let monnaieText = [];
+        if (pc !== 0) monnaieText.push(`${pc > 0 ? '+' : ''}${pc} PC`);
+        if (pa !== 0) monnaieText.push(`${pa > 0 ? '+' : ''}${pa} PA`);
+        if (po !== 0) monnaieText.push(`${po > 0 ? '+' : ''}${po} PO`);
+        if (pp !== 0) monnaieText.push(`${pp > 0 ? '+' : ''}${pp} PP`);
+        
+        if (monnaieText.length > 0) {
+            recompensesText += ', ' + monnaieText.join(' ');
+        }
+        
+        // Objets
+        const objetsEl = document.getElementById(`objets-quete-${dataIndex}`);
+        if (objetsEl && objetsEl.value.trim()) {
+            recompensesText += ', ' + objetsEl.value.trim();
+            objetsQuetes.push(objetsEl.value.trim());
+        }
+        
+        // Autres
+        const autresEl = document.getElementById(`autres-quete-${dataIndex}`);
+        if (autresEl && autresEl.value.trim()) {
+            recompensesText += ', ' + autresEl.value.trim();
+            autresQuetes.push(autresEl.value.trim());
         }
         
         if (isMultiple) {
@@ -377,9 +275,108 @@ ${sessions}
         questesText: questesText.trim(), 
         totalXPQuetes, 
         totalMonnaies,
-        objetsQuetes
+        objetsQuetes,
+        autresQuetes
     };
 }
+
+// ===== GESTION DES NIVEAUX ET XP =====
+
+function calculateXPProgression(xpActuels, xpObtenus, niveauActuel, niveauCible, classeGainNiveau) {
+    const nouveauTotal = xpActuels + xpObtenus;
+    let progressionText = '';
+    let xpInfo = '';
+    
+    // XP requis pour passer au niveau suivant depuis le niveau actuel
+    const xpRequisActuel = XP_TABLE[niveauActuel + 1] || '?';
+    
+    // Format de base : ancien/requis + XP ==> nouveau/requis
+    progressionText = ` ==> ${nouveauTotal}/${xpRequisActuel}`;
+    
+    // Vérifier si level up possible
+    if (nouveauTotal >= xpRequisActuel && xpRequisActuel !== '?') {
+        const classeNom = getClasseForXP(classeGainNiveau);
+        progressionText += ` ==> LEVEL UP ${classeNom} ${niveauCible}`;
+        
+        // Vérifier si c'est le niveau cible attendu
+        if (niveauCible === niveauActuel + 1) {
+            xpInfo = ' ✅';
+        } else if (niveauCible > niveauActuel + 1) {
+            // Plusieurs niveaux possibles
+            let niveauPossible = niveauActuel;
+            let xpRestants = nouveauTotal;
+            
+            while (niveauPossible < 20 && XP_TABLE[niveauPossible + 1] && xpRestants >= XP_TABLE[niveauPossible + 1]) {
+                xpRestants -= XP_TABLE[niveauPossible + 1];
+                niveauPossible++;
+            }
+            
+            if (niveauCible <= niveauPossible) {
+                xpInfo = ' 🚀';
+            } else {
+                xpInfo = ` 💡 Vous pourriez atteindre le niveau ${niveauPossible} !`;
+            }
+        }
+    } else {
+        // Pas de level up
+        if (niveauCible > niveauActuel) {
+            const manque = xpRequisActuel - nouveauTotal;
+            xpInfo = ` ⚠️ (Manque ${manque} XP pour niveau ${niveauActuel + 1})`;
+        }
+    }
+    
+    return { progressionText, xpInfo };
+}
+
+// ===== GESTION DES PV =====
+
+function calculatePVGain(classeText, niveauActuel, niveauCible, modConstitution, bonusPV, pvActuels) {
+    if (niveauCible <= niveauActuel) return '';
+    
+    const niveauxGagnes = niveauCible - niveauActuel;
+    
+    // Extraire la classe principale pour les PV
+    let classePrincipale = classeText;
+    if (classeText.includes('/')) {
+        // Multiclasse - prendre la première classe mentionnée
+        classePrincipale = classeText.split('/')[0].trim();
+    }
+    
+    // Extraire juste le nom de la classe (sans le niveau)
+    const nomClasse = classePrincipale.split(' ')[0];
+    const pvMoyenParNiveau = HP_AVERAGES[nomClasse] || 5;
+    
+    const pvDeVie = pvMoyenParNiveau * niveauxGagnes;
+    const pvConstitution = modConstitution * niveauxGagnes;
+    
+    let calculText = `${pvActuels} PV + ${pvDeVie} PV obtenus (moyenne)`;
+    let totalPVGain = pvDeVie;
+    
+    if (modConstitution !== 0) {
+        const signe = modConstitution >= 0 ? ' +' : ' ';
+        calculText += `${signe}${pvConstitution}PV (CON)`;
+        totalPVGain += pvConstitution;
+    }
+    
+    if (bonusPV && bonusPV.trim() !== '' && bonusPV !== '0') {
+        // Gérer les bonus spéciaux comme "2(ROBUSTE)"
+        calculText += ` +${bonusPV}`;
+        
+        // Extraire la valeur numérique pour le calcul
+        const bonusMatch = bonusPV.match(/(\d+)/);
+        if (bonusMatch) {
+            const bonusNum = parseInt(bonusMatch[1]) * niveauxGagnes;
+            totalPVGain += bonusNum;
+        }
+    }
+    
+    const nouveauPV = pvActuels + totalPVGain;
+    calculText += ` = ${nouveauPV} PV`;
+    
+    return calculText;
+}
+
+// ===== GÉNÉRATION DU TEMPLATE =====
 
 function getSectionTitle(type) {
     const titles = {
@@ -424,7 +421,7 @@ function generateTemplate() {
     }
     
     // Informations quête
-    const { questesText, totalXPQuetes, totalMonnaies, objetsQuetes } = generateQuestesSection();
+    const { questesText, totalXPQuetes, totalMonnaies, objetsQuetes, autresQuetes } = generateQuestesSection();
     let sectionQuete;
     
     if (questesText && questesText !== '' && !questesText.includes('[TITRE_QUETE_1]')) {
@@ -435,67 +432,25 @@ ${questesText}
         sectionQuete = '**Quête :** [TITRE_QUETE] + [NOM_MJ] ⁠- [LIEN_RECOMPENSES]';
     }
     
-    // Remplacer xpObtenus par le total des quêtes
-    const xpObtenus = totalXPQuetes;
-    
     // Informations XP/Niveau
     const xpActuelsEl = document.getElementById('xp-actuels');
     const niveauActuelEl = document.getElementById('niveau-actuel');
     const niveauCibleEl = document.getElementById('niveau-cible');
+    const classeGainNiveauEl = document.getElementById('classe-gain-niveau');
     
     const xpActuels = xpActuelsEl ? parseInt(xpActuelsEl.value) || 0 : 0;
     const niveauActuel = niveauActuelEl ? parseInt(niveauActuelEl.value) || 1 : 1;
     const niveauCible = niveauCibleEl ? parseInt(niveauCibleEl.value) || 1 : 1;
+    const classeGainNiveau = classeGainNiveauEl ? classeGainNiveauEl.value : '';
     
-    // Informations PV détaillées
+    // Informations PV
     const pvActuelsEl = document.getElementById('pv-actuels');
-    const deVieEl = document.getElementById('de-vie');
     const modConstitutionEl = document.getElementById('mod-constitution');
     const bonusPVEl = document.getElementById('bonus-pv');
     
     const pvActuels = pvActuelsEl ? parseInt(pvActuelsEl.value) || 0 : 0;
-    const deVie = deVieEl ? parseInt(deVieEl.value) || 0 : 0;
     const modConstitution = modConstitutionEl ? parseInt(modConstitutionEl.value) || 0 : 0;
     const bonusPV = bonusPVEl ? bonusPVEl.value : '';
-    
-    // Calcul PV détaillé
-    let calculPV = '';
-    let totalPV = pvActuels;
-    
-    if (pvActuels > 0 || deVie > 0) {
-        calculPV = `PV : ${pvActuels}`;
-        
-        if (deVie > 0) {
-            calculPV += `+ ${deVie}`;
-            totalPV += deVie;
-        }
-        
-        if (modConstitution !== 0) {
-            const signeMod = modConstitution >= 0 ? '+' : '';
-            calculPV += `${signeMod}${modConstitution}(MOD_CONST)`;
-            totalPV += modConstitution;
-        }
-        
-        if (bonusPV && bonusPV.trim() !== '' && bonusPV !== '0') {
-            // Si c'est juste un nombre
-            if (/^\d+$/.test(bonusPV.trim())) {
-                const bonusNum = parseInt(bonusPV);
-                calculPV += `+${bonusNum}`;
-                totalPV += bonusNum;
-            } else {
-                // Extraire les nombres du bonus pour le calcul
-                const bonusNum = bonusPV.match(/\d+/g);
-                let bonusTotal = 0;
-                if (bonusNum) {
-                    bonusTotal = bonusNum.reduce((sum, num) => sum + parseInt(num), 0);
-                    totalPV += bonusTotal;
-                }
-                calculPV += `+${bonusPV}`;
-            }
-        }
-        
-        calculPV += ` = ${totalPV}`;
-    }
     
     // Sorts et capacités
     const nouvellesCapacitesEl = document.getElementById('nouvelles-capacites');
@@ -506,20 +461,17 @@ ${questesText}
     const nouveauSorts = nouveauSortsEl ? nouveauSortsEl.value || '-' : '-';
     const sortRemplace = sortRemplaceEl ? sortRemplaceEl.value || '-' : '-';
     
-    // Items
+    // Items et argent
     const objetsLootesEl = document.getElementById('objets-lootes');
-    const achatsVentesEl = document.getElementById('achats-ventes');
     const poLootesEl = document.getElementById('po-lootees');
-    
-    const objetsLootes = objetsLootesEl ? objetsLootesEl.value || '-' : '-';
-    const achatsVentes = achatsVentesEl ? achatsVentesEl.value || '-' : '-';
-    const poLootees = poLootesEl ? parseInt(poLootesEl.value) || 0 : 0;
-    
-    // Argent
+    const achatsVentesEl = document.getElementById('achats-ventes');
     const ancienSoldeEl = document.getElementById('ancien-solde');
     const poRecuesEl = document.getElementById('po-recues');
     
-    const ancienSolde = ancienSoldeEl ? ancienSoldeEl.value || '0 PO' : '0 PO';
+    const objetsLootes = objetsLootesEl ? objetsLootesEl.value || '' : '';
+    const poLootees = poLootesEl ? parseInt(poLootesEl.value) || 0 : 0;
+    const achatsVentes = achatsVentesEl ? achatsVentesEl.value || '' : '';
+    const ancienSolde = ancienSoldeEl ? ancienSoldeEl.value || '[ANCIEN_SOLDE]' : '[ANCIEN_SOLDE]';
     const poRecues = poRecuesEl ? parseInt(poRecuesEl.value) || 0 : 0;
     
     // Section spéciale
@@ -531,96 +483,10 @@ ${questesText}
     const descriptionSpecial = descriptionSpecialEl ? descriptionSpecialEl.value : '';
     const includeMarchand = includeMarchandEl ? includeMarchandEl.checked : false;
     
-    // Calculs automatiques
-    const nouveauTotalXP = xpActuels + xpObtenus;
+    // Calculs
+    const { progressionText, xpInfo } = calculateXPProgression(xpActuels, totalXPQuetes, niveauActuel, niveauCible, classeGainNiveau || classe);
+    const pvCalcul = calculatePVGain(classeGainNiveau || classe, niveauActuel, niveauCible, modConstitution, bonusPV, pvActuels);
     
-    // Calcul nouveau solde (gestion format PO/PA)
-    let nouveauSolde;
-    if (ancienSolde.includes('PO') || ancienSolde.includes('PA')) {
-        // Format complexe avec PA
-        const changeTotal = poRecues + poLootees;
-        if (changeTotal === 0) {
-            nouveauSolde = `${ancienSolde} inchangées`;
-        } else {
-            nouveauSolde = `${ancienSolde} ${changeTotal >= 0 ? '+' : ''}${changeTotal} = [NOUVEAU_SOLDE]`;
-        }
-    } else {
-        const ancienSoldeNum = parseInt(ancienSolde) || 0;
-        const changeTotal = poRecues + poLootees;
-        nouveauSolde = `${ancienSoldeNum} ${changeTotal >= 0 ? '+' : ''}${changeTotal} = ${ancienSoldeNum + changeTotal}`;
-    }
-    
-    // Vérification niveau avec le nouveau système
-    let xpInfo = '';
-    let progressionText = '';
-    
-    if (niveauActuel && niveauCible && xpActuels >= 0 && xpObtenus >= 0) {
-        const nouveauTotal = xpActuels + xpObtenus;
-        
-        // Calculer si le niveau cible est atteignable
-        let xpCumules = nouveauTotal;
-        let niveauPossible = niveauActuel;
-        
-        while (niveauPossible < 20 && XP_TABLE[niveauPossible + 1] && xpCumules >= XP_TABLE[niveauPossible + 1]) {
-            xpCumules -= XP_TABLE[niveauPossible + 1];
-            niveauPossible++;
-        }
-        
-        if (niveauCible > niveauPossible) {
-            // Niveau cible impossible à atteindre
-            let xpManquants = 0;
-            let tempNiveau = niveauActuel;
-            let tempXP = nouveauTotal;
-            
-            while (tempNiveau < niveauCible && XP_TABLE[tempNiveau + 1]) {
-                const xpRequis = XP_TABLE[tempNiveau + 1];
-                if (tempXP >= xpRequis) {
-                    tempXP -= xpRequis;
-                    tempNiveau++;
-                } else {
-                    xpManquants += (xpRequis - tempXP);
-                    tempXP = 0;
-                    tempNiveau++;
-                }
-            }
-            
-            const xpRequisActuel = XP_TABLE[niveauActuel + 1] || '?';
-            progressionText = ` ==> ${nouveauTotal}/${xpRequisActuel}`;
-            xpInfo = ` ❌ IMPOSSIBLE ! (Manque ${xpManquants} XP pour niveau ${niveauCible})`;
-            
-        } else if (niveauCible === niveauPossible) {
-            // Niveau cible atteignable
-            if (niveauCible === niveauActuel + 1) {
-                // Passage de niveau simple
-                const xpRequis = XP_TABLE[niveauCible];
-                progressionText = ` ==> ${nouveauTotal}/${xpRequis}`;
-                if (nouveauTotal >= xpRequis) {
-                    progressionText += ` ==> passage au niveau ${niveauCible} ${getClasseForXP(classe)}`;
-                    xpInfo = ' ✅';
-                }
-            } else if (niveauCible > niveauActuel + 1) {
-                // Plusieurs niveaux
-                progressionText = ` ==> passage au niveau ${niveauCible} ${getClasseForXP(classe)}`;
-                xpInfo = ' 🚀';
-            }
-        } else if (niveauCible < niveauPossible) {
-            // Le joueur pourrait monter plus haut
-            const xpRequisActuel = XP_TABLE[niveauActuel + 1] || '?';
-            progressionText = ` ==> ${nouveauTotal}/${xpRequisActuel}`;
-            xpInfo = ` 💡 Vous pourriez atteindre le niveau ${niveauPossible} !`;
-        }
-        
-        // Cas où pas encore de passage de niveau
-        if (niveauCible === niveauActuel && XP_TABLE[niveauActuel + 1]) {
-            const xpRequis = XP_TABLE[niveauActuel + 1];
-            progressionText = ` ==> ${nouveauTotal}/${xpRequis}`;
-            if (nouveauTotal < xpRequis) {
-                const manque = xpRequis - nouveauTotal;
-                xpInfo = ` ⚠️ (Manque ${manque} XP pour niveau ${niveauActuel + 1})`;
-            }
-        }
-    }
-
     // Construction du template
     let template = `Nom du PJ : ${nom}
 Classe : ${classe}`;
@@ -640,9 +506,10 @@ ${descriptionSpecial}
 ${sectionQuete}`;
 
     // XP seulement si renseignés
-    if (xpActuels >= 0 && (xpObtenus > 0 || niveauActuel)) {
+    if (xpActuels >= 0 && totalXPQuetes > 0) {
         const xpRequisPourNiveau = XP_TABLE[niveauActuel + 1] || '?';
-        const affichageXP = `**Solde XP :** ${xpActuels}/${xpRequisPourNiveau} + ${xpObtenus}XP obtenue = ${nouveauTotalXP}${progressionText}${xpInfo}`;
+        const nouveauTotalXP = xpActuels + totalXPQuetes;
+        const affichageXP = `**Solde XP :** ${xpActuels}/${xpRequisPourNiveau} + ${totalXPQuetes}XP obtenue ==> ${nouveauTotalXP}${progressionText}${xpInfo}`;
         template += `
 ${affichageXP}`;
     }
@@ -651,12 +518,12 @@ ${affichageXP}`;
     if (niveauCible > niveauActuel) {
         template += `
 **Gain de niveau :** Niveau ${niveauActuel} → **Niveau ${niveauCible}** 🎉`;
-    }
-
-    // PV seulement si renseignés
-    if (calculPV) {
-        template += `
-${calculPV}`;
+        
+        // PV détaillés si montée de niveau
+        if (pvCalcul && pvActuels > 0) {
+            template += `
+**PV :** ${pvCalcul}`;
+        }
     }
 
     template += `
@@ -669,9 +536,9 @@ Sort remplacé :
 ${sortRemplace}`;
 
     // Inventaire seulement si renseigné
-    const objetsLootesBase = objetsLootes !== '-' ? objetsLootes : '';
+    const objetsLootesBase = objetsLootes || '';
     const objetsFromQuetes = objetsQuetes.length > 0 ? objetsQuetes.join(', ') : '';
-    const tousObjets = [objetsLootesBase, objetsFromQuetes].filter(o => o).join(', ') || '-';
+    const tousObjets = [objetsLootesBase, objetsFromQuetes].filter(o => o).join(', ') || '';
     
     // Calculer les totaux de monnaies (quêtes + manuel)
     const totalPC = totalMonnaies.PC;
@@ -679,41 +546,48 @@ ${sortRemplace}`;
     const totalPO = totalMonnaies.PO + poLootees;
     const totalPP = totalMonnaies.PP;
     
-    // Construire le texte des monnaies lootées avec gestion des signes
+    // Construire le texte des monnaies lootées
     let monnaiesLootees = [];
-    if (totalPC !== 0) {
-        monnaiesLootees.push(`${totalPC > 0 ? '+' : ''}${totalPC} PC`);
-    }
-    if (totalPA !== 0) {
-        monnaiesLootees.push(`${totalPA > 0 ? '+' : ''}${totalPA} PA`);
-    }
-    if (totalPO !== 0) {
-        monnaiesLootees.push(`${totalPO > 0 ? '+' : ''}${totalPO} PO`);
-    }
-    if (totalPP !== 0) {
-        monnaiesLootees.push(`${totalPP > 0 ? '+' : ''}${totalPP} PP`);
-    }
+    if (totalPC !== 0) monnaiesLootees.push(`${totalPC > 0 ? '+' : ''}${totalPC} PC`);
+    if (totalPA !== 0) monnaiesLootees.push(`${totalPA > 0 ? '+' : ''}${totalPA} PA`);
+    if (totalPO !== 0) monnaiesLootees.push(`${totalPO > 0 ? '+' : ''}${totalPO} PO`);
+    if (totalPP !== 0) monnaiesLootees.push(`${totalPP > 0 ? '+' : ''}${totalPP} PP`);
     
-    const monnaiesText = monnaiesLootees.length > 0 ? monnaiesLootees.join(' ') : '0';
+    const monnaiesText = monnaiesLootees.length > 0 ? monnaiesLootees.join(' ') : '';
     
-    if (tousObjets !== '-' || monnaiesLootees.length > 0) {
+    if (tousObjets !== '' || monnaiesText !== '') {
         template += `
-**¤ Inventaire**
+**¤ Inventaire**`;
+        if (tousObjets !== '') {
+            template += `
 Objets lootés :
-${tousObjets}
+${tousObjets}`;
+        }
+        if (monnaiesText !== '') {
+            template += `
 Monnaies lootées: ${monnaiesText}`;
+        }
     }
 
     template += `
 ** \\ =======================  PJ  ========================= / **`;
 
     // Section Marchand si demandée
-    if (includeMarchand && achatsVentes !== '-') {
+    if (includeMarchand && achatsVentes !== '') {
         template += `
 **/ ===================== Marchand ===================== \\ **
 **¤ Inventaire**
 ${achatsVentes}
 ** \\ ==================== Marchand ====================== / **`;
+    }
+
+    // Calcul nouveau solde
+    const changeTotal = poRecues + (poLootees + totalMonnaies.PO);
+    let nouveauSolde;
+    if (changeTotal === 0) {
+        nouveauSolde = `${ancienSolde} inchangé`;
+    } else {
+        nouveauSolde = `${ancienSolde} ${changeTotal >= 0 ? '+' : ''}${changeTotal} = [NOUVEAU_SOLDE]`;
     }
 
     template += `
@@ -733,24 +607,6 @@ function regenerateIfNeeded() {
     const nomPJ = document.getElementById('nom-pj');
     if (nomPJ && nomPJ.value) {
         generateTemplate();
-    }
-}
-
-function suggestHPForClass() {
-    const multiclasseToggle = document.getElementById('multiclasse-toggle');
-    const isMulticlasse = multiclasseToggle ? multiclasseToggle.checked : false;
-    
-    if (!isMulticlasse) {
-        const classeEl = document.getElementById('classe');
-        const deVieEl = document.getElementById('de-vie');
-        
-        if (classeEl && deVieEl) {
-            const classe = classeEl.value;
-            const suggestedHP = HP_PER_LEVEL[classe];
-            if (suggestedHP && !deVieEl.value) {
-                deVieEl.placeholder = `${suggestedHP} (moy. ${classe})`;
-            }
-        }
     }
 }
 
@@ -830,15 +686,12 @@ document.addEventListener('DOMContentLoaded', function() {
     setupQueteListeners(0);
     
     // Listeners pour tous les autres champs
-    const inputs = document.querySelectorAll('input:not([id*="quete"]), select, textarea:not([id*="quete"])');
+    const inputs = document.querySelectorAll('input:not([id*="quete"]):not([data-listener-added]), select:not([data-listener-added]), textarea:not([id*="quete"]):not([data-listener-added])');
     inputs.forEach(input => {
-        input.addEventListener('input', function() {
-            // Suggestions automatiques
-            if (input.id === 'classe') {
-                suggestHPForClass();
-            }
-            
-            regenerateIfNeeded();
-        });
+        input.addEventListener('input', regenerateIfNeeded);
+        input.setAttribute('data-listener-added', 'true');
     });
+
+    // Génération initiale du template
+    regenerateIfNeeded();
 });
