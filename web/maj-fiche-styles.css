@@ -216,6 +216,10 @@ input:focus, select:focus, textarea:focus {
     display: block;
 }
 
+#tab-capacites textarea {
+    min-height: 60px;
+}
+
 /* Gestion des quêtes */
 .quete-bloc {
     background: #f8f9fa;

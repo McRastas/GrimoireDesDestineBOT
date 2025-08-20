@@ -636,12 +636,19 @@ ${questesText}
     
     // Sorts et capacités
     const nouvellesCapacitesEl = document.getElementById('nouvelles-capacites');
-    const nouveauSortsEl = document.getElementById('nouveaux-sorts');
-    const sortRemplaceEl = document.getElementById('sort-remplace');
-    
+    const nouveauxSortsEl = document.getElementById('nouveaux-sorts');
+    const sortsRemplacesEl = document.getElementById('sorts-remplaces');
+
+    const parseList = (el) => {
+        if (!el || !el.value) return [];
+        return el.value.split(/[\n,]+/).map(s => s.trim()).filter(Boolean);
+    };
+
     const nouvellesCapacites = nouvellesCapacitesEl ? nouvellesCapacitesEl.value || '-' : '-';
-    const nouveauSorts = nouveauSortsEl ? nouveauSortsEl.value || '-' : '-';
-    const sortRemplace = sortRemplaceEl ? sortRemplaceEl.value || '-' : '-';
+    const nouveauxSortsList = parseList(nouveauxSortsEl);
+    const sortsRemplacesList = parseList(sortsRemplacesEl);
+    const nouveauxSorts = nouveauxSortsList.length ? nouveauxSortsList.join(', ') : '-';
+    const sortsRemplaces = sortsRemplacesList.length ? sortsRemplacesList.join(', ') : '-';
     
     // Items et argent
     const objetsLootesEl = document.getElementById('objets-lootes');
@@ -713,9 +720,9 @@ ${affichageXP}`;
 Nouvelle(s) capacité(s) :
 ${nouvellesCapacites}
 Nouveau(x) sort(s) :
-${nouveauSorts}
-Sort remplacé :
-${sortRemplace}`;
+${nouveauxSorts}
+Sort(s) remplacé(s) :
+${sortsRemplaces}`;
 
     // Inventaire seulement si renseigné
     const objetsLootesBase = objetsLootes || '';
