@@ -47,11 +47,20 @@ function showTab(tabName, event) {
 // ===== GESTION DES QUÊTES =====
 
 function addQuete() {
+    // S'assurer que le compteur reflète l'état actuel du DOM
+    const domCount = document.querySelectorAll('.quete-bloc').length - 1;
+    if (domCount !== queteCounter) {
+        queteCounter = domCount;
+    }
+
     queteCounter++;
     const container = document.getElementById('quetes-container');
 
     const queteHtml = createQueteHTML(queteCounter);
     container.insertAdjacentHTML('beforeend', queteHtml);
+
+    // Re-numérote toutes les quêtes pour garder une numérotation séquentielle
+    renumberQuetes();
 
     // Ajouter les event listeners pour la nouvelle quête
     setupQueteListeners(queteCounter);
@@ -69,7 +78,13 @@ function deleteQuete(index) {
     const queteBloc = document.querySelector(`[data-quete="${index}"]`);
     if (queteBloc) {
         queteBloc.remove();
-        
+
+        // Recalculer le compteur en fonction du DOM
+        queteCounter = document.querySelectorAll('.quete-bloc').length - 1;
+
+        // Mettre à jour les indices des quêtes restantes
+        renumberQuetes();
+
         // Masquer le bouton de suppression s'il ne reste qu'une quête
         const remainingQuetes = document.querySelectorAll('.quete-bloc');
         if (remainingQuetes.length === 1) {
@@ -78,9 +93,37 @@ function deleteQuete(index) {
                 deleteBtn.style.display = 'none';
             }
         }
-        
+
         regenerateIfNeeded();
     }
+}
+
+function renumberQuetes() {
+    const blocs = document.querySelectorAll('.quete-bloc');
+    blocs.forEach((bloc, index) => {
+        bloc.setAttribute('data-quete', index);
+
+        const title = bloc.querySelector('h4');
+        if (title) {
+            title.textContent = `🎯 Quête ${index + 1}`;
+        }
+
+        bloc.querySelectorAll('[id]').forEach(el => {
+            el.id = el.id.replace(/\d+$/, index);
+        });
+
+        bloc.querySelectorAll('label[for]').forEach(label => {
+            const forValue = label.getAttribute('for');
+            if (forValue) {
+                label.setAttribute('for', forValue.replace(/\d+$/, index));
+            }
+        });
+
+        const deleteBtn = bloc.querySelector('.delete-quete');
+        if (deleteBtn) {
+            deleteBtn.setAttribute('onclick', `deleteQuete(${index})`);
+        }
+    });
 }
 
 function addRecompense(index) {
