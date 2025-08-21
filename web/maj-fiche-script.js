@@ -801,6 +801,16 @@ ${questesText}
     const ancienSolde = ancienSoldeEl ? ancienSoldeEl.value || '[ANCIEN_SOLDE]' : '[ANCIEN_SOLDE]';
     const ancienSoldeNum = parseFloat(ancienSolde);
     const poRecues = poRecuesEl ? parseFloat(poRecuesEl.value) || 0 : 0;
+
+    // Artisanat
+    const artisanatNotesEl = document.getElementById('artisanat-notes');
+    const artisanatItemsEl = document.getElementById('artisanat-items');
+    const artisanatCostEl = document.getElementById('artisanat-cost');
+
+    const artisanatNotes = artisanatNotesEl ? artisanatNotesEl.value.trim() : '';
+    const artisanatItemsList = artisanatItemsEl ? parseList(artisanatItemsEl) : [];
+    const artisanatCostRaw = artisanatCostEl ? artisanatCostEl.value.trim() : '';
+    const artisanatCost = artisanatCostRaw !== '' ? parseFloat(artisanatCostRaw) || 0 : 0;
     
     // Section spéciale
     const typeSpecialEl = document.getElementById('type-special');
@@ -944,6 +954,27 @@ ${transactionsText}
 ANCIEN SOLDE ${soldeText}
 *Fiche R20 à jour.*`;
 
+    const hasArtisanat = artisanatNotes || artisanatItemsList.length > 0 || artisanatCostRaw !== '';
+    if (hasArtisanat) {
+        template += `
+**Artisanat :** ${artisanatNotes}`;
+        if (artisanatItemsList.length > 0) {
+            template += `
+Obtention des objets suivants :
+${artisanatItemsList.map(i => `- ${i}`).join('\n')}`;
+        }
+        const nouveauSoldeNum = parseFloat(nouveauSoldeCalc);
+        const artisanatCostFormatted = artisanatCost.toFixed(2);
+        if (!isNaN(nouveauSoldeNum)) {
+            const soldeApresArtisanat = (nouveauSoldeNum - artisanatCost).toFixed(2);
+            template += `
+${nouveauSoldeCalc} - ${artisanatCostFormatted} = ${soldeApresArtisanat}`;
+        } else {
+            template += `
+${nouveauSoldeCalc} - ${artisanatCostFormatted} = [SOLDE_ARTISANAT]`;
+        }
+    }
+
     const outputEl = document.getElementById('discord-output');
     if (outputEl) {
         outputEl.textContent = template;
@@ -1050,6 +1081,9 @@ document.addEventListener('DOMContentLoaded', function() {
         + ' input#po-lootees:not([data-listener-added]),'
         + ' input#po-recues:not([data-listener-added]),'
         + ' input#ancien-solde:not([data-listener-added]),'
+        + ' textarea#artisanat-notes:not([data-listener-added]),'
+        + ' textarea#artisanat-items:not([data-listener-added]),'
+        + ' input#artisanat-cost:not([data-listener-added]),'
         + ' input#section-marchand:not([data-listener-added])'
     );
     inputs.forEach(input => {
