@@ -284,6 +284,56 @@ input[disabled] {
     background: #c0392b;
 }
 
+/* Achats / Ventes */
+#transactions-container {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 5px;
+}
+
+.transaction-line {
+    display: grid;
+    grid-template-columns: 100px 1fr 100px 40px;
+    gap: 5px;
+    align-items: center;
+}
+
+.transaction-line select,
+.transaction-line input[type="text"],
+.transaction-line input[type="number"] {
+    padding: 6px;
+}
+
+.transaction-line button.delete-transaction {
+    background: #e74c3c;
+    color: white;
+    border: none;
+    padding: 4px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.transaction-line button.delete-transaction:hover {
+    background: #c0392b;
+}
+
+#add-transaction {
+    background: #3498db;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    cursor: pointer;
+    margin-top: 5px;
+    transition: background 0.3s ease;
+}
+
+#add-transaction:hover {
+    background: #2980b9;
+}
+
 /* Récompenses */
 .recompense-item {
     display: flex;

@@ -22,6 +22,7 @@ const SPELL_LEARNING_COSTS = {
 // Variables globales
 let queteCounter = 0;
 let recompenseCounters = {}; // Pour tracker les compteurs de récompenses par quête
+let transactionCounter = 0;
 
 // ===== GESTION DES ONGLETS =====
 
@@ -42,6 +43,53 @@ function showTab(tabName, event) {
 
     // Activer le bouton sélectionné
     event.currentTarget.classList.add('active');
+}
+
+// ===== GESTION DES TRANSACTIONS =====
+
+function addTransactionLine() {
+    const container = document.getElementById('transactions-container');
+    if (!container) return;
+
+    const line = document.createElement('div');
+    line.className = 'transaction-line';
+    line.dataset.index = transactionCounter++;
+    line.innerHTML = `
+        <select>
+            <option value="ACHAT">ACHAT</option>
+            <option value="VENTE">VENTE</option>
+        </select>
+        <input type="text" placeholder="Description">
+        <input type="number" step="0.01" placeholder="0">
+        <button type="button" class="delete-transaction">🗑️</button>
+    `;
+    container.appendChild(line);
+    setupTransactionLine(line);
+    regenerateIfNeeded();
+}
+
+function deleteTransactionLine(line) {
+    if (line instanceof HTMLElement) {
+        line.remove();
+        regenerateIfNeeded();
+    }
+}
+
+function setupTransactionLine(line) {
+    if (!line) return;
+    const inputs = line.querySelectorAll('select, input');
+    inputs.forEach(inp => {
+        if (!inp.getAttribute('data-listener-added')) {
+            inp.addEventListener('input', regenerateIfNeeded);
+            inp.setAttribute('data-listener-added', 'true');
+        }
+    });
+
+    const delBtn = line.querySelector('.delete-transaction');
+    if (delBtn && !delBtn.getAttribute('data-listener-added')) {
+        delBtn.addEventListener('click', () => deleteTransactionLine(line));
+        delBtn.setAttribute('data-listener-added', 'true');
+    }
 }
 
 // ===== GESTION DES QUÊTES =====
@@ -719,15 +767,36 @@ ${questesText}
     // Items et argent
     const objetsLootesEl = document.getElementById('objets-lootes');
     const poLootesEl = document.getElementById('po-lootees');
-    const achatsVentesEl = document.getElementById('achats-ventes');
+    const transactionsContainer = document.getElementById('transactions-container');
     const ancienSoldeEl = document.getElementById('ancien-solde');
     const poRecuesEl = document.getElementById('po-recues');
 
     const objetsLootesList = objetsLootesEl ? parseList(objetsLootesEl) : [];
     const objetsLootes = objetsLootesList.length ? objetsLootesList.join(', ') : '';
     const poLootees = poLootesEl ? parseInt(poLootesEl.value) || 0 : 0;
-    const achatsVentesText = achatsVentesEl ? achatsVentesEl.value || '' : '';
-    const { formattedText: achatsVentesFormate, net: netPOMarchand } = parseAchatsVentes(achatsVentesText);
+    let transactionsText = '';
+    let netPOMarchand = 0;
+
+    if (transactionsContainer) {
+        const lines = transactionsContainer.querySelectorAll('.transaction-line');
+        const formatted = [];
+        lines.forEach(line => {
+            const type = line.querySelector('select')?.value;
+            const desc = line.querySelector('input[type="text"]')?.value.trim();
+            const amountStr = line.querySelector('input[type="number"]')?.value;
+            const amount = parseFloat(amountStr);
+            if (type && desc && !isNaN(amount)) {
+                formatted.push(`${type} : ${desc} ${amount.toFixed(2)}PO`);
+                if (type === 'ACHAT') {
+                    netPOMarchand -= amount;
+                } else if (type === 'VENTE') {
+                    netPOMarchand += amount;
+                }
+            }
+        });
+        transactionsText = formatted.join('\n');
+    }
+
     const ancienSolde = ancienSoldeEl ? ancienSoldeEl.value || '[ANCIEN_SOLDE]' : '[ANCIEN_SOLDE]';
     const ancienSoldeNum = parseFloat(ancienSolde);
     const poRecues = poRecuesEl ? parseInt(poRecuesEl.value) || 0 : 0;
@@ -843,10 +912,10 @@ Monnaies lootées: ${monnaiesText}`;
 ** \\ =======================  PJ  ========================= / **`;
 
     // Section Marchand si demandée
-    if (includeMarchand && achatsVentesFormate.trim() !== '') {
+    if (includeMarchand && transactionsText.trim() !== '') {
         template += `
 / =======================  MARCHAND  ========================= \\
-${achatsVentesFormate}
+${transactionsText}
 \\ =======================  MARCHAND  ========================= /`;
     }
 
@@ -874,33 +943,6 @@ ANCIEN SOLDE ${soldeText}
 }
 
 // ===== FONCTIONS UTILITAIRES =====
-
-function parseAchatsVentes(text) {
-    const lines = text.split(/\n/);
-    let net = 0;
-    const formatted = [];
-
-    lines.forEach(rawLine => {
-        const line = rawLine.trim();
-        if (!line) return;
-        const match = line.match(/^(ACHAT|VENTE)\s*:\s*(.+?)\s+(\d+(?:[.,]\d*)?)\s*PO$/i);
-        if (match) {
-            const type = match[1].toUpperCase();
-            const objet = match[2].trim();
-            const montant = parseFloat(match[3].replace(',', '.'));
-            if (type === 'ACHAT') {
-                net -= montant;
-            } else {
-                net += montant;
-            }
-            formatted.push(`${type} : ${objet} ${montant}PO`);
-        } else {
-            formatted.push(line);
-        }
-    });
-
-    return { formattedText: formatted.join('\n'), net };
-}
 
 function regenerateIfNeeded() {
     const nomPJ = document.getElementById('nom-pj');
@@ -983,7 +1025,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Setup des listeners pour la première quête
     setupQueteListeners(0);
-    
+
+    // Bouton d'ajout de transaction
+    const addTransactionBtn = document.getElementById('add-transaction');
+    if (addTransactionBtn) {
+        addTransactionBtn.addEventListener('click', addTransactionLine);
+    }
+
     // Listeners pour tous les autres champs
     const inputs = document.querySelectorAll(
         'input:not([id*="quete"]):not([data-listener-added]),'
@@ -991,7 +1039,6 @@ document.addEventListener('DOMContentLoaded', function() {
         + ' textarea:not([id*="quete"]):not([data-listener-added]),'
         + ' textarea#don-quete:not([data-listener-added]),'
         + ' textarea#objets-lootes:not([data-listener-added]),'
-        + ' textarea#achats-ventes:not([data-listener-added]),'
         + ' input#po-lootees:not([data-listener-added]),'
         + ' input#po-recues:not([data-listener-added]),'
         + ' input#ancien-solde:not([data-listener-added]),'
@@ -1001,6 +1048,9 @@ document.addEventListener('DOMContentLoaded', function() {
         input.addEventListener('input', regenerateIfNeeded);
         input.setAttribute('data-listener-added', 'true');
     });
+
+    // Setup initial des transactions si présentes
+    document.querySelectorAll('#transactions-container .transaction-line').forEach(setupTransactionLine);
 
     // Génération initiale du template
     regenerateIfNeeded();
