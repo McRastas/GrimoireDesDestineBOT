@@ -195,6 +195,17 @@ input[disabled] {
     font-weight: bold;
 }
 
+.split-warning {
+    display: none;
+    color: #e67e22;
+    font-size: 0.9rem;
+    margin-bottom: 10px;
+}
+
+.split-warning::before {
+    content: "⚠️ ";
+}
+
 /* Système d'onglets */
 .tab-container {
     margin-bottom: 20px;

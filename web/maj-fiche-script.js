@@ -978,6 +978,7 @@ ${nouveauSoldeCalc} - ${artisanatCostFormatted} = [SOLDE_ARTISANAT]`;
     const outputEl = document.getElementById('discord-output');
     const outputPart2El = document.getElementById('discord-output-part2');
     const copyBtnPart2 = document.getElementById('copy-btn-part2');
+    const splitWarning = document.getElementById('split-warning');
     const templateLength = template.length;
     const remaining = 1800 - templateLength;
     const indicator = document.getElementById('char-indicator');
@@ -988,7 +989,6 @@ ${nouveauSoldeCalc} - ${artisanatCostFormatted} = [SOLDE_ARTISANAT]`;
     }
 
     if (templateLength > 1800) {
-        alert("Le message dépasse 1 800 caractères. Il est divisé en deux parties.");
         const mid = Math.ceil(templateLength / 2);
         const part1 = template.slice(0, mid);
         const part2 = template.slice(mid);
@@ -1002,6 +1002,10 @@ ${nouveauSoldeCalc} - ${artisanatCostFormatted} = [SOLDE_ARTISANAT]`;
         if (copyBtnPart2) {
             copyBtnPart2.style.display = 'inline-block';
         }
+        if (splitWarning) {
+            splitWarning.textContent = '⚠️ Le message dépasse 1 800 caractères ; il a été divisé en deux parties';
+            splitWarning.style.display = 'block';
+        }
     } else {
         if (outputEl) {
             outputEl.textContent = template;
@@ -1012,6 +1016,10 @@ ${nouveauSoldeCalc} - ${artisanatCostFormatted} = [SOLDE_ARTISANAT]`;
         }
         if (copyBtnPart2) {
             copyBtnPart2.style.display = 'none';
+        }
+        if (splitWarning) {
+            splitWarning.textContent = '';
+            splitWarning.style.display = 'none';
         }
     }
 }
