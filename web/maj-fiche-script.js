@@ -22,7 +22,6 @@ const SPELL_LEARNING_COSTS = {
 // Variables globales
 let queteCounter = 0;
 let recompenseCounters = {}; // Pour tracker les compteurs de récompenses par quête
-let transactionCounter = 0;
 
 // ===== GESTION DES ONGLETS =====
 
@@ -53,7 +52,6 @@ function addTransactionLine() {
 
     const line = document.createElement('div');
     line.className = 'transaction-line';
-    line.dataset.index = transactionCounter++;
     line.innerHTML = `
         <select>
             <option value="ACHAT">ACHAT</option>
