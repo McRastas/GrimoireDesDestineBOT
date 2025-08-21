@@ -702,7 +702,8 @@ ${questesText}
     const objetsLootesList = objetsLootesEl ? parseList(objetsLootesEl) : [];
     const objetsLootes = objetsLootesList.length ? objetsLootesList.join(', ') : '';
     const poLootees = poLootesEl ? parseInt(poLootesEl.value) || 0 : 0;
-    const achatsVentes = achatsVentesEl ? achatsVentesEl.value || '' : '';
+    const achatsVentesText = achatsVentesEl ? achatsVentesEl.value || '' : '';
+    const { formattedText: achatsVentesFormate, net: netPOMarchand } = parseAchatsVentes(achatsVentesText);
     const ancienSolde = ancienSoldeEl ? ancienSoldeEl.value || '[ANCIEN_SOLDE]' : '[ANCIEN_SOLDE]';
     const ancienSoldeNum = parseFloat(ancienSolde);
     const poRecues = poRecuesEl ? parseInt(poRecuesEl.value) || 0 : 0;
@@ -818,28 +819,28 @@ Monnaies lootées: ${monnaiesText}`;
 ** \\ =======================  PJ  ========================= / **`;
 
     // Section Marchand si demandée
-    if (includeMarchand && achatsVentes.trim() !== '') {
+    if (includeMarchand && achatsVentesFormate.trim() !== '') {
         template += `
 / =======================  MARCHAND  ========================= \\
-${achatsVentes}
+${achatsVentesFormate}
 \\ =======================  MARCHAND  ========================= /`;
     }
 
     // Calcul nouveau solde
-    const changeTotal = poRecues + totalLootPORounded;
-    const newBalance = ancienSoldeNum + changeTotal;
+    const changeTotal = poRecues + poLootees + totalMonnaies.PO + netPOMarchand;
     const changeTotalFormatted = changeTotal.toFixed(2);
-    const newBalanceFormatted = newBalance.toFixed(2);
-    let nouveauSolde;
+    const ancienSoldeAffiche = isNaN(ancienSoldeNum) ? ancienSolde : ancienSoldeNum.toFixed(2);
+    const nouveauSoldeCalc = isNaN(ancienSoldeNum) ? '[NOUVEAU_SOLDE]' : (ancienSoldeNum + changeTotal).toFixed(2);
+    let soldeText;
     if (changeTotal === 0) {
-        nouveauSolde = `${ancienSolde} inchangé`;
+        soldeText = `${ancienSoldeAffiche} inchangé`;
     } else {
-        nouveauSolde = `${ancienSolde} ${changeTotal >= 0 ? '+' : ''}${changeTotalFormatted} = ${newBalanceFormatted}`;
+        soldeText = `${ancienSoldeAffiche} ${changeTotal >= 0 ? '+' : ''}${changeTotalFormatted} = ${nouveauSoldeCalc}`;
     }
 
     template += `
 **¤ Solde :**
-ANCIEN SOLDE ${nouveauSolde}
+ANCIEN SOLDE ${soldeText}
 *Fiche R20 à jour.*`;
 
     const outputEl = document.getElementById('discord-output');
@@ -849,6 +850,33 @@ ANCIEN SOLDE ${nouveauSolde}
 }
 
 // ===== FONCTIONS UTILITAIRES =====
+
+function parseAchatsVentes(text) {
+    const lines = text.split(/\n/);
+    let net = 0;
+    const formatted = [];
+
+    lines.forEach(rawLine => {
+        const line = rawLine.trim();
+        if (!line) return;
+        const match = line.match(/^(ACHAT|VENTE)\s*:\s*(.+?)\s+(\d+(?:[.,]\d*)?)\s*PO$/i);
+        if (match) {
+            const type = match[1].toUpperCase();
+            const objet = match[2].trim();
+            const montant = parseFloat(match[3].replace(',', '.'));
+            if (type === 'ACHAT') {
+                net -= montant;
+            } else {
+                net += montant;
+            }
+            formatted.push(`${type} : ${objet} ${montant}PO`);
+        } else {
+            formatted.push(line);
+        }
+    });
+
+    return { formattedText: formatted.join('\n'), net };
+}
 
 function regenerateIfNeeded() {
     const nomPJ = document.getElementById('nom-pj');
