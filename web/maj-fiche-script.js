@@ -1033,53 +1033,11 @@ function regenerateIfNeeded() {
     }
 }
 
-async function copyToClipboard(event) {
-    const targetId = event.currentTarget.getAttribute('data-target');
-    const outputEl = document.getElementById(targetId);
-    if (!outputEl) return;
-
-    const output = outputEl.textContent;
-
-    if (!output || output === 'Remplissez les champs à gauche pour voir le template généré...') {
-        alert('Veuillez d\'abord générer un template !');
-        return;
-    }
-
-    try {
-        await navigator.clipboard.writeText(output);
-        const btn = event.currentTarget;
-        const originalText = btn.textContent;
-        
-        btn.textContent = '✅ Copié !';
-        btn.classList.add('success');
-        
-        setTimeout(() => {
-            btn.textContent = originalText;
-            btn.classList.remove('success');
-        }, 2000);
-    } catch (err) {
-        // Fallback pour les navigateurs plus anciens
-        const textArea = document.createElement('textarea');
-        textArea.value = output;
-        document.body.appendChild(textArea);
-        textArea.select();
-        try {
-            document.execCommand('copy');
-            const btn = event.currentTarget;
-            const originalText = btn.textContent;
-            
-            btn.textContent = '✅ Copié !';
-            btn.classList.add('success');
-            
-            setTimeout(() => {
-                btn.textContent = originalText;
-                btn.classList.remove('success');
-            }, 2000);
-        } catch (fallbackErr) {
-            alert('Impossible de copier automatiquement. Sélectionnez et copiez le texte manuellement.');
-        }
-        document.body.removeChild(textArea);
-    }
+function copyToClipboard(text) {
+    return navigator.clipboard.writeText(text).catch(err => {
+        console.error('Erreur lors de la copie dans le presse-papiers :', err);
+        throw err;
+    });
 }
 
 // ===== INITIALISATION =====
@@ -1114,6 +1072,40 @@ document.addEventListener('DOMContentLoaded', function() {
     if (addTransactionBtn) {
         addTransactionBtn.addEventListener('click', addTransactionLine);
     }
+
+    // Boutons de copie
+    document.querySelectorAll('.copy-btn[data-target]').forEach(btn => {
+        const targetId = btn.getAttribute('data-target');
+        if (!targetId || !document.getElementById(targetId)) {
+            console.error('Bouton de copie sans data-target valide:', btn);
+            return;
+        }
+
+        const originalText = btn.textContent;
+        btn.addEventListener('click', () => {
+            const outputEl = document.getElementById(targetId);
+            const text = outputEl ? outputEl.textContent : '';
+            if (!text || text === 'Remplissez les champs à gauche pour voir le template généré...') {
+                btn.textContent = '⚠️ Générer d\'abord';
+                setTimeout(() => { btn.textContent = originalText; }, 2000);
+                return;
+            }
+
+            copyToClipboard(text)
+                .then(() => {
+                    btn.textContent = '✅ Copié !';
+                    btn.classList.add('success');
+                    setTimeout(() => {
+                        btn.textContent = originalText;
+                        btn.classList.remove('success');
+                    }, 2000);
+                })
+                .catch(() => {
+                    btn.textContent = '❌ Erreur';
+                    setTimeout(() => { btn.textContent = originalText; }, 2000);
+                });
+        });
+    });
 
     // Listeners pour tous les autres champs
     const inputs = document.querySelectorAll(
