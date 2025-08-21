@@ -243,10 +243,10 @@ function createQueteHTML(index) {
             </div>
             <div id="monnaie-container-${index}" style="display: none;">
                 <div class="monnaie-inputs" style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 5px;">
-                    <input type="number" id="pc-quete-${index}" placeholder="PC" min="0">
-                    <input type="number" id="pa-quete-${index}" placeholder="PA" min="0">
-                    <input type="number" id="po-quete-${index}" placeholder="PO" min="0">
-                    <input type="number" id="pp-quete-${index}" placeholder="PP" min="0">
+                    <input type="number" id="pc-quete-${index}" placeholder="PC">
+                    <input type="number" id="pa-quete-${index}" placeholder="PA">
+                    <input type="number" id="po-quete-${index}" placeholder="PO">
+                    <input type="number" id="pp-quete-${index}" placeholder="PP">
                 </div>
             </div>
 
