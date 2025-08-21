@@ -784,10 +784,11 @@ ${sortsRemplaces}`;
     const totalPP = totalMonnaies.PP;
 
     const totalLootPO = totalPO + (totalPA / 10) + (totalPC / 100) + (totalPP * 10);
+    const totalLootPORounded = Number(totalLootPO.toFixed(2));
 
     const totalOrEl = document.getElementById('total-or');
     if (totalOrEl) {
-        totalOrEl.value = `${totalLootPO.toFixed(2)} PO`;
+        totalOrEl.value = `${totalLootPORounded.toFixed(2)} PO`;
     }
 
     // Construire le texte des monnaies lootées
@@ -825,13 +826,15 @@ ${achatsVentes}
     }
 
     // Calcul nouveau solde
-    const changeTotal = poRecues + totalLootPO;
+    const changeTotal = poRecues + totalLootPORounded;
     const newBalance = ancienSoldeNum + changeTotal;
+    const changeTotalFormatted = changeTotal.toFixed(2);
+    const newBalanceFormatted = newBalance.toFixed(2);
     let nouveauSolde;
     if (changeTotal === 0) {
         nouveauSolde = `${ancienSolde} inchangé`;
     } else {
-        nouveauSolde = `${ancienSolde} ${changeTotal >= 0 ? '+' : ''}${changeTotal} = ${newBalance}`;
+        nouveauSolde = `${ancienSolde} ${changeTotal >= 0 ? '+' : ''}${changeTotalFormatted} = ${newBalanceFormatted}`;
     }
 
     template += `
