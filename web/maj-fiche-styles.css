@@ -87,6 +87,10 @@ input:focus, select:focus, textarea:focus {
     border-color: #3498db;
 }
 
+input[disabled] {
+    opacity: 0.6;
+}
+
 .two-columns {
     display: grid;
     grid-template-columns: 1fr 1fr;
