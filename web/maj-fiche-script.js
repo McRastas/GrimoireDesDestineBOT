@@ -976,8 +976,36 @@ ${nouveauSoldeCalc} - ${artisanatCostFormatted} = [SOLDE_ARTISANAT]`;
     }
 
     const outputEl = document.getElementById('discord-output');
-    if (outputEl) {
-        outputEl.textContent = template;
+    const outputPart2El = document.getElementById('discord-output-part2');
+    const copyBtnPart2 = document.getElementById('copy-btn-part2');
+    const templateLength = template.length;
+
+    if (templateLength > 1800) {
+        alert("Le message dépasse 1 800 caractères. Il est divisé en deux parties.");
+        const mid = Math.ceil(templateLength / 2);
+        const part1 = template.slice(0, mid);
+        const part2 = template.slice(mid);
+        if (outputEl) {
+            outputEl.textContent = part1;
+        }
+        if (outputPart2El) {
+            outputPart2El.textContent = part2;
+            outputPart2El.style.display = 'block';
+        }
+        if (copyBtnPart2) {
+            copyBtnPart2.style.display = 'inline-block';
+        }
+    } else {
+        if (outputEl) {
+            outputEl.textContent = template;
+        }
+        if (outputPart2El) {
+            outputPart2El.textContent = '';
+            outputPart2El.style.display = 'none';
+        }
+        if (copyBtnPart2) {
+            copyBtnPart2.style.display = 'none';
+        }
     }
 }
 
@@ -991,12 +1019,13 @@ function regenerateIfNeeded() {
 }
 
 async function copyToClipboard(event) {
-    const outputEl = document.getElementById('discord-output');
+    const targetId = event.currentTarget.getAttribute('data-target');
+    const outputEl = document.getElementById(targetId);
     if (!outputEl) return;
-    
+
     const output = outputEl.textContent;
-    
-    if (output === 'Remplissez les champs à gauche pour voir le template généré...') {
+
+    if (!output || output === 'Remplissez les champs à gauche pour voir le template généré...') {
         alert('Veuillez d\'abord générer un template !');
         return;
     }
