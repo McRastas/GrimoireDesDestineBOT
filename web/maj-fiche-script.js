@@ -773,7 +773,7 @@ ${questesText}
 
     const objetsLootesList = objetsLootesEl ? parseList(objetsLootesEl) : [];
     const objetsLootes = objetsLootesList.length ? objetsLootesList.join(', ') : '';
-    const poLootees = poLootesEl ? parseInt(poLootesEl.value) || 0 : 0;
+    const poLootees = poLootesEl ? parseFloat(poLootesEl.value) || 0 : 0;
     let transactionsText = '';
     let netPOMarchand = 0;
 
@@ -799,7 +799,7 @@ ${questesText}
 
     const ancienSolde = ancienSoldeEl ? ancienSoldeEl.value || '[ANCIEN_SOLDE]' : '[ANCIEN_SOLDE]';
     const ancienSoldeNum = parseFloat(ancienSolde);
-    const poRecues = poRecuesEl ? parseInt(poRecuesEl.value) || 0 : 0;
+    const poRecues = poRecuesEl ? parseFloat(poRecuesEl.value) || 0 : 0;
     
     // Section spéciale
     const typeSpecialEl = document.getElementById('type-special');
