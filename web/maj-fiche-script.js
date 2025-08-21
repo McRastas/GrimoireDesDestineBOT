@@ -704,6 +704,7 @@ ${questesText}
     const poLootees = poLootesEl ? parseInt(poLootesEl.value) || 0 : 0;
     const achatsVentes = achatsVentesEl ? achatsVentesEl.value || '' : '';
     const ancienSolde = ancienSoldeEl ? ancienSoldeEl.value || '[ANCIEN_SOLDE]' : '[ANCIEN_SOLDE]';
+    const ancienSoldeNum = parseFloat(ancienSolde);
     const poRecues = poRecuesEl ? parseInt(poRecuesEl.value) || 0 : 0;
     
     // Section spéciale
@@ -825,11 +826,12 @@ ${achatsVentes}
 
     // Calcul nouveau solde
     const changeTotal = poRecues + totalLootPO;
+    const newBalance = ancienSoldeNum + changeTotal;
     let nouveauSolde;
     if (changeTotal === 0) {
         nouveauSolde = `${ancienSolde} inchangé`;
     } else {
-        nouveauSolde = `${ancienSolde} ${changeTotal >= 0 ? '+' : ''}${changeTotal} = [NOUVEAU_SOLDE]`;
+        nouveauSolde = `${ancienSolde} ${changeTotal >= 0 ? '+' : ''}${changeTotal} = ${newBalance}`;
     }
 
     template += `
