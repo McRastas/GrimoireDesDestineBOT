@@ -248,6 +248,7 @@ function createQueteHTML(index) {
                     <input type="number" id="po-quete-${index}" placeholder="PO">
                     <input type="number" id="pp-quete-${index}" placeholder="PP">
                 </div>
+                <input type="text" id="total-quete-or-${index}" placeholder="Total en PO" disabled style="margin-top: 5px;">
             </div>
 
             <div class="checkbox-group">
@@ -271,6 +272,23 @@ function createQueteHTML(index) {
             </button>
         </div>
     `;
+}
+
+function updateMonnaieTotal(index) {
+    const pcEl = document.getElementById(`pc-quete-${index}`);
+    const paEl = document.getElementById(`pa-quete-${index}`);
+    const poEl = document.getElementById(`po-quete-${index}`);
+    const ppEl = document.getElementById(`pp-quete-${index}`);
+    const totalEl = document.getElementById(`total-quete-or-${index}`);
+    if (!totalEl) return;
+
+    const pc = pcEl ? parseInt(pcEl.value) || 0 : 0;
+    const pa = paEl ? parseInt(paEl.value) || 0 : 0;
+    const po = poEl ? parseInt(poEl.value) || 0 : 0;
+    const pp = ppEl ? parseInt(ppEl.value) || 0 : 0;
+
+    const totalPO = po + (pa / 10) + (pc / 100) + (pp * 10);
+    totalEl.value = totalPO === 0 ? '' : `${totalPO.toFixed(2)} PO`;
 }
 
 function setupQueteListeners(index) {
@@ -303,6 +321,11 @@ function setupQueteListeners(index) {
             if (container) {
                 container.style.display = this.checked ? 'block' : 'none';
             }
+            if (!this.checked) {
+                const totalEl = document.getElementById(`total-quete-or-${index}`);
+                if (totalEl) totalEl.value = '';
+            }
+            updateMonnaieTotal(index);
             regenerateIfNeeded();
         };
         includeMonnaies.addEventListener('change', updateMonnaies);
@@ -331,6 +354,19 @@ function setupQueteListeners(index) {
             input.setAttribute('data-listener-added', 'true');
         }
     });
+
+    const pcInput = document.getElementById(`pc-quete-${index}`);
+    const paInput = document.getElementById(`pa-quete-${index}`);
+    const poInput = document.getElementById(`po-quete-${index}`);
+    const ppInput = document.getElementById(`pp-quete-${index}`);
+    [pcInput, paInput, poInput, ppInput].forEach(inp => {
+        if (inp && !inp.hasAttribute('data-total-listener')) {
+            inp.addEventListener('input', () => updateMonnaieTotal(index));
+            inp.setAttribute('data-total-listener', 'true');
+        }
+    });
+
+    updateMonnaieTotal(index);
 
     const addBtn = document.querySelector(`[data-quete="${index}"] .add-recompense`);
     const recompenseContainer = document.getElementById(`recompenses-container-${index}`);
@@ -745,14 +781,21 @@ ${sortsRemplaces}`;
     const totalPA = totalMonnaies.PA;
     const totalPO = totalMonnaies.PO + poLootees;
     const totalPP = totalMonnaies.PP;
-    
+
+    const totalLootPO = totalPO + (totalPA / 10) + (totalPC / 100) + (totalPP * 10);
+
+    const totalOrEl = document.getElementById('total-or');
+    if (totalOrEl) {
+        totalOrEl.value = `${totalLootPO.toFixed(2)} PO`;
+    }
+
     // Construire le texte des monnaies lootées
     let monnaiesLootees = [];
     if (totalPC !== 0) monnaiesLootees.push(`${totalPC > 0 ? '+' : ''}${totalPC} PC`);
     if (totalPA !== 0) monnaiesLootees.push(`${totalPA > 0 ? '+' : ''}${totalPA} PA`);
     if (totalPO !== 0) monnaiesLootees.push(`${totalPO > 0 ? '+' : ''}${totalPO} PO`);
     if (totalPP !== 0) monnaiesLootees.push(`${totalPP > 0 ? '+' : ''}${totalPP} PP`);
-    
+
     const monnaiesText = monnaiesLootees.length > 0 ? monnaiesLootees.join(' ') : '';
     
     if (tousObjets !== '' || monnaiesText !== '') {
@@ -781,7 +824,7 @@ ${achatsVentes}
     }
 
     // Calcul nouveau solde
-    const changeTotal = poRecues + (poLootees + totalMonnaies.PO);
+    const changeTotal = poRecues + totalLootPO;
     let nouveauSolde;
     if (changeTotal === 0) {
         nouveauSolde = `${ancienSolde} inchangé`;
