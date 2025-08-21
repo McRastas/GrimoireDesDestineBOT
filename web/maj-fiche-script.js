@@ -79,6 +79,9 @@ function setupTransactionLine(line) {
     inputs.forEach(inp => {
         if (!inp.getAttribute('data-listener-added')) {
             inp.addEventListener('input', regenerateIfNeeded);
+            if (inp.tagName === 'SELECT') {
+                inp.addEventListener('change', regenerateIfNeeded);
+            }
             inp.setAttribute('data-listener-added', 'true');
         }
     });
