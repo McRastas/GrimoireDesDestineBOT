@@ -184,6 +184,17 @@ input[disabled] {
     gap: 10px;
 }
 
+.char-indicator {
+    font-size: 12px;
+    margin-bottom: 10px;
+    color: rgba(255,255,255,0.8);
+}
+
+.char-indicator.warning {
+    color: #e74c3c;
+    font-weight: bold;
+}
+
 /* Système d'onglets */
 .tab-container {
     margin-bottom: 20px;

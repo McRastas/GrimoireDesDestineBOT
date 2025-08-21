@@ -979,6 +979,13 @@ ${nouveauSoldeCalc} - ${artisanatCostFormatted} = [SOLDE_ARTISANAT]`;
     const outputPart2El = document.getElementById('discord-output-part2');
     const copyBtnPart2 = document.getElementById('copy-btn-part2');
     const templateLength = template.length;
+    const remaining = 1800 - templateLength;
+    const indicator = document.getElementById('char-indicator');
+    if (indicator) {
+        indicator.textContent = `${remaining} caractères restants`;
+        const nearLimit = remaining < 0 || remaining < 100;
+        indicator.classList.toggle('warning', nearLimit);
+    }
 
     if (templateLength > 1800) {
         alert("Le message dépasse 1 800 caractères. Il est divisé en deux parties.");
