@@ -232,6 +232,11 @@ function createQueteHTML(index) {
                 <input type="number" id="xp-quete-${index}" placeholder="1" min="0" max="10" value="1">
             </div>
 
+            <div class="checkbox-group">
+                <input type="checkbox" id="refuse-xp-${index}">
+                <label for="refuse-xp-${index}">Refuser l’XP de cette quête</label>
+            </div>
+
         <div class="form-group">
             <h5 style="color: #2c3e50; margin-bottom: 10px;">🎁 Récompenses (optionnelles) :</h5>
 
@@ -355,6 +360,22 @@ function setupQueteListeners(index) {
         }
     });
 
+    const xpInput = document.getElementById(`xp-quete-${index}`);
+    const refuseXP = document.getElementById(`refuse-xp-${index}`);
+    if (refuseXP && xpInput) {
+        const toggleXP = function() {
+            if (this.checked) {
+                xpInput.value = 0;
+                xpInput.disabled = true;
+            } else {
+                xpInput.disabled = false;
+            }
+            regenerateIfNeeded();
+        };
+        refuseXP.addEventListener('change', toggleXP);
+        toggleXP.call(refuseXP);
+    }
+
     const pcInput = document.getElementById(`pc-quete-${index}`);
     const paInput = document.getElementById(`pa-quete-${index}`);
     const poInput = document.getElementById(`po-quete-${index}`);
@@ -411,14 +432,17 @@ function generateQuestesSection() {
         const titreEl = document.getElementById(`titre-quete-${dataIndex}`);
         const mjEl = document.getElementById(`nom-mj-${dataIndex}`);
         const xpEl = document.getElementById(`xp-quete-${dataIndex}`);
+        const refuseXP = document.getElementById(`refuse-xp-${dataIndex}`);
         const multipleEl = document.getElementById(`quete-multiple-${dataIndex}`);
-        
+
         const titre = titreEl ? titreEl.value || `[TITRE_QUETE_${index + 1}]` : `[TITRE_QUETE_${index + 1}]`;
         const mj = mjEl ? mjEl.value || `[MJ_${index + 1}]` : `[MJ_${index + 1}]`;
-        const xpQuete = xpEl ? parseInt(xpEl.value) || 0 : 0;
+        const xpQuete = xpEl && !refuseXP?.checked ? parseInt(xpEl.value) || 0 : 0;
         const isMultiple = multipleEl ? multipleEl.checked : false;
-        
-        totalXPQuetes += xpQuete;
+
+        if (!refuseXP?.checked) {
+            totalXPQuetes += xpQuete;
+        }
         
         // Récupérer les récompenses
         let recompensesText = '';
