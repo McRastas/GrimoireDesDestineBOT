@@ -877,7 +877,14 @@ ${sortsRemplaces}`;
     const totalPO = totalMonnaies.PO + poLootees;
     const totalPP = totalMonnaies.PP;
 
-    const totalLootPO = totalPO + (totalPA / 10) + (totalPC / 100) + (totalPP * 10);
+    // Convertir toutes les monnaies des quêtes en équivalent PO
+    const questPO = totalMonnaies.PO
+        + totalMonnaies.PA / 10
+        + totalMonnaies.PC / 100
+        + totalMonnaies.PP * 10;
+
+    // Total des PO lootées (quêtes + PO entrées manuellement)
+    const totalLootPO = poLootees + questPO;
     const totalLootPORounded = Number(totalLootPO.toFixed(2));
 
     const totalOrEl = document.getElementById('total-or');
@@ -919,8 +926,8 @@ ${transactionsText}
 \\ =======================  MARCHAND  ========================= /`;
     }
 
-    // Calcul nouveau solde
-    const changeTotal = poRecues + poLootees + totalMonnaies.PO + netPOMarchand;
+    // Calcul nouveau solde en convertissant toutes les monnaies des quêtes en PO
+    const changeTotal = poRecues + poLootees + questPO + netPOMarchand;
     const changeTotalFormatted = changeTotal.toFixed(2);
     const ancienSoldeAffiche = isNaN(ancienSoldeNum) ? ancienSolde : ancienSoldeNum.toFixed(2);
     const nouveauSoldeCalc = isNaN(ancienSoldeNum) ? '[NOUVEAU_SOLDE]' : (ancienSoldeNum + changeTotal).toFixed(2);
