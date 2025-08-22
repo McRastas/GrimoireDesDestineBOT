@@ -728,15 +728,30 @@ function generateTemplate() {
     
     // Informations quête
     const { quetesList, objetsList, poList, totalXPQuetes, totalMonnaies, objetsQuetes, autresQuetes, xpQuetes, recompensesQuetes } = generateQuestesSection();
-    let sectionQuete;
+    let sectionQuete = '';
 
-    if (quetesList.length > 0 && !quetesList[0].includes('[TITRE_QUETE_1]')) {
-        const quetesLines = quetesList.map(q => `- ${q}`).join('\n');
-        const objetsLines = objetsList.map(o => `- ${o}`).join('\n');
-        const poLines = poList.map(p => `- ${p}`).join('\n');
-        sectionQuete = `**Quête :**\nQuêtes:\n${quetesLines}\n\nObjets:\n${objetsLines}\n\nPO:\n${poLines}\n+${totalXPQuetes} XP`;
-    } else {
-        sectionQuete = '**Quête :** [TITRE_QUETE] + [NOM_MJ] ⁠- [LIEN_RECOMPENSES]';
+    const hasQueteInput = quetesList.some(q => !q.includes('[TITRE_QUETE_'));
+    const hasObjetsInput = objetsList.some(o => !o.endsWith(': -'));
+    const hasPOInput = poList.some(p => !/:\s*0(?:\.0+)?\s*PO$/.test(p));
+
+    if (hasQueteInput || hasObjetsInput || hasPOInput) {
+        const quetesLines = hasQueteInput
+            ? quetesList.filter(q => !q.includes('[TITRE_QUETE_')).map(q => `- ${q}`).join('\n')
+            : '';
+        const objetsLines = hasObjetsInput
+            ? objetsList.filter(o => !o.endsWith(': -')).map(o => `- ${o}`).join('\n')
+            : '';
+        const poLines = hasPOInput
+            ? poList.filter(p => !/:\s*0(?:\.0+)?\s*PO$/.test(p)).map(p => `- ${p}`).join('\n')
+            : '';
+
+        const parts = [];
+        if (quetesLines) parts.push(`Quêtes:\n${quetesLines}`);
+        if (objetsLines) parts.push(`Objets:\n${objetsLines}`);
+        if (poLines) parts.push(`PO:\n${poLines}`);
+        parts.push(`+${totalXPQuetes} XP`);
+
+        sectionQuete = `**Quête :**\n${parts.join('\n\n')}`;
     }
     
     // Informations XP/Niveau
