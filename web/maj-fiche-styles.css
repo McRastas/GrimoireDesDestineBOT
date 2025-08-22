@@ -316,7 +316,7 @@ input[disabled] {
 
 .transaction-line {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+    grid-template-columns: auto 1fr 80px 100px auto;
     gap: 5px;
     align-items: center;
 }
