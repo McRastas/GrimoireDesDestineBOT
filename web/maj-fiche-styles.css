@@ -400,6 +400,48 @@ input[disabled] {
     background: #c0392b;
 }
 
+.recompense-select {
+    flex: 0 0 120px;
+}
+
+.recompense-details {
+    flex: 1;
+    display: flex;
+    gap: 5px;
+}
+
+.flex-1 {
+    flex: 1;
+}
+
+.monnaie-inputs {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 5px;
+}
+
+.monnaie-total {
+    margin-top: 5px;
+}
+
+.quete-title {
+    color: #3498db;
+    margin-bottom: 15px;
+}
+
+.reward-title {
+    color: #2c3e50;
+    margin-bottom: 10px;
+}
+
+.hidden {
+    display: none;
+}
+
+.checkbox-group input.inline-checkbox {
+    margin-right: 8px;
+}
+
 /* Media queries pour responsive */
 @media (max-width: 768px) {
     .main-content {
