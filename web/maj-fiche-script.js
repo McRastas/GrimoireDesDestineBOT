@@ -58,7 +58,8 @@ function addTransactionLine() {
             <option value="VENTE">VENTE</option>
         </select>
         <input type="text" placeholder="Description">
-        <input type="number" step="0.01" placeholder="0">
+        <input type="number" class="quantity" min="1" step="1" value="1" placeholder="1">
+        <input type="number" class="price" step="0.01" placeholder="0">
         <button type="button" class="delete-transaction">🗑️</button>
     `;
     container.appendChild(line);
@@ -799,14 +800,20 @@ function generateTemplate() {
         lines.forEach(line => {
             const type = line.querySelector('select')?.value;
             const desc = line.querySelector('input[type="text"]')?.value.trim();
-            const amountStr = line.querySelector('input[type="number"]')?.value;
-            const amount = parseFloat(amountStr);
-            if (type && desc && !isNaN(amount)) {
-                formatted.push(`${type} : ${desc} ${amount.toFixed(2)}PO`);
+            const qtyStr = line.querySelector('.quantity')?.value;
+            const qty = parseInt(qtyStr) || 1;
+            const priceStr = line.querySelector('.price')?.value;
+            const price = parseFloat(priceStr);
+            if (type && desc && !isNaN(price)) {
+                const subtotal = qty * price;
+                const lineText = qty > 1
+                    ? `${type} : ${qty}×${desc} ${price.toFixed(2)}PO = ${subtotal.toFixed(2)}PO`
+                    : `${type} : ${desc} ${subtotal.toFixed(2)}PO`;
+                formatted.push(lineText);
                 if (type === 'ACHAT') {
-                    netPOMarchand -= amount;
+                    netPOMarchand -= subtotal;
                 } else if (type === 'VENTE') {
-                    netPOMarchand += amount;
+                    netPOMarchand += subtotal;
                 }
             }
         });
