@@ -489,15 +489,10 @@ function generateQuestesSection() {
         const refuseXP = document.getElementById(`refuse-xp-${dataIndex}`);
         const multipleEl = document.getElementById(`quete-multiple-${dataIndex}`);
 
-        const titre = titreEl ? titreEl.value || `[TITRE_QUETE_${index + 1}]` : `[TITRE_QUETE_${index + 1}]`;
-        const mj = mjEl ? mjEl.value || `[MJ_${index + 1}]` : `[MJ_${index + 1}]`;
+        const titre = titreEl ? titreEl.value.trim() : '';
+        const mj = mjEl ? mjEl.value.trim() : '';
         const xpQuete = xpEl && !refuseXP?.checked ? parseInt(xpEl.value) || 0 : 0;
         const isMultiple = multipleEl ? multipleEl.checked : false;
-
-        if (!refuseXP?.checked) {
-            totalXPQuetes += xpQuete;
-        }
-        xpQuetes.push(xpQuete);
 
         // Récupérer les récompenses
         let recompensesText = '';
@@ -505,35 +500,29 @@ function generateQuestesSection() {
         // Monnaies
         const includeMonnaies = document.getElementById(`include-monnaies-${dataIndex}`);
         let questPO = 0;
+        let monnaieText = [];
         if (includeMonnaies && includeMonnaies.checked) {
-            const pcEl = document.getElementById(`pc-quete-${dataIndex}`);
-            const paEl = document.getElementById(`pa-quete-${dataIndex}`);
-            const poEl = document.getElementById(`po-quete-${dataIndex}`);
-            const ppEl = document.getElementById(`pp-quete-${dataIndex}`);
+            const pc = parseInt(document.getElementById(`pc-quete-${dataIndex}`)?.value) || 0;
+            const pa = parseInt(document.getElementById(`pa-quete-${dataIndex}`)?.value) || 0;
+            const po = parseInt(document.getElementById(`po-quete-${dataIndex}`)?.value) || 0;
+            const pp = parseInt(document.getElementById(`pp-quete-${dataIndex}`)?.value) || 0;
 
-            const pc = pcEl ? parseInt(pcEl.value) || 0 : 0;
-            const pa = paEl ? parseInt(paEl.value) || 0 : 0;
-            const po = poEl ? parseInt(poEl.value) || 0 : 0;
-            const pp = ppEl ? parseInt(ppEl.value) || 0 : 0;
+            if (pc !== 0 || pa !== 0 || po !== 0 || pp !== 0) {
+                totalMonnaies.PC += pc;
+                totalMonnaies.PA += pa;
+                totalMonnaies.PO += po;
+                totalMonnaies.PP += pp;
 
-            // Ajouter aux totaux
-            totalMonnaies.PC += pc;
-            totalMonnaies.PA += pa;
-            totalMonnaies.PO += po;
-            totalMonnaies.PP += pp;
+                if (pc !== 0) monnaieText.push(`${pc > 0 ? '+' : ''}${pc} PC`);
+                if (pa !== 0) monnaieText.push(`${pa > 0 ? '+' : ''}${pa} PA`);
+                if (po !== 0) monnaieText.push(`${po > 0 ? '+' : ''}${po} PO`);
+                if (pp !== 0) monnaieText.push(`${pp > 0 ? '+' : ''}${pp} PP`);
 
-            // Construire le texte des monnaies
-            let monnaieText = [];
-            if (pc !== 0) monnaieText.push(`${pc > 0 ? '+' : ''}${pc} PC`);
-            if (pa !== 0) monnaieText.push(`${pa > 0 ? '+' : ''}${pa} PA`);
-            if (po !== 0) monnaieText.push(`${po > 0 ? '+' : ''}${po} PO`);
-            if (pp !== 0) monnaieText.push(`${pp > 0 ? '+' : ''}${pp} PP`);
-
-            if (monnaieText.length > 0) {
-                recompensesText += ', ' + monnaieText.join(' ');
+                questPO = po + pa / 10 + pc / 100 + pp * 10;
             }
-
-            questPO = po + pa / 10 + pc / 100 + pp * 10;
+        }
+        if (monnaieText.length > 0) {
+            recompensesText += ', ' + monnaieText.join(' ');
         }
 
         // Objets
@@ -549,11 +538,23 @@ function generateQuestesSection() {
         }
 
         // Autres
+        let autresText = '';
         const autresEl = document.getElementById(`autres-quete-${dataIndex}`);
         if (autresEl && autresEl.value.trim()) {
-            recompensesText += ', ' + autresEl.value.trim();
-            autresQuetes.push(autresEl.value.trim());
+            autresText = autresEl.value.trim();
+            recompensesText += ', ' + autresText;
+            autresQuetes.push(autresText);
         }
+
+        const hasQuestData = titre || mj || xpQuete || monnaieText.length > 0 || objetsText || autresText;
+        if (!hasQuestData) {
+            return;
+        }
+
+        if (!refuseXP?.checked) {
+            totalXPQuetes += xpQuete;
+        }
+        xpQuetes.push(xpQuete);
 
         recompensesQuetes.push(recompensesText.replace(/^,\s*/, ''));
 
@@ -562,15 +563,19 @@ function generateQuestesSection() {
         if (isMultiple) {
             const sessionsEl = document.getElementById(`sessions-quete-${dataIndex}`);
             const sessions = sessionsEl ? sessionsEl.value || `[SESSIONS_QUETE_${index + 1}]` : `[SESSIONS_QUETE_${index + 1}]`;
-            questLine = `${titre} + ${mj} ⁠- [${sessions}]`;
+            questLine = `${titre || `[TITRE_QUETE_${index + 1}]`} + ${mj || `[MJ_${index + 1}]`} ⁠- [${sessions}]`;
         } else {
             const lienEl = document.getElementById(`lien-recompense-${dataIndex}`);
             const lien = lienEl ? lienEl.value || `[LIEN_RECOMPENSE_${index + 1}]` : `[LIEN_RECOMPENSE_${index + 1}]`;
-            questLine = `${titre} + ${mj} ⁠- ${lien}`;
+            questLine = `${titre || `[TITRE_QUETE_${index + 1}]`} + ${mj || `[MJ_${index + 1}]`} ⁠- ${lien}`;
         }
         quetesList.push(questLine);
-        objetsList.push(`${titre}: ${objetsText || '-'}`);
-        poList.push(`${titre}: ${(questPO || 0).toFixed(2).replace(/\.00$/, '')} PO`);
+        if (objetsText) {
+            objetsList.push(`${titre || `[TITRE_QUETE_${index + 1}]`}: ${objetsText}`);
+        }
+        if (monnaieText.length > 0) {
+            poList.push(`${titre || `[TITRE_QUETE_${index + 1}]`}: ${questPO.toFixed(2).replace(/\.00$/, '')} PO`);
+        }
     });
 
     return {
@@ -730,20 +735,10 @@ function generateTemplate() {
     const { quetesList, objetsList, poList, totalXPQuetes, totalMonnaies, objetsQuetes, autresQuetes, xpQuetes, recompensesQuetes } = generateQuestesSection();
     let sectionQuete = '';
 
-    const hasQueteInput = quetesList.some(q => !q.includes('[TITRE_QUETE_'));
-    const hasObjetsInput = objetsList.some(o => !o.endsWith(': -'));
-    const hasPOInput = poList.some(p => !/:\s*0(?:\.0+)?\s*PO$/.test(p));
-
-    if (hasQueteInput || hasObjetsInput || hasPOInput) {
-        const quetesLines = hasQueteInput
-            ? quetesList.filter(q => !q.includes('[TITRE_QUETE_')).map(q => `- ${q}`).join('\n')
-            : '';
-        const objetsLines = hasObjetsInput
-            ? objetsList.filter(o => !o.endsWith(': -')).map(o => `- ${o}`).join('\n')
-            : '';
-        const poLines = hasPOInput
-            ? poList.filter(p => !/:\s*0(?:\.0+)?\s*PO$/.test(p)).map(p => `- ${p}`).join('\n')
-            : '';
+    if (quetesList.length || objetsList.length || poList.length) {
+        const quetesLines = quetesList.map(q => `- ${q}`).join('\n');
+        const objetsLines = objetsList.map(o => `- ${o}`).join('\n');
+        const poLines = poList.map(p => `- ${p}`).join('\n');
 
         const parts = [];
         if (quetesLines) parts.push(`Quêtes:\n${quetesLines}`);
