@@ -43,7 +43,7 @@ body {
 .main-content {
     padding: 30px;
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
     gap: 30px;
 }
 
@@ -93,7 +93,7 @@ input[disabled] {
 
 .two-columns {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
     gap: 15px;
 }
 
@@ -316,7 +316,7 @@ input[disabled] {
 
 .transaction-line {
     display: grid;
-    grid-template-columns: 100px 1fr 100px 40px;
+    grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
     gap: 5px;
     align-items: center;
 }
@@ -444,6 +444,47 @@ input[disabled] {
 
     .recompense-item select,
     .recompense-item > div {
+        width: 100%;
+    }
+}
+
+@media (max-width: 576px) {
+    body {
+        padding: 10px;
+    }
+
+    .header {
+        padding: 20px 15px;
+    }
+
+    .header h1 {
+        font-size: 1.8rem;
+    }
+
+    .main-content {
+        padding: 15px;
+    }
+
+    .tab-btn {
+        flex: 1 1 100%;
+    }
+
+    .copy-btn,
+    .generate-btn {
+        padding: 10px 15px;
+        font-size: 0.9rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .transaction-line {
+        grid-template-columns: 1fr;
+    }
+
+    .transaction-line select,
+    .transaction-line input[type="text"],
+    .transaction-line input[type="number"],
+    .transaction-line button.delete-transaction {
         width: 100%;
     }
 }
