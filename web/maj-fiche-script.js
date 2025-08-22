@@ -953,20 +953,24 @@ ${transactionsText}
     }
 
     // Calcul nouveau solde en convertissant toutes les monnaies des quêtes en PO
-    const changeTotal = poRecues + poLootees + questPO + netPOMarchand;
-    const changeTotalFormatted = changeTotal.toFixed(2);
+    const changeTotal = poRecues + poLootees + questPO + netPOMarchand - artisanatCost;
     const ancienSoldeAffiche = isNaN(ancienSoldeNum) ? ancienSolde : ancienSoldeNum.toFixed(2);
     const nouveauSoldeCalc = isNaN(ancienSoldeNum) ? '[NOUVEAU_SOLDE]' : (ancienSoldeNum + changeTotal).toFixed(2);
-    let soldeText;
-    if (changeTotal === 0) {
-        soldeText = `${ancienSoldeAffiche} inchangé`;
-    } else {
-        soldeText = `${ancienSoldeAffiche} ${changeTotal >= 0 ? '+' : ''}${changeTotalFormatted} = ${nouveauSoldeCalc}`;
-    }
+
+    const soldeLines = [];
+    soldeLines.push(`ANCIEN SOLDE ${ancienSoldeAffiche}`);
+
+    const formatChange = (val) => `${val >= 0 ? '+' : '-'}${Math.abs(val).toFixed(2)}`;
+    if (poRecues !== 0) soldeLines.push(formatChange(poRecues));
+    if (poLootees !== 0) soldeLines.push(formatChange(poLootees));
+    if (questPO !== 0) soldeLines.push(formatChange(questPO));
+    if (netPOMarchand !== 0) soldeLines.push(formatChange(netPOMarchand));
+    if (artisanatCost > 0) soldeLines.push(`-${artisanatCost.toFixed(2)}`);
+    soldeLines.push(`= ${nouveauSoldeCalc}`);
 
     template += `
 **¤ Solde :**
-ANCIEN SOLDE ${soldeText}
+${soldeLines.join('\n')}
 *Fiche R20 à jour.*`;
 
     const hasArtisanat = artisanatNotes || artisanatItemsList.length > 0 || artisanatCostRaw !== '';
@@ -978,15 +982,10 @@ ANCIEN SOLDE ${soldeText}
 Obtention des objets suivants :
 ${artisanatItemsList.map(i => `- ${i}`).join('\n')}`;
         }
-        const nouveauSoldeNum = parseFloat(nouveauSoldeCalc);
-        const artisanatCostFormatted = artisanatCost.toFixed(2);
-        if (!isNaN(nouveauSoldeNum)) {
-            const soldeApresArtisanat = (nouveauSoldeNum - artisanatCost).toFixed(2);
+        if (artisanatCost > 0) {
+            const artisanatCostFormatted = artisanatCost.toFixed(2);
             template += `
-${nouveauSoldeCalc} - ${artisanatCostFormatted} = ${soldeApresArtisanat}`;
-        } else {
-            template += `
-${nouveauSoldeCalc} - ${artisanatCostFormatted} = [SOLDE_ARTISANAT]`;
+Coût : ${artisanatCostFormatted} PO`;
         }
     }
 
