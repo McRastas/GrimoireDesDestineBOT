@@ -475,6 +475,8 @@ function generateQuestesSection() {
     let totalMonnaies = { PC: 0, PA: 0, PO: 0, PP: 0 };
     let objetsQuetes = [];
     let autresQuetes = [];
+    let xpQuetes = [];
+    let recompensesQuetes = [];
     
     quetes.forEach((quete, index) => {
         const dataIndex = quete.getAttribute('data-quete');
@@ -492,7 +494,8 @@ function generateQuestesSection() {
         if (!refuseXP?.checked) {
             totalXPQuetes += xpQuete;
         }
-        
+        xpQuetes.push(xpQuete);
+
         // Récupérer les récompenses
         let recompensesText = '';
         
@@ -543,17 +546,17 @@ function generateQuestesSection() {
             recompensesText += ', ' + autresEl.value.trim();
             autresQuetes.push(autresEl.value.trim());
         }
-        
+
+        recompensesQuetes.push(recompensesText.replace(/^,\s*/, ''));
+
         if (isMultiple) {
             const sessionsEl = document.getElementById(`sessions-quete-${dataIndex}`);
             const sessions = sessionsEl ? sessionsEl.value || `[SESSIONS_QUETE_${index + 1}]` : `[SESSIONS_QUETE_${index + 1}]`;
-            questesText += `- ${titre} + MJ ${mj} ⁠- [
-${sessions}
-] +${xpQuete} XP${recompensesText}`;
+            questesText += `- ${titre} + ${mj} ⁠- [${sessions}]`;
         } else {
             const lienEl = document.getElementById(`lien-recompense-${dataIndex}`);
             const lien = lienEl ? lienEl.value || `[LIEN_RECOMPENSE_${index + 1}]` : `[LIEN_RECOMPENSE_${index + 1}]`;
-            questesText += `- ${titre} + ${mj} ⁠- ${lien}, +${xpQuete} XP${recompensesText}`;
+            questesText += `- ${titre} + ${mj} ⁠- ${lien}`;
         }
         
         // Ajouter une ligne vide entre les quêtes sauf pour la dernière
@@ -562,12 +565,14 @@ ${sessions}
         }
     });
     
-    return { 
-        questesText: questesText.trim(), 
-        totalXPQuetes, 
+    return {
+        questesText: questesText.trim(),
+        totalXPQuetes,
         totalMonnaies,
         objetsQuetes,
-        autresQuetes
+        autresQuetes,
+        xpQuetes,
+        recompensesQuetes
     };
 }
 
@@ -712,7 +717,7 @@ function generateTemplate() {
     }
     
     // Informations quête
-    const { questesText, totalXPQuetes, totalMonnaies, objetsQuetes, autresQuetes } = generateQuestesSection();
+    const { questesText, totalXPQuetes, totalMonnaies, objetsQuetes, autresQuetes, xpQuetes, recompensesQuetes } = generateQuestesSection();
     let sectionQuete;
     
     if (questesText && questesText !== '' && !questesText.includes('[TITRE_QUETE_1]')) {
