@@ -160,7 +160,7 @@
                                     <div class="help-text">Clic droit sur le message → Copier le lien</div>
                                 </div>
 
-                                <div id="quete-multiple-details-0" class="form-group" style="display: none;">
+                                <div id="quete-multiple-details-0" class="form-group hidden">
                                     <label for="sessions-quete-0">Sessions de la quête :</label>
                                     <textarea id="sessions-quete-0" rows="4" placeholder="- https://discord.com/channels/.../... + 1XP,&#10;- https://discord.com/channels/.../... + 1 XP - 1 item"></textarea>
                                 </div>
@@ -184,7 +184,7 @@
                                             Inclure monnaies
                                         </label>
                                     </div>
-                                    <div id="monnaie-container-0" style="display: none;">
+                                    <div id="monnaie-container-0" class="hidden">
                                         <div class="monnaie-inputs" style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 5px;">
                                             <input type="number" id="pc-quete-0" placeholder="PC">
                                             <input type="number" id="pa-quete-0" placeholder="PA">
@@ -200,7 +200,7 @@
                                             Inclure objets
                                         </label>
                                     </div>
-                                    <div id="objets-container-0" style="display: none;">
+                                    <div id="objets-container-0" class="hidden">
                                         <textarea id="objets-quete-0" rows="2" placeholder="2 émeraudes d'une valeur de 200PO, un étrange engrenage en rotation perpétuelle"></textarea>
                                     </div>
 
@@ -210,7 +210,7 @@
                                     </div>
                                 </div>
 
-                                <button type="button" class="delete-quete" onclick="deleteQuete(0)" style="display: none;">
+                                <button type="button" class="delete-quete hidden" onclick="deleteQuete(0)">
                                     🗑️ Supprimer cette quête
                                 </button>
                             </div>
