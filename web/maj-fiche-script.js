@@ -118,7 +118,7 @@ function addQuete() {
     // Afficher le bouton de suppression de la quête nouvellement créée si ce n'est pas la première
     const newDeleteBtn = document.querySelector(`[data-quete="${queteCounter}"] .delete-quete`);
     if (newDeleteBtn && queteCounter > 0) {
-        newDeleteBtn.style.display = 'block';
+        newDeleteBtn.classList.remove('hidden');
     }
 
     regenerateIfNeeded();
@@ -140,7 +140,7 @@ function deleteQuete(index) {
         if (remainingQuetes.length === 1) {
             const deleteBtn = document.querySelector('[data-quete="0"] .delete-quete');
             if (deleteBtn) {
-                deleteBtn.style.display = 'none';
+                deleteBtn.classList.add('hidden');
             }
         }
 
@@ -188,15 +188,15 @@ function addRecompense(index) {
 
     const html = `
         <div class="recompense-item" data-recompense="${recompenseIndex}">
-            <select style="flex: 0 0 120px;">
+            <select class="recompense-select">
                 <option value="monnaie" selected>💰 Monnaie</option>
                 <option value="item">🎒 Objet</option>
             </select>
-            <div class="recompense-details" style="flex: 1; display: flex; gap: 5px;">
-                <input type="number" placeholder="PC" style="flex: 1;">
-                <input type="number" placeholder="PA" style="flex: 1;">
-                <input type="number" placeholder="PO" style="flex: 1;">
-                <input type="number" placeholder="PP" style="flex: 1;">
+            <div class="recompense-details">
+                <input type="number" placeholder="PC" class="flex-1">
+                <input type="number" placeholder="PA" class="flex-1">
+                <input type="number" placeholder="PO" class="flex-1">
+                <input type="number" placeholder="PP" class="flex-1">
             </div>
             <button type="button" class="delete-recompense">🗑️</button>
         </div>
@@ -223,13 +223,13 @@ function setupRecompenseItem(queteIndex, recompenseIndex) {
     const updateFields = function() {
         const details = item.querySelector('.recompense-details');
         if (this.value === 'item') {
-            details.innerHTML = `<input type="text" placeholder="Description" style="flex: 1;">`;
+            details.innerHTML = `<input type="text" placeholder="Description" class="flex-1">`;
         } else {
             details.innerHTML = `
-                <input type="number" placeholder="PC" style="flex: 1;">
-                <input type="number" placeholder="PA" style="flex: 1;">
-                <input type="number" placeholder="PO" style="flex: 1;">
-                <input type="number" placeholder="PP" style="flex: 1;">
+                <input type="number" placeholder="PC" class="flex-1">
+                <input type="number" placeholder="PA" class="flex-1">
+                <input type="number" placeholder="PO" class="flex-1">
+                <input type="number" placeholder="PP" class="flex-1">
             `;
         }
 
@@ -250,7 +250,7 @@ function setupRecompenseItem(queteIndex, recompenseIndex) {
 function createQueteHTML(index) {
     return `
         <div class="quete-bloc" data-quete="${index}">
-            <h4 style="color: #3498db; margin-bottom: 15px;">🎯 Quête ${index + 1}</h4>
+            <h4 class="quete-title">🎯 Quête ${index + 1}</h4>
             
             <div class="form-group">
                 <label for="titre-quete-${index}">Titre de la Quête :</label>
@@ -272,7 +272,7 @@ function createQueteHTML(index) {
                 <input type="text" id="lien-recompense-${index}" placeholder="https://discord.com/channels/...">
             </div>
 
-            <div id="quete-multiple-details-${index}" class="form-group" style="display: none;">
+            <div id="quete-multiple-details-${index}" class="form-group hidden">
                 <label for="sessions-quete-${index}">Sessions de la quête :</label>
                 <textarea id="sessions-quete-${index}" rows="4" placeholder="- https://discord.com/channels/.../... + 1XP,&#10;- https://discord.com/channels/.../... + 1 XP"></textarea>
             </div>
@@ -288,31 +288,31 @@ function createQueteHTML(index) {
             </div>
 
         <div class="form-group">
-            <h5 style="color: #2c3e50; margin-bottom: 10px;">🎁 Récompenses (optionnelles) :</h5>
+            <h5 class="reward-title">🎁 Récompenses (optionnelles) :</h5>
 
             <div class="checkbox-group">
                 <label for="include-monnaies-${index}">
-                    <input type="checkbox" id="include-monnaies-${index}" style="width: auto; margin-right: 8px;">
+                    <input type="checkbox" id="include-monnaies-${index}" class="inline-checkbox">
                     Inclure monnaies
                 </label>
             </div>
-            <div id="monnaie-container-${index}" style="display: none;">
-                <div class="monnaie-inputs" style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 5px;">
+            <div id="monnaie-container-${index}" class="hidden">
+                <div class="monnaie-inputs">
                     <input type="number" id="pc-quete-${index}" placeholder="PC">
                     <input type="number" id="pa-quete-${index}" placeholder="PA">
                     <input type="number" id="po-quete-${index}" placeholder="PO">
                     <input type="number" id="pp-quete-${index}" placeholder="PP">
                 </div>
-                <input type="text" id="total-quete-or-${index}" placeholder="Total en PO" disabled style="margin-top: 5px;">
+                <input type="text" id="total-quete-or-${index}" placeholder="Total en PO" disabled class="monnaie-total">
             </div>
 
             <div class="checkbox-group">
                 <label for="include-objets-${index}">
-                    <input type="checkbox" id="include-objets-${index}" style="width: auto; margin-right: 8px;">
+                    <input type="checkbox" id="include-objets-${index}" class="inline-checkbox">
                     Inclure objets
                 </label>
             </div>
-            <div id="objets-container-${index}" style="display: none;">
+            <div id="objets-container-${index}" class="hidden">
                 <textarea id="objets-quete-${index}" rows="2" placeholder="2 émeraudes d'une valeur de 200PO, un étrange engrenage en rotation perpétuelle"></textarea>
             </div>
 
@@ -322,7 +322,7 @@ function createQueteHTML(index) {
             </div>
         </div>
 
-            <button type="button" class="delete-quete" onclick="deleteQuete(${index})" style="display: none;">
+            <button type="button" class="delete-quete hidden" onclick="deleteQuete(${index})">
                 🗑️ Supprimer cette quête
             </button>
         </div>
@@ -356,11 +356,11 @@ function setupQueteListeners(index) {
             
             if (queteSimple && queteMultiple) {
                 if (this.checked) {
-                    queteSimple.style.display = 'none';
-                    queteMultiple.style.display = 'block';
+                    queteSimple.classList.add('hidden');
+                    queteMultiple.classList.remove('hidden');
                 } else {
-                    queteSimple.style.display = 'block';
-                    queteMultiple.style.display = 'none';
+                    queteSimple.classList.remove('hidden');
+                    queteMultiple.classList.add('hidden');
                 }
             }
             
@@ -374,7 +374,7 @@ function setupQueteListeners(index) {
         const updateMonnaies = function() {
             const container = document.getElementById(`monnaie-container-${index}`);
             if (container) {
-                container.style.display = this.checked ? 'block' : 'none';
+                container.classList.toggle('hidden', !this.checked);
             }
             if (!this.checked) {
                 const totalEl = document.getElementById(`total-quete-or-${index}`);
@@ -393,7 +393,7 @@ function setupQueteListeners(index) {
         const updateObjets = function() {
             const container = document.getElementById(`objets-container-${index}`);
             if (container) {
-                container.style.display = this.checked ? 'block' : 'none';
+                container.classList.toggle('hidden', !this.checked);
             }
             regenerateIfNeeded();
         };
