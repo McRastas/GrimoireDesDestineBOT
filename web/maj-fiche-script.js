@@ -58,7 +58,7 @@ function addTransactionLine() {
             <option value="VENTE">VENTE</option>
         </select>
         <input type="text" placeholder="Description">
-        <input type="number" class="quantity" min="1" step="1" value="1" placeholder="1">
+        <input type="number" class="quantity" min="1" step="1" placeholder="1">
         <input type="number" class="price" step="0.01" placeholder="0">
         <button type="button" class="delete-transaction">🗑️</button>
     `;
@@ -279,7 +279,7 @@ function createQueteHTML(index) {
 
             <div class="form-group">
                 <label for="xp-quete-${index}">XP de cette quête :</label>
-                <input type="number" id="xp-quete-${index}" placeholder="1" min="0" max="10" value="1">
+                <input type="number" id="xp-quete-${index}" placeholder="1" min="0" max="10">
             </div>
 
             <div class="checkbox-group">
