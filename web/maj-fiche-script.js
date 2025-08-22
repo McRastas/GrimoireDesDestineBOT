@@ -1001,6 +1001,7 @@ ${transactionsText}
 ${soldeLines.join('\n')}
 *Fiche R20 à jour.*`;
 
+
     if (pjSectionOpened && addPjDelimiter) {
         template += `
 ** \ =======================  PJ  ========================= / **`;
