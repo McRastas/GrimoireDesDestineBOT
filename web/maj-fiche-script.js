@@ -470,14 +470,16 @@ function setupQueteListeners(index) {
 
 function generateQuestesSection() {
     const quetes = document.querySelectorAll('.quete-bloc');
-    let questesText = '';
     let totalXPQuetes = 0;
     let totalMonnaies = { PC: 0, PA: 0, PO: 0, PP: 0 };
     let objetsQuetes = [];
     let autresQuetes = [];
     let xpQuetes = [];
     let recompensesQuetes = [];
-    
+    let quetesList = [];
+    let objetsList = [];
+    let poList = [];
+
     quetes.forEach((quete, index) => {
         const dataIndex = quete.getAttribute('data-quete');
         const titreEl = document.getElementById(`titre-quete-${dataIndex}`);
@@ -498,9 +500,10 @@ function generateQuestesSection() {
 
         // Récupérer les récompenses
         let recompensesText = '';
-        
+
         // Monnaies
         const includeMonnaies = document.getElementById(`include-monnaies-${dataIndex}`);
+        let questPO = 0;
         if (includeMonnaies && includeMonnaies.checked) {
             const pcEl = document.getElementById(`pc-quete-${dataIndex}`);
             const paEl = document.getElementById(`pa-quete-${dataIndex}`);
@@ -528,18 +531,22 @@ function generateQuestesSection() {
             if (monnaieText.length > 0) {
                 recompensesText += ', ' + monnaieText.join(' ');
             }
+
+            questPO = po + pa / 10 + pc / 100 + pp * 10;
         }
 
         // Objets
+        let objetsText = '';
         const includeObjets = document.getElementById(`include-objets-${dataIndex}`);
         if (includeObjets && includeObjets.checked) {
             const objetsEl = document.getElementById(`objets-quete-${dataIndex}`);
             if (objetsEl && objetsEl.value.trim()) {
-                recompensesText += ', ' + objetsEl.value.trim();
-                objetsQuetes.push(objetsEl.value.trim());
+                objetsText = objetsEl.value.trim();
+                recompensesText += ', ' + objetsText;
+                objetsQuetes.push(objetsText);
             }
         }
-        
+
         // Autres
         const autresEl = document.getElementById(`autres-quete-${dataIndex}`);
         if (autresEl && autresEl.value.trim()) {
@@ -549,24 +556,26 @@ function generateQuestesSection() {
 
         recompensesQuetes.push(recompensesText.replace(/^,\s*/, ''));
 
+        // Construire les différentes listes
+        let questLine;
         if (isMultiple) {
             const sessionsEl = document.getElementById(`sessions-quete-${dataIndex}`);
             const sessions = sessionsEl ? sessionsEl.value || `[SESSIONS_QUETE_${index + 1}]` : `[SESSIONS_QUETE_${index + 1}]`;
-            questesText += `- ${titre} + ${mj} ⁠- [${sessions}]`;
+            questLine = `${titre} + ${mj} ⁠- [${sessions}]`;
         } else {
             const lienEl = document.getElementById(`lien-recompense-${dataIndex}`);
             const lien = lienEl ? lienEl.value || `[LIEN_RECOMPENSE_${index + 1}]` : `[LIEN_RECOMPENSE_${index + 1}]`;
-            questesText += `- ${titre} + ${mj} ⁠- ${lien}`;
+            questLine = `${titre} + ${mj} ⁠- ${lien}`;
         }
-        
-        // Ajouter une ligne vide entre les quêtes sauf pour la dernière
-        if (index < quetes.length - 1) {
-            questesText += '\n';
-        }
+        quetesList.push(questLine);
+        objetsList.push(`${titre}: ${objetsText || '-'}`);
+        poList.push(`${titre}: ${(questPO || 0).toFixed(2).replace(/\.00$/, '')} PO`);
     });
-    
+
     return {
-        questesText: questesText.trim(),
+        quetesList,
+        objetsList,
+        poList,
         totalXPQuetes,
         totalMonnaies,
         objetsQuetes,
@@ -717,13 +726,14 @@ function generateTemplate() {
     }
     
     // Informations quête
-    const { questesText, totalXPQuetes, totalMonnaies, objetsQuetes, autresQuetes, xpQuetes, recompensesQuetes } = generateQuestesSection();
+    const { quetesList, objetsList, poList, totalXPQuetes, totalMonnaies, objetsQuetes, autresQuetes, xpQuetes, recompensesQuetes } = generateQuestesSection();
     let sectionQuete;
-    
-    if (questesText && questesText !== '' && !questesText.includes('[TITRE_QUETE_1]')) {
-        sectionQuete = `**Quête :** [
-${questesText}
-] +${totalXPQuetes} XP`;
+
+    if (quetesList.length > 0 && !quetesList[0].includes('[TITRE_QUETE_1]')) {
+        const quetesLines = quetesList.map(q => `- ${q}`).join('\n');
+        const objetsLines = objetsList.map(o => `- ${o}`).join('\n');
+        const poLines = poList.map(p => `- ${p}`).join('\n');
+        sectionQuete = `**Quête :**\nQuêtes:\n${quetesLines}\n\nObjets:\n${objetsLines}\n\nPO:\n${poLines}\n+${totalXPQuetes} XP`;
     } else {
         sectionQuete = '**Quête :** [TITRE_QUETE] + [NOM_MJ] ⁠- [LIEN_RECOMPENSES]';
     }
