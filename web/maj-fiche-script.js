@@ -848,10 +848,12 @@ function generateTemplate() {
     const typeSpecialEl = document.getElementById('type-special');
     const descriptionSpecialEl = document.getElementById('description-special');
     const includeMarchandEl = document.getElementById('section-marchand');
-    
+    const addPjDelimiterEl = document.getElementById('add-pj-delimiter');
+
     const typeSpecial = typeSpecialEl ? typeSpecialEl.value : '';
     const descriptionSpecial = descriptionSpecialEl ? descriptionSpecialEl.value : '';
     const includeMarchand = includeMarchandEl ? includeMarchandEl.checked : false;
+    const addPjDelimiter = addPjDelimiterEl ? addPjDelimiterEl.checked : false;
     
     // Calculs
     const { progressionText, xpInfo } = calculateXPProgression(xpActuels, totalXPQuetes, niveauActuel, niveauCible, classeGainNiveau || classe);
@@ -860,6 +862,7 @@ function generateTemplate() {
     // Construction du template
     let template = `Nom du PJ : ${nom}
 Classe : ${classe}`;
+    let pjSectionOpened = false;
 
     // Section spéciale si définie
     if (typeSpecial && descriptionSpecial) {
@@ -872,6 +875,7 @@ ${descriptionSpecial}
 
     // Section PJ principale
     if (sectionQuete) {
+        pjSectionOpened = true;
         template += `
 ** / =======================  PJ  ========================= \\ **
 ${sectionQuete}`;
@@ -968,9 +972,6 @@ Monnaies lootées: ${monnaiesText}`;
         }
     }
 
-    template += `
-** \\ =======================  PJ  ========================= / **`;
-
     // Section Marchand si demandée
     if (includeMarchand && transactionsText.trim() !== '') {
         template += `
@@ -999,6 +1000,11 @@ ${transactionsText}
 **¤ Solde :**
 ${soldeLines.join('\n')}
 *Fiche R20 à jour.*`;
+
+    if (pjSectionOpened && addPjDelimiter) {
+        template += `
+** \ =======================  PJ  ========================= / **`;
+    }
 
     const hasArtisanat = artisanatNotes || artisanatItemsList.length > 0 || artisanatCostRaw !== '';
     if (hasArtisanat) {
