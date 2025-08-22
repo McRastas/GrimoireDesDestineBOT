@@ -1081,6 +1081,15 @@ function copyToClipboard(text) {
     });
 }
 
+function toggleArtisanat() {
+    const section = document.getElementById('artisanat-section');
+    const btn = document.getElementById('toggle-artisanat-btn');
+    if (!section || !btn) return;
+
+    const isHidden = section.classList.toggle('hidden');
+    btn.textContent = isHidden ? 'Ajouter artisanat' : 'Retirer artisanat';
+}
+
 // ===== INITIALISATION =====
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -1103,6 +1112,12 @@ document.addEventListener('DOMContentLoaded', function() {
             
             regenerateIfNeeded();
         });
+    }
+
+    // Gestion du toggle artisanat
+    const artisanatBtn = document.getElementById('toggle-artisanat-btn');
+    if (artisanatBtn) {
+        artisanatBtn.addEventListener('click', toggleArtisanat);
     }
 
     // Setup des listeners pour la première quête
@@ -1161,10 +1176,15 @@ document.addEventListener('DOMContentLoaded', function() {
         + ' textarea#artisanat-notes:not([data-listener-added]),'
         + ' textarea#artisanat-items:not([data-listener-added]),'
         + ' input#artisanat-cost:not([data-listener-added]),'
-        + ' input#section-marchand:not([data-listener-added])'
+        + ' input#section-marchand:not([data-listener-added]),'
+        + ' button#toggle-artisanat-btn:not([data-listener-added])'
     );
     inputs.forEach(input => {
-        input.addEventListener('input', regenerateIfNeeded);
+        if (input.tagName === 'BUTTON') {
+            input.addEventListener('click', regenerateIfNeeded);
+        } else {
+            input.addEventListener('input', regenerateIfNeeded);
+        }
         input.setAttribute('data-listener-added', 'true');
     });
 
