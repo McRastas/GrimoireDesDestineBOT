@@ -786,15 +786,15 @@ function generateTemplate() {
         return el.value.split(/[\n,]+/).map(s => s.trim()).filter(Boolean);
     };
 
-    const nouvellesCapacites = nouvellesCapacitesEl ? nouvellesCapacitesEl.value || '-' : '-';
+    const nouvellesCapacites = nouvellesCapacitesEl ? nouvellesCapacitesEl.value.trim() : '';
     const nouveauDonList = parseList(nouveauDonEl);
     const donQueteList = parseList(donQueteEl);
     const nouveauxSortsList = parseList(nouveauxSortsEl);
     const sortsRemplacesList = parseList(sortsRemplacesEl);
-    const nouveauxDons = nouveauDonList.length ? nouveauDonList.join(', ') : '-';
-    const donsQuete = donQueteList.length ? donQueteList.join(', ') : '-';
-    const nouveauxSorts = nouveauxSortsList.length ? nouveauxSortsList.join(', ') : '-';
-    const sortsRemplaces = sortsRemplacesList.length ? sortsRemplacesList.join(', ') : '-';
+    const nouveauxDons = nouveauDonList.join(', ');
+    const donsQuete = donQueteList.join(', ');
+    const nouveauxSorts = nouveauxSortsList.join(', ');
+    const sortsRemplaces = sortsRemplacesList.join(', ');
     
     // Items et argent
     const objetsLootesEl = document.getElementById('objets-lootes');
@@ -901,18 +901,27 @@ ${affichageXP}`;
         }
     }
 
-    template += `
+    const extras = [];
+    if (nouvellesCapacites) {
+        extras.push(`Nouvelle(s) capacité(s) :\n${nouvellesCapacites}`);
+    }
+    if (nouveauxDons) {
+        extras.push(`Nouveau(x) don(s) :\n${nouveauxDons}`);
+    }
+    if (donsQuete) {
+        extras.push(`Don(s) (gain de quête) :\n${donsQuete}`);
+    }
+    if (nouveauxSorts) {
+        extras.push(`Nouveau(x) sort(s) :\n${nouveauxSorts}`);
+    }
+    if (sortsRemplaces) {
+        extras.push(`Sort(s) remplacé(s) :\n${sortsRemplaces}`);
+    }
+    if (extras.length > 0) {
+        template += `
 **¤ Capacités et sorts supplémentaires :**
-Nouvelle(s) capacité(s) :
-${nouvellesCapacites}
-Nouveau(x) don(s) :
-${nouveauxDons}
-Don(s) (gain de quête) :
-${donsQuete}
-Nouveau(x) sort(s) :
-${nouveauxSorts}
-Sort(s) remplacé(s) :
-${sortsRemplaces}`;
+${extras.join('\n')}`;
+    }
 
     // Inventaire seulement si renseigné
     const objetsLootesBase = objetsLootes || '';
