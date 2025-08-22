@@ -871,9 +871,11 @@ ${descriptionSpecial}
     }
 
     // Section PJ principale
-    template += `
+    if (sectionQuete) {
+        template += `
 ** / =======================  PJ  ========================= \\ **
 ${sectionQuete}`;
+    }
 
     // XP seulement si renseignés
     if (xpActuels >= 0 && totalXPQuetes > 0) {
