@@ -86,7 +86,7 @@
                 
                 <div class="form-group">
                     <label for="nom-pj">Nom du PJ :</label>
-                    <input type="text" id="nom-pj" placeholder="Nom de votre personnage" value="Gandalf le Gris">
+                    <input type="text" id="nom-pj" placeholder="Nom de votre personnage" required>
                 </div>
 
                 <div class="form-group">
@@ -98,8 +98,8 @@
 
                 <div id="classe-simple" class="form-group">
                     <label for="classe">Classe :</label>
-                    <select id="classe">
-                        <option value="">Sélectionnez une classe</option>
+                    <select id="classe" required>
+                        <option value="" disabled selected>Sélectionnez une classe</option>
                         <option value="Artificier">Artificier</option>
                         <option value="Barbare">Barbare</option>
                         <option value="Barde">Barde</option>
@@ -107,7 +107,7 @@
                         <option value="Druide">Druide</option>
                         <option value="Ensorceleur">Ensorceleur</option>
                         <option value="Guerrier">Guerrier</option>
-                        <option value="Magicien" selected>Magicien</option>
+                        <option value="Magicien">Magicien</option>
                         <option value="Moine">Moine</option>
                         <option value="Occultiste">Occultiste</option>
                         <option value="Paladin">Paladin</option>
@@ -141,12 +141,12 @@
                                 
                                 <div class="form-group">
                                     <label for="titre-quete-0">Titre de la Quête :</label>
-                                    <input type="text" id="titre-quete-0" placeholder="L'Art de la Paix" value="La Tour du Mage Noir">
+                                    <input type="text" id="titre-quete-0" placeholder="L'Art de la Paix">
                                 </div>
 
                                 <div class="form-group">
                                     <label for="nom-mj-0">Nom du MJ :</label>
-                                    <input type="text" id="nom-mj-0" placeholder="@hugotlieb" value="@MasterJean">
+                                    <input type="text" id="nom-mj-0" placeholder="@hugotlieb">
                                 </div>
 
                                 <div class="checkbox-group">
@@ -156,7 +156,7 @@
 
                                 <div id="quete-simple-0" class="form-group">
                                     <label for="lien-recompense-0">Lien vers les récompenses :</label>
-                                    <input type="text" id="lien-recompense-0" placeholder="https://discord.com/channels/..." value="https://discord.com/channels/123456789/987654321/111222333">
+                                    <input type="text" id="lien-recompense-0" placeholder="https://discord.com/channels/...">
                                     <div class="help-text">Clic droit sur le message → Copier le lien</div>
                                 </div>
 
@@ -167,7 +167,7 @@
 
                                 <div class="form-group">
                                     <label for="xp-quete-0">XP de cette quête :</label>
-                                    <input type="number" id="xp-quete-0" placeholder="2" min="0" max="10" value="3">
+                                    <input type="number" id="xp-quete-0" placeholder="2" min="0" max="10">
                                 </div>
 
                                 <div class="checkbox-group">
@@ -225,18 +225,18 @@
                     <div id="tab-niveau" class="tab-content">
                         <div class="form-group">
                             <label for="xp-actuels">XP Actuels :</label>
-                            <input type="number" id="xp-actuels" placeholder="3" min="0" max="10" value="8">
+                            <input type="number" id="xp-actuels" placeholder="3" min="0" max="10">
                             <div class="help-text">Points d'XP déjà obtenus</div>
                         </div>
 
                         <div class="form-group">
                             <label for="niveau-actuel">Niveau actuel :</label>
-                            <input type="number" id="niveau-actuel" placeholder="11" min="1" max="20" value="11">
+                            <input type="number" id="niveau-actuel" placeholder="11" min="1" max="20">
                         </div>
 
                         <div class="form-group">
                             <label for="niveau-cible">Niveau visé :</label>
-                            <input type="number" id="niveau-cible" placeholder="12" min="1" max="20" value="12">
+                            <input type="number" id="niveau-cible" placeholder="12" min="1" max="20">
                             <div class="help-text">Indiquez le niveau après gain d'XP</div>
                         </div>
 
@@ -251,7 +251,7 @@
                                 <option value="Druide">Druide</option>
                                 <option value="Ensorceleur">Ensorceleur</option>
                                 <option value="Guerrier">Guerrier</option>
-                                <option value="Magicien" selected>Magicien</option>
+                                <option value="Magicien">Magicien</option>
                                 <option value="Moine">Moine</option>
                                 <option value="Occultiste">Occultiste</option>
                                 <option value="Paladin">Paladin</option>
@@ -269,7 +269,7 @@
 
                         <div class="form-group">
                             <label for="mod-constitution">Modificateur de Constitution :</label>
-                            <input type="number" id="mod-constitution" placeholder="2" min="-5" max="10" value="0">
+                            <input type="number" id="mod-constitution" placeholder="2" min="-5" max="10">
                         </div>
 
                         <div class="form-group">
@@ -336,7 +336,7 @@
                             </div>
                             <div class="form-group">
                                 <label for="ancien-solde">Ancien solde :</label>
-                                <input type="text" id="ancien-solde" placeholder="Solde avant session">
+                                <input type="text" id="ancien-solde" placeholder="Solde avant session" required>
                             </div>
                             <div class="form-group">
                                 <label for="total-or">Total en or :</label>
