@@ -848,12 +848,10 @@ function generateTemplate() {
     const typeSpecialEl = document.getElementById('type-special');
     const descriptionSpecialEl = document.getElementById('description-special');
     const includeMarchandEl = document.getElementById('section-marchand');
-    const addPjDelimiterEl = document.getElementById('add-pj-delimiter');
 
     const typeSpecial = typeSpecialEl ? typeSpecialEl.value : '';
     const descriptionSpecial = descriptionSpecialEl ? descriptionSpecialEl.value : '';
     const includeMarchand = includeMarchandEl ? includeMarchandEl.checked : false;
-    const addPjDelimiter = addPjDelimiterEl ? addPjDelimiterEl.checked : false;
     
     // Calculs
     const { progressionText, xpInfo } = calculateXPProgression(xpActuels, totalXPQuetes, niveauActuel, niveauCible, classeGainNiveau || classe);
@@ -1002,7 +1000,7 @@ ${soldeLines.join('\n')}
 *Fiche R20 à jour.*`;
 
 
-    if (pjSectionOpened && addPjDelimiter) {
+    if (pjSectionOpened) {
         template += `
 ** \ =======================  PJ  ========================= / **`;
     }
