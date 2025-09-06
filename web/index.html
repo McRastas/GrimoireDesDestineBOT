@@ -3,436 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Grimoire des Destinées - Calculateur PV D&D 5e</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            padding: 20px;
-        }
-
-        /* ===== NOUVEAU: Navigation DEV ===== */
-        .dev-nav {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            z-index: 1000;
-        }
-
-        .dev-nav-link {
-            display: inline-block;
-            background: rgba(255, 255, 255, 0.9);
-            color: #2c3e50;
-            padding: 8px 16px;
-            border-radius: 20px;
-            text-decoration: none;
-            font-size: 12px;
-            font-weight: bold;
-            transition: all 0.3s ease;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-        }
-
-        .dev-nav-link:hover {
-            background: #3498db;
-            color: white;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 15px rgba(52, 152, 219, 0.3);
-        }
-        /* ===== FIN NOUVEAU ===== */
-
-        .container {
-            max-width: 900px;
-            margin: 0 auto;
-            background: white;
-            border-radius: 20px;
-            box-shadow: 0 25px 50px rgba(0,0,0,0.15);
-            overflow: hidden;
-        }
-
-        .header {
-            background: linear-gradient(135deg, #2c3e50, #3498db);
-            color: white;
-            padding: 40px 30px;
-            text-align: center;
-            position: relative;
-        }
-
-        .header::before {
-            content: '';
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            height: 3px;
-            background: linear-gradient(90deg, #3498db, #9b59b6, #e74c3c, #f39c12, #2ecc71);
-        }
-
-        .header h1 {
-            font-size: 2.8rem;
-            margin-bottom: 10px;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
-        }
-
-        .header p {
-            font-size: 1.1rem;
-            opacity: 0.9;
-            margin-bottom: 10px;
-        }
-
-        .discord-info {
-            display: none;
-        }
-
-        .main-content {
-            padding: 30px;
-        }
-
-        .character-card {
-            background: #f8f9fa;
-            border: 2px solid #e1e8ed;
-            border-radius: 15px;
-            margin-bottom: 25px;
-            padding: 25px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
-            transition: transform 0.3s ease;
-        }
-
-        .character-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(0,0,0,0.12);
-        }
-
-        .character-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 25px;
-            padding-bottom: 15px;
-            border-bottom: 2px solid #3498db;
-        }
-
-        .character-name {
-            font-size: 1.4rem;
-            font-weight: bold;
-            color: #2c3e50;
-            border: none;
-            background: transparent;
-            flex-grow: 1;
-            margin-right: 20px;
-            padding: 5px;
-            border-radius: 5px;
-        }
-
-        .character-name:focus {
-            outline: 2px solid #3498db;
-            background: rgba(52, 152, 219, 0.05);
-        }
-
-        .pv-display {
-            background: linear-gradient(135deg, #27ae60, #2ecc71);
-            color: white;
-            padding: 15px 25px;
-            border-radius: 12px;
-            text-align: center;
-            min-width: 110px;
-            box-shadow: 0 4px 10px rgba(39, 174, 96, 0.3);
-        }
-
-        .pv-number {
-            font-size: 2.2rem;
-            font-weight: bold;
-            line-height: 1;
-        }
-
-        .pv-label {
-            font-size: 0.9rem;
-            opacity: 0.9;
-        }
-
-        .form-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 25px;
-            margin-bottom: 25px;
-        }
-
-        .form-section {
-            background: white;
-            padding: 20px;
-            border-radius: 12px;
-            border: 1px solid #ddd;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-        }
-
-        .section-title {
-            font-size: 1.1rem;
-            font-weight: bold;
-            color: #2c3e50;
-            margin-bottom: 15px;
-            padding-bottom: 8px;
-            border-bottom: 2px solid #3498db;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .form-row {
-            margin-bottom: 15px;
-        }
-
-        .form-row label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: 600;
-            color: #34495e;
-            font-size: 0.9rem;
-        }
-
-        .form-row select, .form-row input {
-            width: 100%;
-            padding: 12px 15px;
-            border: 2px solid #e1e8ed;
-            border-radius: 8px;
-            font-size: 0.95rem;
-            transition: all 0.3s ease;
-            background: white;
-        }
-
-        .form-row select:focus, .form-row input:focus {
-            outline: none;
-            border-color: #3498db;
-            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
-        }
-
-        .checkbox-grid {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 8px;
-            margin-top: 10px;
-        }
-
-        .checkbox-item {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 12px 15px;
-            background: #f8f9fa;
-            border: 1px solid #e1e8ed;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            font-size: 0.85rem;
-        }
-
-        .checkbox-item:hover {
-            background: #e3f2fd;
-            border-color: #3498db;
-        }
-
-        .checkbox-item input[type="checkbox"] {
-            width: 18px;
-            height: 18px;
-            margin: 0;
-        }
-
-        .class-section {
-            background: white;
-            border: 2px solid #e1e8ed;
-            border-radius: 10px;
-            padding: 18px;
-            margin-bottom: 15px;
-        }
-
-        .class-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
-        }
-
-        .class-title {
-            font-weight: bold;
-            color: #2c3e50;
-            font-size: 1rem;
-        }
-
-        .remove-class {
-            background: #e74c3c;
-            color: white;
-            border: none;
-            padding: 6px 12px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 0.8rem;
-            transition: background 0.3s ease;
-        }
-
-        .remove-class:hover {
-            background: #c0392b;
-        }
-
-        .class-inputs {
-            display: grid;
-            grid-template-columns: 2fr 1fr;
-            gap: 12px;
-        }
-
-        .add-class {
-            background: #27ae60;
-            color: white;
-            border: none;
-            padding: 12px 20px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 0.9rem;
-            margin-top: 10px;
-            transition: background 0.3s ease;
-            width: 100%;
-        }
-
-        .add-class:hover {
-            background: #229954;
-        }
-
-        .add-character {
-            background: #3498db;
-            color: white;
-            border: none;
-            padding: 15px 30px;
-            border-radius: 10px;
-            cursor: pointer;
-            font-size: 1.1rem;
-            margin: 20px 0;
-            display: block;
-            width: 100%;
-            transition: background 0.3s ease;
-        }
-
-        .add-character:hover {
-            background: #2980b9;
-        }
-
-        .breakdown {
-            grid-column: 1 / -1;
-            background: linear-gradient(135deg, #34495e, #2c3e50);
-            color: white;
-            padding: 20px;
-            border-radius: 12px;
-            margin-top: 15px;
-        }
-
-        .breakdown h4 {
-            margin-bottom: 15px;
-            text-align: center;
-            font-size: 1.1rem;
-        }
-
-        .breakdown-item {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 8px;
-            padding: 5px 0;
-            border-bottom: 1px solid rgba(255,255,255,0.2);
-        }
-
-        .breakdown-total {
-            font-weight: bold;
-            border-top: 2px solid rgba(255,255,255,0.4);
-            margin-top: 10px;
-            padding-top: 10px;
-            font-size: 1.1rem;
-        }
-
-        .delete-character {
-            background: #e74c3c;
-            color: white;
-            border: none;
-            padding: 8px 12px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 0.85rem;
-            transition: background 0.3s ease;
-        }
-
-        .delete-character:hover {
-            background: #c0392b;
-        }
-
-        .help-text {
-            color: #7f8c8d;
-            font-size: 0.8rem;
-            font-style: italic;
-        }
-
-        .info-box {
-            background: #e8f4fd;
-            border: 1px solid #bee5eb;
-            border-radius: 8px;
-            padding: 15px;
-            margin-bottom: 20px;
-            color: #0c5460;
-            font-size: 0.85rem;
-            line-height: 1.4;
-        }
-
-        @media (max-width: 768px) {
-            .container {
-                margin: 10px;
-                border-radius: 15px;
-            }
-            
-            .header {
-                padding: 30px 20px;
-            }
-            
-            .header h1 {
-                font-size: 2.2rem;
-            }
-            
-            .main-content {
-                padding: 20px;
-            }
-            
-            .form-grid {
-                grid-template-columns: 1fr;
-            }
-            
-            .character-header {
-                flex-direction: column;
-                gap: 15px;
-                text-align: center;
-            }
-            
-            .class-inputs {
-                grid-template-columns: 1fr;
-            }
-            
-            .checkbox-grid {
-                grid-template-columns: 1fr;
-            }
-
-            /* Navigation responsive */
-            .dev-nav {
-                position: static;
-                text-align: center;
-                margin-bottom: 20px;
-            }
-        }
-    </style>
+    <title>🎲 Calculateur de PV D&D 5e - Grimoire des Destinées</title>
+    <link rel="stylesheet" href="styles-unified.css">
 </head>
 <body>
-    <!-- ===== NOUVEAU: Lien de navigation vers la page DEV ===== -->
-    <div class="dev-nav">
-        <a href="maj-fiche-dev.html" class="dev-nav-link">🚧 Générateur Fiche (DEV)</a>
+    <!-- Navigation -->
+    <div class="nav-links">
+        <a href="index.html" class="nav-link active">🎲 Calculateur PV</a>
+        <a href="maj-fiche-dev.html" class="nav-link">📝 Générateur Fiche (DEV)</a>
     </div>
-    <!-- ===== FIN NOUVEAU ===== -->
 
     <div class="container">
         <div class="header">
@@ -453,7 +32,7 @@
                 <!-- Les personnages seront ajoutés ici -->
             </div>
 
-            <button class="add-character" onclick="addCharacter()">
+            <button class="btn-primary add-character" onclick="addCharacter()">
                 ➕ Ajouter un personnage
             </button>
         </div>
@@ -493,113 +72,103 @@
             const classOptions = classes.map(cls => `<option value="${cls}">${cls}</option>`).join('');
 
             return `
-                <div class="character-card" id="character-${id}">
-                    <div class="character-header">
-                        <input type="text" class="character-name" placeholder="Nom du personnage">
-                        <div class="pv-display">
+                <div class="character-card fade-in" id="character-${id}">
+                    <div class="flex-between mb-20">
+                        <input type="text" class="character-name" placeholder="Nom du personnage" style="max-width: 300px;">
+                        <div class="pv-display" style="min-width: 120px;">
                             <div class="pv-number">10</div>
-                            <div class="pv-label">PV</div>
+                            <div class="pv-label">Points de Vie</div>
                         </div>
-                        ${id > 1 ? `<button class="delete-character" onclick="deleteCharacter(${id})">🗑️</button>` : ''}
+                        ${id > 1 ? `<button class="btn-danger delete-character" onclick="removeCharacter(${id})" title="Supprimer ce personnage">🗑️</button>` : ''}
                     </div>
 
                     <div class="form-grid">
-                        <div class="form-section">
-                            <div class="section-title">
-                                📋 Informations de base
-                            </div>
-                            
-                            <div class="form-row">
-                                <label>Race</label>
-                                <select class="race-select" onchange="updateCharacterPV(${id})">
-                                    <option value="">Choisir une race</option>
-                                    ${raceOptions}
-                                </select>
-                                <div class="help-text">Choisissez "Nain des collines" pour +1 PV par niveau, sinon "Autre race"</div>
-                            </div>
-
-                            <div class="form-row">
-                                <label>Constitution</label>
-                                <input type="number" class="constitution-input" value="10" min="1" max="30" onchange="updateCharacterPV(${id})">
-                                <div class="help-text">Modificateur = (Constitution - 10) ÷ 2</div>
-                            </div>
+                        <div class="form-group">
+                            <label>Race</label>
+                            <select class="race-select" onchange="updateCharacterPV(${id})">
+                                ${raceOptions}
+                            </select>
                         </div>
+                        
+                        <div class="form-group">
+                            <label>Constitution</label>
+                            <input type="number" class="constitution" value="10" min="1" max="30" onchange="updateCharacterPV(${id})">
+                        </div>
+                    </div>
 
-                        <div class="form-section">
-                            <div class="section-title">
-                                🎁 Bonus optionnels
-                            </div>
-                            
-                            <div class="checkbox-grid">
-                                <div class="checkbox-item">
-                                    <input type="checkbox" class="don-robustesse" onchange="updateCharacterPV(${id})">
-                                    <span><strong>Don Robustesse</strong> <span class="help-text">(+2 PV/niveau)</span></span>
+                    <div class="form-section" style="background: white; padding: 20px;">
+                        <h4 style="margin-bottom: 15px;">⚔️ Classes et Niveaux</h4>
+                        <div class="classes-container">
+                            <div class="class-entry form-grid mb-15">
+                                <div class="form-group">
+                                    <label>Classe</label>
+                                    <select class="class-select" onchange="updateCharacterPV(${id})">
+                                        <option value="">Sélectionnez une classe</option>
+                                        ${classOptions}
+                                    </select>
                                 </div>
-                                <div class="checkbox-item">
-                                    <input type="checkbox" class="armure-safeguard" onchange="updateCharacterPV(${id})">
-                                    <span><strong>Armure Safeguard</strong> <span class="help-text">(+10 + niveau total)</span></span>
-                                </div>
-                                <div class="checkbox-item">
-                                    <input type="checkbox" class="hache-berserker" onchange="updateCharacterPV(${id})">
-                                    <span><strong>Hache du Berserker</strong> <span class="help-text">(+niveau total)</span></span>
-                                </div>
-                                <div class="checkbox-item">
-                                    <input type="checkbox" class="ensorceleur-draconique" onchange="updateCharacterPV(${id})">
-                                    <span><strong>Ensorceleur Draconique</strong> <span class="help-text">(+1 PV/niveau d'ensorceleur)</span></span>
+                                <div class="form-group">
+                                    <label>Niveau</label>
+                                    <input type="number" class="level" value="1" min="1" max="20" onchange="updateCharacterPV(${id})">
                                 </div>
                             </div>
                         </div>
+                        
+                        <button class="btn-secondary add-class mt-10" onclick="addClassToCharacter(${id})">+ Ajouter une classe (multiclassage)</button>
+                    </div>
 
-                        <div class="form-section" style="grid-column: 1 / -1;">
-                            <div class="section-title">
-                                ⚔️ Classes et Niveaux
+                    <div class="form-section" style="background: white; padding: 20px; margin-top: 15px;">
+                        <h4 style="margin-bottom: 15px;">✨ Bonus supplémentaires</h4>
+                        
+                        <div class="checkbox-grid">
+                            <div class="checkbox-group">
+                                <input type="checkbox" id="robuste-${id}" class="feat-robuste" onchange="updateCharacterPV(${id})">
+                                <label for="robuste-${id}">Don : Robuste (+2 PV/niveau)</label>
                             </div>
                             
-                            <div class="classes-container">
-                                <div class="class-section">
-                                    <div class="class-header">
-                                        <span class="class-title">Classe Principale</span>
-                                    </div>
-                                    <div class="class-inputs">
-                                        <select class="class-select" onchange="updateCharacterPV(${id})">
-                                            <option value="">Choisir une classe</option>
-                                            ${classOptions}
-                                        </select>
-                                        <input type="number" class="level-input" value="1" min="1" max="20" placeholder="Niveau" onchange="updateCharacterPV(${id})">
-                                    </div>
-                                </div>
+                            <div class="checkbox-group">
+                                <input type="checkbox" id="armure-${id}" class="armure-safeguard" onchange="updateCharacterPV(${id})">
+                                <label for="armure-${id}">Armure de Safeguard (+10 +1/niveau)</label>
                             </div>
                             
-                            <button class="add-class" onclick="addClassToCharacter(${id})">+ Ajouter une classe (multiclassage)</button>
+                            <div class="checkbox-group">
+                                <input type="checkbox" id="hache-${id}" class="hache-berserker" onchange="updateCharacterPV(${id})">
+                                <label for="hache-${id}">Hache du Berserker (+1 PV/niveau)</label>
+                            </div>
+                            
+                            <div class="checkbox-group">
+                                <input type="checkbox" id="draconic-${id}" class="ensorceleur-draconique" onchange="updateCharacterPV(${id})">
+                                <label for="draconic-${id}">Ensorceleur : Lignée draconique (+1 PV/niveau)</label>
+                            </div>
                         </div>
+                    </div>
 
-                        <div class="breakdown">
-                            <h4>📊 Détail du Calcul</h4>
-                            <div class="breakdown-content">
-                                <div class="breakdown-item">
-                                    <span>PV de base :</span>
-                                    <span class="base-pv">0</span>
-                                </div>
-                                <div class="breakdown-item">
-                                    <span>Modificateur Constitution :</span>
-                                    <span class="constitution-bonus">0</span>
-                                </div>
-                                <div class="breakdown-item">
-                                    <span>PV par niveaux :</span>
-                                    <span class="level-pv">0</span>
-                                </div>
-                                <div class="breakdown-item">
-                                    <span>Bonus racial :</span>
-                                    <span class="racial-bonus">0</span>
-                                </div>
-                                <div class="breakdown-item">
-                                    <span>Dons et objets :</span>
-                                    <span class="bonus-total">0</span>
-                                </div>
-                                <div class="breakdown-item breakdown-total">
-                                    <span><strong>TOTAL :</strong></span>
-                                    <span class="total-breakdown">0</span>
-                                </div>
+                    <div class="breakdown">
+                        <h4>📊 Détail du Calcul</h4>
+                        <div class="breakdown-content">
+                            <div class="breakdown-item">
+                                <span>PV de base :</span>
+                                <span class="base-pv">0</span>
+                            </div>
+                            <div class="breakdown-item">
+                                <span>Modificateur Constitution :</span>
+                                <span class="constitution-bonus">0</span>
+                            </div>
+                            <div class="breakdown-item">
+                                <span>PV par niveaux :</span>
+                                <span class="level-pv">0</span>
+                            </div>
+                            <div class="breakdown-item">
+                                <span>Bonus racial :</span>
+                                <span class="racial-bonus">0</span>
+                            </div>
+                            <div class="breakdown-item">
+                                <span>Dons et objets :</span>
+                                <span class="bonus-total">0</span>
+                            </div>
+                            <div class="breakdown-item breakdown-total">
+                                <span><strong>TOTAL :</strong></span>
+                                <span class="total-breakdown">0</span>
                             </div>
                         </div>
                     </div>
@@ -615,93 +184,102 @@
             updateCharacterPV(characterCount);
         }
 
-        function deleteCharacter(id) {
+        function removeCharacter(id) {
             const character = document.getElementById(`character-${id}`);
-            character.remove();
+            if (character && confirm('Êtes-vous sûr de vouloir supprimer ce personnage ?')) {
+                character.style.animation = 'fadeOut 0.3s ease';
+                setTimeout(() => character.remove(), 300);
+            }
         }
 
         function addClassToCharacter(characterId) {
             const character = document.getElementById(`character-${characterId}`);
             const classesContainer = character.querySelector('.classes-container');
-            const classCount = classesContainer.children.length;
+            const classCount = classesContainer.querySelectorAll('.class-entry').length;
             
-            if (classCount >= 3) {
-                alert('Maximum 3 classes par personnage');
+            if (classCount >= 4) {
+                alert('Maximum de 4 classes atteint pour le multiclassage');
                 return;
             }
-            
+
             const classOptions = classes.map(cls => `<option value="${cls}">${cls}</option>`).join('');
             
             const newClassHTML = `
-                <div class="class-section">
-                    <div class="class-header">
-                        <span class="class-title">Classe ${classCount + 1}</span>
-                        <button class="remove-class" onclick="removeClassFromCharacter(this, ${characterId})">Supprimer</button>
-                    </div>
-                    <div class="class-inputs">
+                <div class="class-entry form-grid mb-15 fade-in">
+                    <div class="form-group">
+                        <label>Classe ${classCount + 1}</label>
                         <select class="class-select" onchange="updateCharacterPV(${characterId})">
-                            <option value="">Choisir une classe</option>
+                            <option value="">Sélectionnez une classe</option>
                             ${classOptions}
                         </select>
-                        <input type="number" class="level-input" value="1" min="1" max="20" placeholder="Niveau" onchange="updateCharacterPV(${characterId})">
+                    </div>
+                    <div class="form-group">
+                        <label>Niveau</label>
+                        <div class="flex gap-10">
+                            <input type="number" class="level" value="1" min="1" max="20" onchange="updateCharacterPV(${characterId})">
+                            <button class="btn-danger" onclick="removeClassEntry(this, ${characterId})" style="padding: 8px 12px;">✕</button>
+                        </div>
                     </div>
                 </div>
             `;
             
             classesContainer.insertAdjacentHTML('beforeend', newClassHTML);
-            updateCharacterPV(characterId);
         }
 
-        function removeClassFromCharacter(button, characterId) {
-            button.closest('.class-section').remove();
-            updateCharacterPV(characterId);
+        function removeClassEntry(button, characterId) {
+            const classEntry = button.closest('.class-entry');
+            classEntry.style.animation = 'fadeOut 0.3s ease';
+            setTimeout(() => {
+                classEntry.remove();
+                updateCharacterPV(characterId);
+            }, 300);
         }
 
         function calculateCharacterPV(characterId) {
             const character = document.getElementById(`character-${characterId}`);
-            if (!character) return { total: 0 };
+            if (!character) return { total: 0, base: 0, constitution: 0, level: 0, racial: 0, bonus: 0 };
 
-            const race = character.querySelector('.race-select').value;
-            const constitution = parseInt(character.querySelector('.constitution-input').value) || 10;
-            const constitutionMod = Math.floor((constitution - 10) / 2);
+            const constitution = parseInt(character.querySelector('.constitution').value) || 10;
+            const constitutionModifier = Math.floor((constitution - 10) / 2);
             
-            const classSections = character.querySelectorAll('.class-section');
-            let totalLevel = 0;
+            const race = character.querySelector('.race-select').value;
+            const isHillDwarf = race.includes('Nain des collines');
+            
+            const classEntries = character.querySelectorAll('.class-entry');
             let basePV = 0;
             let levelPV = 0;
+            let totalLevel = 0;
             let sorcererLevels = 0;
-            
-            classSections.forEach((section, index) => {
-                const classSelect = section.querySelector('.class-select');
-                const levelInput = section.querySelector('.level-input');
-                const className = classSelect.value;
-                const level = parseInt(levelInput.value) || 1;
-                
-                if (className && classData[className]) {
-                    if (index === 0) {
-                        basePV = classData[className].base;
-                        levelPV += classData[className].perLevel * (level - 1);
-                    } else {
-                        levelPV += classData[className].perLevel * level;
-                    }
-                    
+            let firstClass = true;
+
+            classEntries.forEach(entry => {
+                const classSelect = entry.querySelector('.class-select');
+                const levelInput = entry.querySelector('.level');
+                const selectedClass = classSelect.value;
+                const level = parseInt(levelInput.value) || 0;
+
+                if (selectedClass && classData[selectedClass] && level > 0) {
                     totalLevel += level;
                     
-                    if (className === 'Ensorceleur') {
+                    if (selectedClass === 'Ensorceleur') {
                         sorcererLevels += level;
+                    }
+
+                    if (firstClass) {
+                        basePV = classData[selectedClass].base;
+                        levelPV += classData[selectedClass].perLevel * (level - 1);
+                        firstClass = false;
+                    } else {
+                        levelPV += classData[selectedClass].perLevel * level;
                     }
                 }
             });
 
-            let racialBonus = 0;
-            if (race === 'Nain des collines (+1 PV/niveau)') {
-                racialBonus = totalLevel;
-            }
-
-            const constitutionBonus = constitutionMod * totalLevel;
-
-            const donRobustesse = character.querySelector('.don-robustesse').checked;
-            const featBonus = donRobustesse ? 2 * totalLevel : 0;
+            const constitutionBonus = constitutionModifier * totalLevel;
+            const racialBonus = isHillDwarf ? totalLevel : 0;
+            
+            const featRobuste = character.querySelector('.feat-robuste').checked;
+            const featBonus = featRobuste ? 2 * totalLevel : 0;
 
             let itemBonus = 0;
             const armureSafeguard = character.querySelector('.armure-safeguard').checked;
@@ -740,12 +318,22 @@
             
             // Mettre à jour le détail
             character.querySelector('.base-pv').textContent = result.base;
-            character.querySelector('.constitution-bonus').textContent = result.constitution;
+            character.querySelector('.constitution-bonus').textContent = result.constitution > 0 ? `+${result.constitution}` : result.constitution;
             character.querySelector('.level-pv').textContent = result.level;
             character.querySelector('.racial-bonus').textContent = result.racial;
             character.querySelector('.bonus-total').textContent = result.bonus;
             character.querySelector('.total-breakdown').textContent = result.total;
         }
+
+        // Ajouter les animations CSS nécessaires
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes fadeOut {
+                from { opacity: 1; transform: scale(1); }
+                to { opacity: 0; transform: scale(0.95); }
+            }
+        `;
+        document.head.appendChild(style);
 
         // Ajouter un personnage par défaut au chargement
         document.addEventListener('DOMContentLoaded', function() {
