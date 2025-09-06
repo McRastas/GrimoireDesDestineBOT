@@ -4,18 +4,71 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>🎲 Générateur de Mise à Jour de Fiche D&D - DEV</title>
-    <link rel="stylesheet" href="styles-unified.css">
+    <link rel="stylesheet" href="maj-fiche-styles.css">
+    <style>
+        /* Badge DEV en haut à droite */
+        .dev-badge {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: #e74c3c;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            z-index: 1000;
+            box-shadow: 0 2px 10px rgba(231, 76, 60, 0.3);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 2px 10px rgba(231, 76, 60, 0.3); }
+            50% { box-shadow: 0 2px 20px rgba(231, 76, 60, 0.6); }
+            100% { box-shadow: 0 2px 10px rgba(231, 76, 60, 0.3); }
+        }
+
+        /* Navigation entre les pages */
+        .nav-links {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+        }
+
+        .nav-link {
+            display: inline-block;
+            background: rgba(255, 255, 255, 0.9);
+            color: #2c3e50;
+            padding: 8px 16px;
+            border-radius: 20px;
+            text-decoration: none;
+            font-size: 12px;
+            font-weight: bold;
+            margin-right: 10px;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .nav-link:hover {
+            background: white;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .header {
+            position: relative;
+        }
+    </style>
 </head>
 <body>
-    <!-- Badge de développement -->
     <div class="dev-badge">
         🚧 VERSION DÉVELOPPEMENT
     </div>
 
-    <!-- Navigation -->
     <div class="nav-links">
         <a href="index.html" class="nav-link">🎲 Calculateur PV</a>
-        <a href="maj-fiche-dev.html" class="nav-link active">📝 Générateur Fiche (DEV)</a>
+        <a href="maj-fiche-dev.html" class="nav-link">📝 Générateur Fiche (DEV)</a>
     </div>
 
     <div class="container">
@@ -28,27 +81,169 @@
         </div>
 
         <div class="main-content">
-            <div class="form-grid">
-                <!-- Colonne de gauche : Formulaire -->
-                <div>
-                    <!-- Informations du personnage -->
-                    <div class="form-section">
-                        <h3>📋 Informations du Personnage</h3>
+            <div class="form-section">
+                <h3>📋 Informations du Personnage</h3>
+                
+                <div class="form-group">
+                    <label for="nom-pj">Nom du PJ :</label>
+                    <input type="text" id="nom-pj" placeholder="Nom de votre personnage" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="multiclasse-toggle">
+                        <input type="checkbox" id="multiclasse-toggle" style="width: auto; margin-right: 8px;">
+                        Personnage multiclassé
+                    </label>
+                </div>
+
+                <div id="classe-simple" class="form-group">
+                    <label for="classe">Classe :</label>
+                    <select id="classe" required>
+                        <option value="" disabled selected>Sélectionnez une classe</option>
+                        <option value="Artificier">Artificier</option>
+                        <option value="Barbare">Barbare</option>
+                        <option value="Barde">Barde</option>
+                        <option value="Clerc">Clerc</option>
+                        <option value="Druide">Druide</option>
+                        <option value="Ensorceleur">Ensorceleur</option>
+                        <option value="Guerrier">Guerrier</option>
+                        <option value="Magicien">Magicien</option>
+                        <option value="Moine">Moine</option>
+                        <option value="Occultiste">Occultiste</option>
+                        <option value="Paladin">Paladin</option>
+                        <option value="Rôdeur">Rôdeur</option>
+                        <option value="Roublard">Roublard</option>
+                        <option value="Sorcier">Sorcier</option>
+                    </select>
+                </div>
+
+                <div id="classe-multi" class="form-group" style="display: none;">
+                    <label>Classes (ex: Magicien 13 / Artificier 1) :</label>
+                    <input type="text" id="classe-complete" placeholder="Magicien 13 / Artificier 1">
+                    <div class="help-text">Format : Classe1 Niveau / Classe2 Niveau / ...</div>
+                </div>
+
+                <div class="tab-container">
+                    <div class="tab-buttons">
+                        <button class="tab-btn active" onclick="showTab('quete', event)">🎯 Quête</button>
+                        <button class="tab-btn" onclick="showTab('niveau', event)">📈 Niveau</button>
+                        <button class="tab-btn" onclick="showTab('capacites', event)">🛡️ Capacités</button>
+                        <button class="tab-btn" onclick="showTab('items', event)">🎒 Items</button>
+                        <button class="tab-btn" onclick="showTab('argent', event)">💰 Argent</button>
+                        <button class="tab-btn" onclick="showTab('special', event)">⭐ Spécial</button>
+                    </div>
+
+                    <!-- Tab Content: Quête -->
+                    <div id="tab-quete" class="tab-content active">
+                        <div id="quetes-container">
+                            <div class="quete-bloc" data-quete="0">
+                                <h4 style="color: #3498db; margin-bottom: 15px;">🎯 Quête 1</h4>
+                                
+                                <div class="form-group">
+                                    <label for="titre-quete-0">Titre de la Quête :</label>
+                                    <input type="text" id="titre-quete-0" placeholder="L'Art de la Paix">
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="nom-mj-0">Nom du MJ :</label>
+                                    <input type="text" id="nom-mj-0" placeholder="@hugotlieb">
+                                </div>
+
+                                <div class="checkbox-group">
+                                    <input type="checkbox" id="quete-multiple-0">
+                                    <label for="quete-multiple-0">Quête avec plusieurs sessions</label>
+                                </div>
+
+                                <div id="quete-simple-0" class="form-group">
+                                    <label for="lien-recompense-0">Lien vers les récompenses :</label>
+                                    <input type="text" id="lien-recompense-0" placeholder="https://discord.com/channels/...">
+                                    <div class="help-text">Clic droit sur le message → Copier le lien</div>
+                                </div>
+
+                                <div id="quete-multiple-details-0" class="form-group hidden">
+                                    <label for="sessions-quete-0">Sessions de la quête :</label>
+                                    <textarea id="sessions-quete-0" rows="4" placeholder="- https://discord.com/channels/.../... + 1XP,&#10;- https://discord.com/channels/.../... + 1 XP - 1 item"></textarea>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="xp-quete-0">XP de cette quête :</label>
+                                    <input type="number" id="xp-quete-0" placeholder="2" min="0" max="10">
+                                </div>
+
+                                <div class="checkbox-group">
+                                    <input type="checkbox" id="refuse-xp-0">
+                                    <label for="refuse-xp-0">Refuser l’XP de cette quête</label>
+                                </div>
+
+                                <div class="form-group">
+                                    <h5 style="color: #2c3e50; margin-bottom: 10px;">🎁 Récompenses (optionnelles) :</h5>
+
+                                    <div class="checkbox-group">
+                                        <label for="include-monnaies-0">
+                                            <input type="checkbox" id="include-monnaies-0" style="width: auto; margin-right: 8px;">
+                                            Inclure monnaies
+                                        </label>
+                                    </div>
+                                    <div id="monnaie-container-0" class="hidden">
+                                        <div class="monnaie-inputs" style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 5px;">
+                                            <input type="number" id="pc-quete-0" placeholder="PC">
+                                            <input type="number" id="pa-quete-0" placeholder="PA">
+                                            <input type="number" id="po-quete-0" placeholder="PO">
+                                            <input type="number" id="pp-quete-0" placeholder="PP">
+                                        </div>
+                                        <input type="text" id="total-quete-or-0" placeholder="Total en PO" disabled style="margin-top: 5px;">
+                                    </div>
+
+                                    <div class="checkbox-group">
+                                        <label for="include-objets-0">
+                                            <input type="checkbox" id="include-objets-0" style="width: auto; margin-right: 8px;">
+                                            Inclure objets
+                                        </label>
+                                    </div>
+                                    <div id="objets-container-0" class="hidden">
+                                        <textarea id="objets-quete-0" rows="2" placeholder="2 émeraudes d'une valeur de 200PO, un étrange engrenage en rotation perpétuelle"></textarea>
+                                    </div>
+
+                                    <div class="reward-type">
+                                        <label>⭐ Autres récompenses :</label>
+                                        <textarea id="autres-quete-0" rows="2" placeholder="Don du fruit blanc à Kornélius, Sort Interdiction dans le grimoire"></textarea>
+                                    </div>
+                                </div>
+
+                                <button type="button" class="delete-quete hidden" onclick="deleteQuete(0)">
+                                    🗑️ Supprimer cette quête
+                                </button>
+                            </div>
+                        </div>
                         
+                        <button type="button" class="add-quete" onclick="addQuete()">
+                            ➕ Ajouter une autre quête
+                        </button>
+                    </div>
+
+                    <!-- Autres onglets... -->
+                    <div id="tab-niveau" class="tab-content">
                         <div class="form-group">
-                            <label for="nom-pj">Nom du PJ :</label>
-                            <input type="text" id="nom-pj" placeholder="Nom de votre personnage" required>
+                            <label for="xp-actuels">XP Actuels :</label>
+                            <input type="number" id="xp-actuels" placeholder="3" min="0" max="10">
+                            <div class="help-text">Points d'XP déjà obtenus</div>
                         </div>
 
-                        <div class="checkbox-group">
-                            <input type="checkbox" id="multiclasse-toggle">
-                            <label for="multiclasse-toggle">Personnage multiclassé</label>
+                        <div class="form-group">
+                            <label for="niveau-actuel">Niveau actuel :</label>
+                            <input type="number" id="niveau-actuel" placeholder="11" min="1" max="20">
                         </div>
 
-                        <div id="classe-simple" class="form-group">
-                            <label for="classe">Classe :</label>
-                            <select id="classe" required>
-                                <option value="" disabled selected>Sélectionnez une classe</option>
+                        <div class="form-group">
+                            <label for="niveau-cible">Niveau visé :</label>
+                            <input type="number" id="niveau-cible" placeholder="12" min="1" max="20">
+                            <div class="help-text">Indiquez le niveau après gain d'XP</div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="classe-gain-niveau">Classe gagnée :</label>
+                            <select id="classe-gain-niveau">
+                                <option value="">Sélectionnez une classe</option>
                                 <option value="Artificier">Artificier</option>
                                 <option value="Barbare">Barbare</option>
                                 <option value="Barde">Barde</option>
@@ -64,322 +259,137 @@
                                 <option value="Roublard">Roublard</option>
                                 <option value="Sorcier">Sorcier</option>
                             </select>
+                            <div class="help-text">Classe pour laquelle le niveau est gagné</div>
                         </div>
 
-                        <div id="classe-multi" class="form-group hidden">
-                            <label>Classes (ex: Magicien 13 / Artificier 1) :</label>
-                            <input type="text" id="classe-complete" placeholder="Magicien 13 / Artificier 1">
-                            <div class="help-text">Format : Classe1 Niveau / Classe2 Niveau / ...</div>
+                        <div class="form-group">
+                            <label for="pv-actuels">PV actuels :</label>
+                            <input type="number" id="pv-actuels" placeholder="56" min="1">
                         </div>
 
-                        <!-- Onglets pour organiser les sections -->
-                        <div class="tab-container mt-20">
-                            <div class="tab-buttons">
-                                <button class="tab-btn active" onclick="openTab('tab-quete')">🗡️ Quête</button>
-                                <button class="tab-btn" onclick="openTab('tab-xp')">⭐ XP & Niveau</button>
-                                <button class="tab-btn" onclick="openTab('tab-pv')">❤️ PV</button>
-                                <button class="tab-btn" onclick="openTab('tab-capacites')">✨ Capacités</button>
-                                <button class="tab-btn" onclick="openTab('tab-items')">🎒 Items</button>
-                                <button class="tab-btn" onclick="openTab('tab-argent')">💰 Argent</button>
-                                <button class="tab-btn" onclick="openTab('tab-artisanat')">🔨 Artisanat</button>
-                                <button class="tab-btn" onclick="openTab('tab-special')">⚡ Spécial</button>
-                            </div>
+                        <div class="form-group">
+                            <label for="mod-constitution">Modificateur de Constitution :</label>
+                            <input type="number" id="mod-constitution" placeholder="2" min="-5" max="10">
+                        </div>
 
-                            <!-- Contenu des onglets -->
-                            <div id="tab-quete" class="tab-content active">
-                                <div class="form-group">
-                                    <label for="section-quete">Description de la quête :</label>
-                                    <textarea id="section-quete" placeholder="Décrivez ce qui s'est passé pendant la session..."></textarea>
-                                </div>
-                            </div>
-
-                            <div id="tab-xp" class="tab-content">
-                                <div class="two-columns">
-                                    <div class="form-group">
-                                        <label for="xp-actuels">XP actuels :</label>
-                                        <input type="number" id="xp-actuels" min="0" placeholder="0">
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="total-xp-quetes">XP gagnés :</label>
-                                        <input type="number" id="total-xp-quetes" min="0" placeholder="0">
-                                    </div>
-                                </div>
-                                <div class="two-columns">
-                                    <div class="form-group">
-                                        <label for="niveau-actuel">Niveau actuel :</label>
-                                        <input type="number" id="niveau-actuel" min="1" max="20" value="1">
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="niveau-cible">Niveau cible :</label>
-                                        <input type="number" id="niveau-cible" min="1" max="20" value="1">
-                                    </div>
-                                </div>
-                                <div class="form-group" id="classe-gain-niveau-group" style="display: none;">
-                                    <label for="classe-gain-niveau">Classe qui gagne le niveau :</label>
-                                    <select id="classe-gain-niveau">
-                                        <option value="">Sélectionnez une classe</option>
-                                    </select>
-                                </div>
-                            </div>
-
-                            <div id="tab-pv" class="tab-content">
-                                <div class="two-columns">
-                                    <div class="form-group">
-                                        <label for="pv-actuels">PV actuels :</label>
-                                        <input type="number" id="pv-actuels" min="0" placeholder="28">
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="mod-constitution">Mod. Constitution :</label>
-                                        <input type="number" id="mod-constitution" min="-5" max="10" value="0">
-                                    </div>
-                                </div>
-                                <div class="form-group">
-                                    <label for="bonus-pv">Bonus PV (optionnel) :</label>
-                                    <input type="text" id="bonus-pv" placeholder="Ex: Robuste, Nain des collines...">
-                                    <div class="help-text">Décrivez les sources de bonus aux PV</div>
-                                </div>
-                            </div>
-
-                            <div id="tab-capacites" class="tab-content">
-                                <div class="form-group">
-                                    <label for="nouvelles-capacites">Nouvelles capacités de classe :</label>
-                                    <textarea id="nouvelles-capacites" placeholder="Ex: Attaque supplémentaire, Vision dans le noir..."></textarea>
-                                </div>
-                                <div class="form-group">
-                                    <label for="nouveau-don">Nouveaux dons (ASI) :</label>
-                                    <textarea id="nouveau-don" placeholder="Un don par ligne"></textarea>
-                                </div>
-                                <div class="form-group">
-                                    <label for="don-quete">Dons de quête :</label>
-                                    <textarea id="don-quete" placeholder="Un don par ligne"></textarea>
-                                </div>
-                                <div class="form-group">
-                                    <label for="nouveaux-sorts">Nouveaux sorts appris :</label>
-                                    <textarea id="nouveaux-sorts" placeholder="Un sort par ligne"></textarea>
-                                </div>
-                                <div class="form-group">
-                                    <label for="sorts-remplaces">Sorts remplacés :</label>
-                                    <textarea id="sorts-remplaces" placeholder="Format: Ancien sort → Nouveau sort"></textarea>
-                                </div>
-                            </div>
-
-                            <div id="tab-items" class="tab-content">
-                                <div class="form-group">
-                                    <label for="objets-lootes">Objets lootés :</label>
-                                    <textarea id="objets-lootes" placeholder="Un objet par ligne"></textarea>
-                                </div>
-                                <div class="form-group">
-                                    <label for="objets-perdus">Objets perdus/utilisés :</label>
-                                    <textarea id="objets-perdus" placeholder="Un objet par ligne"></textarea>
-                                </div>
-                            </div>
-
-                            <div id="tab-argent" class="tab-content">
-                                <div class="two-columns">
-                                    <div class="form-group">
-                                        <label for="po-lootees">PO lootées :</label>
-                                        <input type="number" id="po-lootees" min="0" placeholder="0">
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="ancien-solde">Ancien solde (PO) :</label>
-                                        <input type="number" id="ancien-solde" min="0" placeholder="0">
-                                    </div>
-                                </div>
-                                <div class="form-group">
-                                    <label for="po-recues">PO reçues (autres) :</label>
-                                    <input type="number" id="po-recues" min="0" placeholder="0">
-                                    <div class="help-text">Récompenses, ventes, etc.</div>
-                                </div>
-                                
-                                <h4 class="mt-20 mb-10">💸 Transactions</h4>
-                                <div id="transactions-container">
-                                    <div class="transaction-entry two-columns mb-10">
-                                        <input type="text" class="transaction-desc" placeholder="Description (ex: Potion de soin)">
-                                        <input type="number" class="transaction-cost" placeholder="Coût en PO">
-                                    </div>
-                                </div>
-                                <button type="button" class="btn-secondary mt-10" onclick="addTransaction()">+ Ajouter une transaction</button>
-                            </div>
-
-                            <div id="tab-artisanat" class="tab-content">
-                                <div class="checkbox-group mb-15">
-                                    <input type="checkbox" id="artisanat-active">
-                                    <label for="artisanat-active">Inclure une section artisanat</label>
-                                </div>
-                                <div id="artisanat-fields" class="hidden">
-                                    <div class="form-group">
-                                        <label for="artisanat-nom">Nom de l'objet crafté :</label>
-                                        <input type="text" id="artisanat-nom" placeholder="Ex: Potion de soin supérieure">
-                                    </div>
-                                    <div class="two-columns">
-                                        <div class="form-group">
-                                            <label for="artisanat-dc">DC du craft :</label>
-                                            <input type="number" id="artisanat-dc" min="1" placeholder="15">
-                                        </div>
-                                        <div class="form-group">
-                                            <label for="artisanat-resultat">Résultat du jet :</label>
-                                            <input type="number" id="artisanat-resultat" min="1" placeholder="18">
-                                        </div>
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="artisanat-cout">Coût des matériaux (PO) :</label>
-                                        <input type="number" id="artisanat-cout" min="0" placeholder="25">
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div id="tab-special" class="tab-content">
-                                <div class="form-group">
-                                    <label for="type-special">Type de section spéciale :</label>
-                                    <select id="type-special">
-                                        <option value="">Aucune</option>
-                                        <option value="marchand">MARCHAND</option>
-                                        <option value="repos">REPOS LONG</option>
-                                        <option value="downtime">DOWNTIME</option>
-                                        <option value="autre">AUTRE</option>
-                                    </select>
-                                </div>
-                                <div class="form-group">
-                                    <label for="description-special">Description :</label>
-                                    <textarea id="description-special" placeholder="Décrivez l'activité spéciale..."></textarea>
-                                </div>
-                                <div class="checkbox-group">
-                                    <input type="checkbox" id="section-marchand">
-                                    <label for="section-marchand">Inclure une section marchand séparée</label>
-                                </div>
-                            </div>
+                        <div class="form-group">
+                            <label for="bonus-pv">Bonus de PV (optionnel) :</label>
+                            <input type="text" id="bonus-pv" placeholder="2 (Robuste)">
+                            <div class="help-text">Ex : 2 (Robuste)</div>
                         </div>
                     </div>
 
-                    <!-- Bouton de génération -->
-                    <button class="btn-primary generate-btn" onclick="generateTemplate()" style="width: 100%; margin-top: 20px;">
-                        🎲 Générer le Template
-                    </button>
-                </div>
-
-                <!-- Colonne de droite : Sortie -->
-                <div>
-                    <div class="output-section">
-                        <h3 style="color: white; margin-bottom: 15px;">📝 Template Discord</h3>
-                        <div class="char-indicator" id="char-count-1">0 / 2000 caractères</div>
-                        <div class="discord-output" id="output"></div>
-                        <button class="copy-btn" id="copy-btn-part-1" onclick="copyPart(1)">📋 Copier</button>
-                        
-                        <div id="split-warning" class="warning-text mt-15 hidden">
-                            ⚠️ Message trop long ! Divisé en 2 parties.
+                    <!-- Autres onglets cachés pour la démo -->
+                    <div id="tab-capacites" class="tab-content">
+                        <div class="form-group">
+                            <label for="nouvelles-capacites">Nouvelles capacités / ASI :</label>
+                            <textarea id="nouvelles-capacites" rows="3" placeholder="Indiquez les nouvelles capacités ou ASI"></textarea>
                         </div>
-                        
-                        <div id="part-2-container" class="hidden mt-20">
-                            <h4 style="color: white; margin-bottom: 10px;">📝 Partie 2</h4>
-                            <div class="char-indicator" id="char-count-2">0 / 2000 caractères</div>
-                            <div class="discord-output" id="output-part-2"></div>
-                            <button class="copy-btn" id="copy-btn-part-2" onclick="copyPart(2)">📋 Copier Partie 2</button>
+                        <div class="form-group">
+                            <label for="nouveau-don">Nouveau(x) don(s) (niveau/ASI) :</label>
+                            <textarea id="nouveau-don" rows="3" placeholder="Indiquez les dons obtenus"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="don-quete">Don(s) (gain de quête) :</label>
+                            <textarea id="don-quete" rows="3" placeholder="Indiquez les dons obtenus en récompense de quête"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="nouveaux-sorts">Nouveaux sorts appris :</label>
+                            <textarea id="nouveaux-sorts" rows="3" placeholder="Un sort par ligne"></textarea>
+                            <div class="help-text">Une entrée par ligne</div>
+                        </div>
+                        <div class="form-group">
+                            <label for="sorts-remplaces">Sorts remplacés :</label>
+                            <textarea id="sorts-remplaces" rows="3" placeholder="Un sort par ligne"></textarea>
+                            <div class="help-text">Une entrée par ligne</div>
+                        </div>
+                    </div>
+                    <div id="tab-items" class="tab-content">
+                        <div class="form-group">
+                            <label for="objets-lootes">Objets lootés (hors quêtes) :</label>
+                            <textarea id="objets-lootes" rows="3" placeholder="Une ligne par objet"></textarea>
+                            <div class="help-text">Une ligne par objet looté hors quête.</div>
+                        </div>
+                        <div class="form-group">
+                            <label>Achats / Ventes :</label>
+                            <div id="transactions-container"></div>
+                            <button type="button" id="add-transaction">Ajouter une ligne</button>
+                            <div class="help-text">Format : ACHAT : 2×Potion 15PO = 30PO / VENTE : Bijou 100PO</div>
+                        </div>
+                        <div class="form-group">
+                            <label for="section-marchand">
+                                <input type="checkbox" id="section-marchand" style="width: auto; margin-right: 8px;">
+                                Activer le bloc Marchand
+                            </label>
+                        </div>
+                    </div>
+                    <div id="tab-argent" class="tab-content">
+                        <div class="argent-grid">
+                            <div class="form-group">
+                                <label for="po-lootees">PO lootées (hors quêtes) :</label>
+                                <input type="number" id="po-lootees" placeholder="0">
+                            </div>
+                            <div class="form-group">
+                                <label for="po-recues">PO reçues / dépensées :</label>
+                                <input type="number" id="po-recues" placeholder="0">
+                                <div class="help-text">Valeurs négatives possibles</div>
+                            </div>
+                            <div class="form-group">
+                                <label for="ancien-solde">Ancien solde :</label>
+                                <input type="text" id="ancien-solde" placeholder="Solde avant session" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="total-or">Total en or :</label>
+                                <input type="text" id="total-or" placeholder="0 PO" disabled>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="add-pj-delimiter">
+                                <input type="checkbox" id="add-pj-delimiter" style="width: auto; margin-right: 8px;">
+                                Ajouter la balise PJ
+                            </label>
+                        </div>
+                    </div>
+                    <div id="tab-special" class="tab-content">
+                        <button type="button" id="toggle-artisanat-btn">Ajouter artisanat</button>
+                        <div id="artisanat-section" class="hidden">
+                            <div class="form-group">
+                                <label for="artisanat-notes">Notes d'artisanat :</label>
+                                <textarea id="artisanat-notes" rows="3" placeholder="Notes sur l'artisanat..."></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label for="artisanat-items">Objets fabriqués (un par ligne) :</label>
+                                <textarea id="artisanat-items" rows="3" placeholder="Potion de soin\nPotion de mana"></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label for="artisanat-cost">Coût total d'artisanat :</label>
+                                <input type="number" id="artisanat-cost" placeholder="0">
+                            </div>
                         </div>
                     </div>
                 </div>
+
+                <button class="copy-btn generate-btn" onclick="generateTemplate()">
+                    🔄 Générer le Template
+                </button>
+            </div>
+
+            <div class="output-section">
+                <h3 class="preview-title">📝 Aperçu Discord</h3>
+                <div id="char-indicator" class="char-indicator"></div>
+                <div id="split-warning" class="split-warning" style="display:none;"></div>
+                <div class="discord-output" id="discord-output"></div>
+                <button class="copy-btn" data-target="discord-output">
+                    📋 Copier le Message
+                </button>
+                <div class="discord-output" id="discord-output-part2" style="display: none;"></div>
+                <button class="copy-btn" id="copy-btn-part2" data-target="discord-output-part2" style="display: none;">
+                    📋 Copier la Partie 2
+                </button>
             </div>
         </div>
     </div>
 
     <script src="maj-fiche-script.js"></script>
-    <script>
-        // Gestion des onglets
-        function openTab(tabName) {
-            const tabs = document.querySelectorAll('.tab-content');
-            const buttons = document.querySelectorAll('.tab-btn');
-            
-            tabs.forEach(tab => {
-                tab.classList.remove('active');
-            });
-            
-            buttons.forEach(btn => {
-                btn.classList.remove('active');
-            });
-            
-            document.getElementById(tabName).classList.add('active');
-            event.target.classList.add('active');
-        }
-
-        // Gestion du multiclassage
-        document.getElementById('multiclasse-toggle').addEventListener('change', function() {
-            const classeSimple = document.getElementById('classe-simple');
-            const classeMulti = document.getElementById('classe-multi');
-            const classeGainNiveauGroup = document.getElementById('classe-gain-niveau-group');
-            
-            if (this.checked) {
-                classeSimple.classList.add('hidden');
-                classeMulti.classList.remove('hidden');
-                classeGainNiveauGroup.style.display = 'block';
-            } else {
-                classeSimple.classList.remove('hidden');
-                classeMulti.classList.add('hidden');
-                classeGainNiveauGroup.style.display = 'none';
-            }
-        });
-
-        // Gestion de l'artisanat
-        document.getElementById('artisanat-active').addEventListener('change', function() {
-            const fields = document.getElementById('artisanat-fields');
-            if (this.checked) {
-                fields.classList.remove('hidden');
-            } else {
-                fields.classList.add('hidden');
-            }
-        });
-
-        // Fonction pour ajouter une transaction
-        function addTransaction() {
-            const container = document.getElementById('transactions-container');
-            const transactionHTML = `
-                <div class="transaction-entry two-columns mb-10 fade-in">
-                    <input type="text" class="transaction-desc" placeholder="Description">
-                    <div class="flex gap-10">
-                        <input type="number" class="transaction-cost" placeholder="Coût en PO">
-                        <button type="button" class="btn-danger" onclick="removeTransaction(this)" style="padding: 8px 12px;">✕</button>
-                    </div>
-                </div>
-            `;
-            container.insertAdjacentHTML('beforeend', transactionHTML);
-        }
-
-        // Fonction pour supprimer une transaction
-        function removeTransaction(button) {
-            const entry = button.closest('.transaction-entry');
-            entry.style.animation = 'fadeOut 0.3s ease';
-            setTimeout(() => entry.remove(), 300);
-        }
-
-        // Fonction pour copier
-        function copyPart(partNumber) {
-            const outputId = partNumber === 1 ? 'output' : 'output-part-2';
-            const buttonId = partNumber === 1 ? 'copy-btn-part-1' : 'copy-btn-part-2';
-            const output = document.getElementById(outputId);
-            const button = document.getElementById(buttonId);
-            
-            if (output && output.textContent) {
-                navigator.clipboard.writeText(output.textContent).then(() => {
-                    button.classList.add('success');
-                    button.textContent = '✅ Copié !';
-                    setTimeout(() => {
-                        button.classList.remove('success');
-                        button.textContent = `📋 Copier${partNumber === 2 ? ' Partie 2' : ''}`;
-                    }, 2000);
-                }).catch(err => {
-                    console.error('Erreur lors de la copie :', err);
-                    alert('Erreur lors de la copie. Veuillez sélectionner et copier manuellement.');
-                });
-            }
-        }
-
-        // Ajouter les animations CSS nécessaires
-        const style = document.createElement('style');
-        style.textContent = `
-            @keyframes fadeOut {
-                from { opacity: 1; transform: scale(1); }
-                to { opacity: 0; transform: scale(0.95); }
-            }
-        `;
-        document.head.appendChild(style);
-    </script>
 </body>
 </html>
