@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Générateur de Fiche D&D - Grimoire des Destinées</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="nav-links">
+        <a href="index.html" class="nav-link">🎲 Calculateur PV</a>
+        <a href="maj-fiche.html" class="nav-link active">📝 Générateur Fiche</a>
+    </nav>
+
+    <!-- Conteneur principal -->
+    <div class="container">
+        <!-- En-tête -->
+        <header class="header">
+            <h1>📝 Générateur de Mise à Jour de Fiche</h1>
+            <p>Créez facilement vos messages Discord de mise à jour D&D 5e</p>
+        </header>
+
+        <!-- Contenu principal -->
+        <main class="main-content">
+            <div class="grid grid-2">
+                <!-- Section formulaire -->
+                <div class="form-container">
+                    <!-- Informations de base -->
+                    <section class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">👤 Informations du Personnage</h3>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Nom du personnage</label>
+                            <input type="text" class="form-input" id="character-name" 
+                                   placeholder="Nom de votre personnage">
+                        </div>
+                        
+                        <div class="grid grid-2">
+                            <div class="form-group">
+                                <label class="form-label">Niveau actuel</label>
+                                <input type="number" class="form-input" id="current-level" 
+                                       min="1" max="20" value="1">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">Nouveau niveau</label>
+                                <input type="number" class="form-input" id="new-level" 
+                                       min="1" max="20" value="2">
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Classe</label>
+                            <select class="form-select" id="character-class">
+                                <option value="artificier">Artificier</option>
+                                <option value="barbare">Barbare</option>
+                                <option value="barde">Barde</option>
+                                <option value="clerc">Clerc</option>
+                                <option value="druide">Druide</option>
+                                <option value="ensorceleur">Ensorceleur</option>
+                                <option value="guerrier" selected>Guerrier</option>
+                                <option value="magicien">Magicien</option>
+                                <option value="moine">Moine</option>
+                                <option value="occultiste">Occultiste</option>
+                                <option value="paladin">Paladin</option>
+                                <option value="rodeur">Rôdeur</option>
+                                <option value="roublard">Roublard</option>
+                                <option value="sanguin">Sanguin</option>
+                            </select>
+                        </div>
+                    </section>
+
+                    <!-- Onglets pour les sections -->
+                    <section class="card">
+                        <div class="tab-container">
+                            <div class="tab-buttons">
+                                <button class="tab-btn active" data-tab="capacites">🔮 Capacités</button>
+                                <button class="tab-btn" data-tab="items">🎒 Équipement</button>
+                                <button class="tab-btn" data-tab="argent">💰 Argent</button>
+                                <button class="tab-btn" data-tab="quetes">⚔️ Quêtes</button>
+                            </div>
+                            
+                            <!-- Onglet Capacités -->
+                            <div class="tab-content active" id="tab-capacites">
+                                <div class="form-group">
+                                    <label class="form-label">Nouvelles capacités obtenues</label>
+                                    <textarea class="form-input" id="new-abilities" rows="4" 
+                                              placeholder="Décrivez les nouvelles capacités..."></textarea>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label class="form-label">Amélioration de caractéristiques</label>
+                                    <textarea class="form-input" id="stat-improvements" rows="3" 
+                                              placeholder="Ex: Force +2, Dextérité +1..."></textarea>
+                                </div>
+                            </div>
+                            
+                            <!-- Onglet Équipement -->
+                            <div class="tab-content" id="tab-items">
+                                <div class="form-group">
+                                    <label class="form-label">Nouveaux objets</label>
+                                    <textarea class="form-input" id="new-items" rows="4" 
+                                              placeholder="Liste des nouveaux objets obtenus..."></textarea>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label class="form-label">Objets perdus/utilisés</label>
+                                    <textarea class="form-input" id="lost-items" rows="3" 
+                                              placeholder="Objets consommés, perdus ou vendus..."></textarea>
+                                </div>
+                            </div>
+                            
+                            <!-- Onglet Argent -->
+                            <div class="tab-content" id="tab-argent">
+                                <div class="form-group">
+                                    <label class="form-label">Gains d'argent</label>
+                                    <input type="text" class="form-input" id="money-gained" 
+                                           placeholder="Ex: 150 po, 50 pa">
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label class="form-label">Dépenses</label>
+                                    <input type="text" class="form-input" id="money-spent" 
+                                           placeholder="Ex: 75 po (équipement)">
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label class="form-label">Total actuel</label>
+                                    <input type="text" class="form-input" id="current-money" 
+                                           placeholder="Votre argent total actuel">
+                                </div>
+                            </div>
+                            
+                            <!-- Onglet Quêtes -->
+                            <div class="tab-content" id="tab-quetes">
+                                <div class="form-group">
+                                    <label class="form-label">Quêtes terminées</label>
+                                    <textarea class="form-input" id="completed-quests" rows="3" 
+                                              placeholder="Quêtes accomplies..."></textarea>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label class="form-label">Nouvelles quêtes</label>
+                                    <textarea class="form-input" id="new-quests" rows="3" 
+                                              placeholder="Nouvelles missions reçues..."></textarea>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label class="form-label">Notes RP</label>
+                                    <textarea class="form-input" id="rp-notes" rows="4" 
+                                              placeholder="Notes de roleplay, événements marquants..."></textarea>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Boutons d'action -->
+                    <section class="card">
+                        <div class="text-center">
+                            <button class="btn btn-primary btn-block" id="generate-message">
+                                ✨ Générer le Message
+                            </button>
+                            <button class="btn btn-secondary" id="clear-form" style="margin-top: 10px;">
+                                🗑️ Effacer le Formulaire
+                            </button>
+                        </div>
+                    </section>
+                </div>
+
+                <!-- Section aperçu -->
+                <div class="preview-container">
+                    <section class="card preview-card">
+                        <div class="card-header">
+                            <h3 class="card-title preview-title">
+                                💬 Aperçu Discord
+                            </h3>
+                            <button class="btn btn-success btn-sm" id="copy-message">
+                                📋 Copier
+                            </button>
+                        </div>
+                        
+                        <div class="discord-preview" id="discord-preview">
+                            <div class="preview-placeholder">
+                                👆 Remplissez le formulaire pour voir l'aperçu
+                            </div>
+                        </div>
+                        
+                        <div class="character-count">
+                            Caractères: <span id="char-count">0</span>/2000
+                        </div>
+                    </section>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="form-generator.js"></script>
+</body>
+</html>
