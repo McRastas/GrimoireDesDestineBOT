@@ -23,7 +23,8 @@ class TopMjCommand(BaseCommand):
     async def callback(self, interaction: discord.Interaction):
         """Analyse les posts dans le canal récompenses et affiche le classement des MJ."""
         
-        await interaction.response.defer()
+        # Réponse discrète (ephemeral) - visible uniquement par l'utilisateur
+        await interaction.response.defer(ephemeral=True)
 
         try:
             # Chercher le canal récompenses (plusieurs variantes possibles)
@@ -41,10 +42,11 @@ class TopMjCommand(BaseCommand):
                 )
                 return
 
-            # Message de progression
+            # Message de progression (ephemeral)
             await interaction.followup.send(
                 f"📊 Analyse des messages en cours...\n"
-                f"Canal : #{recompense_channel.name}"
+                f"Canal : #{recompense_channel.name}",
+                ephemeral=True
             )
 
             # Collecter tous les messages
@@ -77,7 +79,7 @@ class TopMjCommand(BaseCommand):
                 )
                 return
 
-            # Créer l'embed
+            # Créer l'embed (sera ephemeral automatiquement)
             embed = discord.Embed(
                 title="🏆 Top 10 des MJ les plus actifs",
                 description=f"Classement basé sur les posts dans #{recompense_channel.name} avec au moins 2 mentions",
@@ -127,9 +129,10 @@ class TopMjCommand(BaseCommand):
             )
 
             embed.set_footer(
-                text=f"Demandé par {interaction.user.display_name}"
+                text=f"Demandé par {interaction.user.display_name} • Visible uniquement par vous"
             )
 
+            # Éditer le message initial (reste ephemeral)
             await interaction.edit_original_response(
                 content=None,
                 embed=embed
