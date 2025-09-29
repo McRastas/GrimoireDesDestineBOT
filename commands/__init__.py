@@ -15,6 +15,7 @@ from .faerun_help import HelpCommand
 from .mention_someone import MentionSomeoneCommand
 from .mention_list import MentionListCommand
 from .recap_mj import RecapMjCommand
+from .top_mj import TopMjCommand  # ⭐ NOUVELLE COMMANDE
 
 # Commandes quêtes
 from .mes_quetes import MesQuetesCommand
@@ -67,6 +68,7 @@ ALL_COMMANDS = [
     MentionSomeoneCommand,
     MentionListCommand,
     RecapMjCommand,
+    TopMjCommand,  # ⭐ AJOUT DE LA NOUVELLE COMMANDE
     MesQuetesCommand,
     PnjGeneratorCommand,
     ConfigChannelsCommand,
