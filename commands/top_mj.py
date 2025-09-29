@@ -1,16 +1,17 @@
 """
-Commande Top MJ - Répertorie les 10 MJ les plus actifs
+Commande Top MJ - Répertorie les MJ les plus actifs
 Compte les posts dans le canal récompenses avec au moins 2 mentions
 """
 
 import discord
 from discord import app_commands
 from collections import defaultdict
+from typing import Optional
 from .base import BaseCommand
 
 
 class TopMjCommand(BaseCommand):
-    """Commande pour afficher le top 10 des MJ les plus actifs."""
+    """Commande pour afficher le top des MJ les plus actifs."""
 
     @property
     def name(self) -> str:
@@ -18,13 +19,40 @@ class TopMjCommand(BaseCommand):
 
     @property
     def description(self) -> str:
-        return "Affiche le top 10 des MJ les plus actifs sur le serveur"
+        return "Affiche le top des MJ les plus actifs sur le serveur"
+    
+    def register(self, tree: app_commands.CommandTree):
+        """Enregistre la commande avec ses paramètres."""
+        @app_commands.command(name=self.name, description=self.description)
+        @app_commands.describe(
+            nombre="Nombre de MJ à afficher (entre 5 et 50, défaut: 10)"
+        )
+        async def top_mj_cmd(interaction: discord.Interaction, nombre: Optional[int] = 10):
+            await self.callback(interaction, nombre)
+        
+        tree.add_command(top_mj_cmd)
 
-    async def callback(self, interaction: discord.Interaction):
+    async def callback(
+        self, 
+        interaction: discord.Interaction,
+        nombre: int = 10
+    ):
         """Analyse les posts dans le canal récompenses et affiche le classement des MJ."""
+        
+        # Validation du nombre (entre 5 et 50)
+        nombre_original = nombre
+        if nombre < 5:
+            nombre = 5
+        elif nombre > 50:
+            nombre = 50
         
         # Réponse discrète (ephemeral) - visible uniquement par l'utilisateur
         await interaction.response.defer(ephemeral=True)
+        
+        # Message d'avertissement si le nombre a été ajusté
+        adjusted_warning = ""
+        if nombre_original != nombre:
+            adjusted_warning = f"⚠️ Nombre ajusté de {nombre_original} à {nombre} (limites: 5-50)\n\n"
 
         try:
             # Chercher le canal récompenses (plusieurs variantes possibles)
@@ -44,7 +72,7 @@ class TopMjCommand(BaseCommand):
 
             # Message de progression (ephemeral)
             await interaction.followup.send(
-                f"📊 Analyse des messages en cours...\n"
+                f"{adjusted_warning}📊 Analyse des messages en cours...\n"
                 f"Canal : #{recompense_channel.name}",
                 ephemeral=True
             )
@@ -66,12 +94,12 @@ class TopMjCommand(BaseCommand):
                 if len(message.mentions) >= 2:
                     mj_stats[message.author.id] += 1
 
-            # Trier et prendre le top 10
+            # Trier et prendre le top X (selon l'argument)
             sorted_mj = sorted(
                 mj_stats.items(),
                 key=lambda x: x[1],
                 reverse=True
-            )[:10]
+            )[:nombre]
 
             if not sorted_mj:
                 await interaction.edit_original_response(
@@ -81,7 +109,7 @@ class TopMjCommand(BaseCommand):
 
             # Créer l'embed (sera ephemeral automatiquement)
             embed = discord.Embed(
-                title="🏆 Top 10 des MJ les plus actifs",
+                title=f"🏆 Top {nombre} des MJ les plus actifs",
                 description=f"Classement basé sur les posts dans #{recompense_channel.name} avec au moins 2 mentions",
                 color=discord.Color.gold(),
                 timestamp=discord.utils.utcnow()
@@ -118,13 +146,15 @@ class TopMjCommand(BaseCommand):
             total_sessions = sum(count for _, count in sorted_mj)
             total_mj = len(mj_stats)
             
+            stats_text = (
+                f"**Total sessions (top {nombre}) :** {total_sessions}\n"
+                f"**Messages analysés :** {len(all_messages)}\n"
+                f"**MJ actifs (total) :** {total_mj}"
+            )
+            
             embed.add_field(
                 name="📈 Statistiques",
-                value=(
-                    f"**Total sessions (top 10) :** {total_sessions}\n"
-                    f"**Messages analysés :** {len(all_messages)}\n"
-                    f"**MJ actifs (total) :** {total_mj}"
-                ),
+                value=stats_text,
                 inline=False
             )
 
