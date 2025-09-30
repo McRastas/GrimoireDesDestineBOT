@@ -5,8 +5,79 @@ Installation rapide avec Docker en utilisant le clone automatique du repository 
 ## 📋 Prérequis
 
 - Docker et Docker Compose installés
-- Token Discord de votre bot
+- Token Discord de votre bot (voir configuration Discord ci-dessous)
 - (Optionnel) Accès à un Google Sheets public pour la boutique d'objets magiques
+
+## 🤖 Configuration Discord Developer Portal
+
+Avant de démarrer, vous devez créer et configurer votre bot sur Discord :
+
+### 1. Créer l'application Discord
+
+1. Allez sur [Discord Developer Portal](https://discord.com/developers/applications)
+2. Cliquez sur **"New Application"**
+3. Donnez un nom à votre bot (ex: "Bot Faerûn")
+4. Acceptez les conditions et créez
+
+### 2. Configurer le bot
+
+1. Dans le menu de gauche, allez dans **"Bot"**
+2. Cliquez sur **"Add Bot"** puis confirmez
+3. **Récupérez votre Token** :
+   - Cliquez sur **"Reset Token"** (ou **"Copy"** si c'est la première fois)
+   - ⚠️ **GARDEZ CE TOKEN SECRET** - Ne le partagez jamais !
+   - Sauvegardez-le pour le mettre dans le fichier `.env`
+
+4. **Activez les intentions nécessaires** (scrollez vers le bas) :
+   - ✅ **Message Content Intent** (OBLIGATOIRE)
+   > ⚠️ **IMPORTANT** : Sans "Message Content Intent", le bot ne pourra pas lire les messages pour détecter les dates de quêtes !
+
+### 3. Récupérer le Client ID
+
+1. Dans le menu de gauche, allez dans **"OAuth2"** → **"General"**
+2. Copiez le **"CLIENT ID"** (sous Application ID)
+3. Sauvegardez-le pour le mettre dans le fichier `.env`
+
+### 4. Configurer les permissions d'installation
+
+1. Allez dans **"Installation"**
+2. Dans **"Installation Contexts"**, cochez **"Guild Install"** uniquement
+3. Dans **"Default Install Settings"** → **"Guild Install"** :
+   
+   **SCOPES** (obligatoires) :
+   - `applications.commands` (pour les slash commands)
+   - `bot` (pour le bot lui-même)
+   
+   **PERMISSIONS** (strictement nécessaires) :
+   - ✅ `Send Messages` (Envoyer des messages)
+   - ✅ `Send Messages in Threads` (Envoyer des messages)
+   - ✅ `Embed Links` (Intégrer des liens)
+   - ✅ `Read Message History` (Lire l'historique - pour détecter les dates de quêtes)
+   - ✅ `Use Slash Commands` (Utiliser les commandes slash)
+   - ✅ `View Channels` (Envoyer des messages)
+
+4. Sauvegardez les modifications
+
+### 5. Inviter le bot sur votre serveur
+
+1. Allez dans **"OAuth2"** → **"URL Generator"**
+2. Dans **SCOPES**, sélectionnez :
+   - `applications.commands`
+   - `bot`
+3. Dans **BOT PERMISSIONS**, sélectionnez les mêmes permissions que ci-dessus
+4. Copiez l'URL générée en bas de page
+5. Ouvrez cette URL dans votre navigateur et invitez le bot sur votre serveur
+
+### 6. Récupérer le Guild ID (optionnel mais recommandé)
+
+Pour une synchronisation rapide des commandes :
+
+1. Ouvrez Discord et activez le **Mode Développeur** :
+   - Paramètres utilisateur → Avancés → Mode développeur
+2. Faites un clic droit sur votre serveur → **"Copier l'identifiant du serveur"**
+3. Sauvegardez cet ID pour le mettre dans `GUILD_ID` du fichier `.env`
+
+> 💡 Sans `GUILD_ID`, les commandes peuvent prendre jusqu'à 1h pour apparaître. Avec `GUILD_ID`, elles apparaissent instantanément !
 
 ## 🚀 Installation
 
@@ -150,9 +221,12 @@ BOUTIQUE_REQUIRE_PRICE=
 
 #### Configuration minimale (Discord uniquement)
 
-Éditez le fichier `.env` et remplacez :
-- `votre_token_discord_ici` → Votre token Discord
-- `votre_client_id_ici` → Votre Client ID Discord
+Éditez le fichier `.env` et remplacez avec les valeurs récupérées du Discord Developer Portal :
+- `votre_token_discord_ici` → Le **Token** du bot (Section "Bot")
+- `votre_client_id_ici` → Le **Client ID** (Section "OAuth2" → "General")
+- `votre_guild_id_pour_sync_rapide` → L'**ID de votre serveur** Discord (clic droit sur le serveur)
+
+> 💡 **Astuce** : Le `GUILD_ID` est optionnel mais fortement recommandé pour que les commandes apparaissent instantanément au lieu d'attendre 1h.
 
 #### Configuration complète (avec Google Sheets)
 
