@@ -262,9 +262,9 @@ class PostulationCommand(BaseCommand):
             inline=False
         )
         
-        # Image du token si disponible
+        # Image du token si disponible - EN GRAND avec set_image
         if character.get('token_url'):
-            embed.set_thumbnail(url=character['token_url'])
+            embed.set_image(url=character['token_url'])
         
         # Footer avec info du joueur
         embed.set_footer(
