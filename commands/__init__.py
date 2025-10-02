@@ -1,3 +1,4 @@
+# commands/__init__.py
 """Module des commandes Discord pour le bot Faerûn."""
 
 # Commandes simples
@@ -15,7 +16,7 @@ from .faerun_help import HelpCommand
 from .mention_someone import MentionSomeoneCommand
 from .mention_list import MentionListCommand
 from .recap_mj import RecapMjCommand
-from .top_mj import TopMjCommand  # ⭐ NOUVELLE COMMANDE
+from .top_mj import TopMjCommand
 
 # Commandes quêtes
 from .mes_quetes import MesQuetesCommand
@@ -25,7 +26,7 @@ from .pnj_generator import PnjGeneratorCommand
 
 # Configuration et administration
 from .config_channels import ConfigChannelsCommand
-from .stats_logs import StatsLogsCommand  # NOUVEAU
+from .stats_logs import StatsLogsCommand
 
 # Import conditionnel pour les nouvelles commandes
 try:
@@ -35,16 +36,13 @@ except ImportError:
     print("⚠️ test_logs.py non trouvé - commande /test-logs non disponible")
     TEST_LOGS_AVAILABLE = False
 
-# Import conditionnel pour la commande boutique (maintenant OM_PRICE par défaut)
+# Import conditionnel pour la commande boutique (OM_PRICE)
 try:
     from .boutique import BoutiqueCommand
     BOUTIQUE_AVAILABLE = True
     print("✅ Module boutique OM_PRICE chargé avec succès")
 except ImportError as e:
     print(f"⚠️ Module boutique OM_PRICE non disponible: {e}")
-    print("   • Vérifiez que le dossier commands/boutique/ existe")
-    print("   • Vérifiez que tous les fichiers _v2.py sont présents")
-    print("   • Vérifiez que aiohttp est installé: pip install aiohttp")
     BOUTIQUE_AVAILABLE = False
 
 # Import conditionnel pour la commande de recherche
@@ -55,6 +53,18 @@ try:
 except ImportError:
     SEARCH_COMMAND_AVAILABLE = False
     print("⚠️ Commande de recherche non disponible")
+
+# Import conditionnel pour la commande postulation
+try:
+    from .postulation import PostulationCommand
+    POSTULATION_AVAILABLE = True
+    print("✅ Module postulation chargé avec succès")
+except ImportError as e:
+    print(f"⚠️ Module postulation non disponible: {e}")
+    print("   • Vérifiez que le dossier commands/postulation/ existe")
+    print("   • Vérifiez que tous les fichiers sont présents")
+    print("   • Vérifiez que aiohttp est installé: pip install aiohttp")
+    POSTULATION_AVAILABLE = False
 
 # Liste de toutes les commandes disponibles
 ALL_COMMANDS = [
@@ -68,11 +78,11 @@ ALL_COMMANDS = [
     MentionSomeoneCommand,
     MentionListCommand,
     RecapMjCommand,
-    TopMjCommand,  # ⭐ AJOUT DE LA NOUVELLE COMMANDE
+    TopMjCommand,
     MesQuetesCommand,
     PnjGeneratorCommand,
     ConfigChannelsCommand,
-    StatsLogsCommand,  # NOUVEAU - Commande pour les stats de logs
+    StatsLogsCommand,
 ]
 
 # Ajouter les commandes optionnelles si disponibles
@@ -87,6 +97,10 @@ if BOUTIQUE_AVAILABLE:
 if SEARCH_COMMAND_AVAILABLE:
     ALL_COMMANDS.append(SearchCommand)
     print("✅ Commande de recherche ajoutée")
+
+if POSTULATION_AVAILABLE:
+    ALL_COMMANDS.append(PostulationCommand)
+    print("✅ Commande postulation ajoutée")
 
 print(f"📋 Total: {len(ALL_COMMANDS)} commandes chargées")
 
