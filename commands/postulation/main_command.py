@@ -70,30 +70,32 @@ class PostulationCommand(BaseCommand):
             interaction: Interaction Discord
         """
         user = interaction.user
-        discord_id = str(user.id)
+        player_name = user.name  # Utilise le nom d'utilisateur Discord
         
-        logger.info(f"📝 Commande /postuler utilisée par {user.name} (ID: {discord_id})")
+        logger.info(f"📝 Commande /postuler utilisée par {player_name} (Display: {user.display_name})")
         
         # Réponse immédiate (defer)
         await interaction.response.defer(ephemeral=True)
         
         try:
-            # Récupérer les personnages du joueur
-            logger.info(f"Récupération des personnages pour {user.name}")
+            # Récupérer les personnages du joueur par son pseudo
+            logger.info(f"Récupération des personnages pour le joueur: {player_name}")
             
             raw_characters = await self.sheets_client.get_player_characters(
-                discord_id=discord_id,
+                player_name=player_name,
                 sheet_name=self.google_config['sheet_name'],
                 gid=self.google_config['sheet_gid'],
                 columns_config=self.config['columns']
             )
             
             if not raw_characters:
-                logger.warning(f"Aucun personnage trouvé pour {user.name}")
+                logger.warning(f"Aucun personnage trouvé pour {player_name}")
                 await interaction.followup.send(
                     f"❌ {self.messages['no_characters']}\n\n"
-                    f"**Votre ID Discord :** `{discord_id}`\n"
-                    f"Vérifiez que cet ID est bien enregistré dans le tableau des personnages.",
+                    f"**Votre pseudo Discord :** `{player_name}`\n"
+                    f"**Votre nom d'affichage :** `{user.display_name}`\n\n"
+                    f"Vérifiez que ce pseudo est bien dans la colonne **Joueurs** du tableau des personnages.\n"
+                    f"💡 *Note: Le système utilise votre nom d'utilisateur Discord, pas votre surnom de serveur.*",
                     ephemeral=True
                 )
                 return

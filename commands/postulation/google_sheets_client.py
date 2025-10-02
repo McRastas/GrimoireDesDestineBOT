@@ -97,16 +97,16 @@ class GoogleSheetsClient:
     
     async def get_player_characters(
         self, 
-        discord_id: str, 
+        player_name: str, 
         sheet_name: str, 
         gid: str = "0",
         columns_config: Dict[str, str] = None
     ) -> List[Dict[str, str]]:
         """
-        Récupère les personnages d'un joueur spécifique.
+        Récupère les personnages d'un joueur spécifique par son pseudo.
         
         Args:
-            discord_id: ID Discord du joueur
+            player_name: Nom/Pseudo du joueur Discord
             sheet_name: Nom de la feuille
             gid: GID de la feuille
             columns_config: Configuration des colonnes
@@ -125,19 +125,21 @@ class GoogleSheetsClient:
             logger.warning(f"Aucune donnée trouvée dans '{sheet_name}'")
             return []
         
-        # Récupérer le nom de la colonne ID Discord
-        discord_id_column = columns_config.get('discord_id', 'ID Discord')
+        # Récupérer le nom de la colonne Joueurs
+        joueur_column = columns_config.get('joueur', 'Joueurs')
         
-        # Filtrer par ID Discord
+        # Filtrer par nom de joueur (insensible à la casse)
         player_characters = []
+        player_name_lower = player_name.lower().strip()
+        
         for row in all_data:
-            row_discord_id = row.get(discord_id_column, '').strip()
+            row_joueur = row.get(joueur_column, '').strip()
             
-            # Comparer les IDs (en string)
-            if row_discord_id == str(discord_id):
+            # Comparer les noms (insensible à la casse)
+            if row_joueur.lower() == player_name_lower:
                 player_characters.append(row)
         
-        logger.info(f"Trouvé {len(player_characters)} personnages pour Discord ID: {discord_id}")
+        logger.info(f"Trouvé {len(player_characters)} personnages pour le joueur: {player_name}")
         return player_characters
     
     async def test_connection(self, sheet_name: str, gid: str = "0") -> bool:
@@ -225,27 +227,26 @@ if __name__ == "__main__":
             
             # Test 4: Récupérer les personnages d'un joueur spécifique
             print("\n👤 Test de récupération des personnages d'un joueur...")
-            test_discord_id = "256867885140541440"  # Premier ID du sheet
+            test_player_name = "Alcapon"  # Nom du joueur dans la colonne C
             
             columns_config = {
-                'discord_id': 'ID Discord',
-                'nom_pj': 'Nom du PJ',
                 'joueur': 'Joueurs',
+                'nom_pj': 'Nom du PJ',
                 'race': 'Races'
             }
             
             characters = await client.get_player_characters(
-                test_discord_id, 
+                test_player_name, 
                 SHEET_NAME, 
                 GID,
                 columns_config
             )
             
             if characters:
-                print(f"✅ Trouvé {len(characters)} personnage(s) pour l'ID {test_discord_id}")
+                print(f"✅ Trouvé {len(characters)} personnage(s) pour le joueur '{test_player_name}'")
                 for char in characters:
                     print(f"   • {char.get('Nom du PJ', 'Inconnu')} - {char.get('Races', 'Race inconnue')}")
             else:
-                print(f"❌ Aucun personnage trouvé pour l'ID {test_discord_id}")
+                print(f"❌ Aucun personnage trouvé pour le joueur '{test_player_name}'")
     
     asyncio.run(main())
