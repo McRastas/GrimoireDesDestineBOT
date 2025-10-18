@@ -137,7 +137,6 @@ class ParcheminCommandV2(BaseCommand):
             ecole: École de magie spécifique (optionnel)
             classe: Classe de personnage spécifique (optionnel)
             rituel: Filtrer par sorts rituels (optionnel)
-            format_affichage: Format d'affichage - "tableau" ou "classique" (défaut: classique)
         """
         try:
             # Déterminer si le message doit être temporaire ou public (même logique que boutique)
