@@ -1,6 +1,7 @@
 # commands/parchemin/config_v2.py
 """
 Configuration pour les parchemins de sorts - Structure similaire à boutique/config_v2.py
+COMPLÈTEMENT FLEXIBLE - Tous les noms de colonnes sont configurables
 """
 
 import os
@@ -30,14 +31,28 @@ SPELL_SELECTION_CONFIG = {
     'level_column': os.getenv('PARCHEMIN_LEVEL_COLUMN', 'Level')
 }
 
-# Mapping des colonnes selon les noms du CSV sorts (comme COLUMNS_CONFIG dans boutique)
+# ========================================================================
+# MAPPING DES COLONNES - TOUS CONFIGURABLES
+# ========================================================================
+# Format: 'clé_interne': 'NOM_COLONNE_PAR_DEFAUT'
+# Vous pouvez modifier via .env avec PARCHEMIN_COL_XXX=Votre_Nom_Colonne
+
 COLUMNS_CONFIG = {
+    # Colonnes essentielles
     'name': os.getenv('PARCHEMIN_COL_NAME', 'Name'),
-    'source': os.getenv('PARCHEMIN_COL_SOURCE', 'Source'),
+    'name_vf': os.getenv('PARCHEMIN_COL_NAME_VF', 'NameVF'),
     'level': os.getenv('PARCHEMIN_COL_LEVEL', 'Level'),
     'school': os.getenv('PARCHEMIN_COL_SCHOOL', 'School'),
+    'source': os.getenv('PARCHEMIN_COL_SOURCE', 'Source'),
+    
+    # Colonnes optionnelles
     'ritual': os.getenv('PARCHEMIN_COL_RITUAL', 'RITUEL'),
     'classes': os.getenv('PARCHEMIN_COL_CLASSES', 'CLASSE'),
+    
+    # Ajoute ici d'autres colonnes selon tes besoins
+    # 'description': os.getenv('PARCHEMIN_COL_DESCRIPTION', 'Description'),
+    # 'components': os.getenv('PARCHEMIN_COL_COMPONENTS', 'Components'),
+    # 'range': os.getenv('PARCHEMIN_COL_RANGE', 'Range'),
 }
 
 # Configuration Discord (comme DISCORD_CONFIG dans boutique)
@@ -50,92 +65,80 @@ DISCORD_CONFIG = {
         4: 0xf39c12,    # Orange pour niveau 4
         5: 0xe74c3c,    # Rouge pour niveau 5
         6: 0x8e44ad,    # Violet foncé pour niveau 6
-        7: 0x34495e,    # Bleu foncé pour niveau 7
-        8: 0x2c3e50,    # Bleu très foncé pour niveau 8
-        9: 0x1a252f     # Presque noir pour niveau 9
-    },
-    'max_field_length': 1024,
-    'max_embed_length': 6000,
-    'max_embed_fields': 25
+        7: 0x1abc9c,    # Turquoise pour niveau 7
+        8: 0x34495e,    # Gris foncé pour niveau 8
+        9: 0xc0392b,    # Rouge foncé pour niveau 9
+    }
 }
 
-# Emojis pour les écoles de magie (comme RARITY_EMOJIS dans boutique)
+# Emojis des écoles de magie (pour l'affichage futur)
 SCHOOL_EMOJIS = {
     'abjuration': '🛡️',
-    'conjuration': '🌀',
+    'conjuration': '✨',
     'divination': '🔮',
     'enchantment': '💫',
     'evocation': '⚡',
-    'illusion': '🎭',
+    'illusion': '🌫️',
     'necromancy': '💀',
     'transmutation': '🔄',
 }
 
-# Emojis pour les niveaux (comme LEVEL_EMOJIS mais pour parchemin)
+# Emojis des niveaux (pour l'affichage futur)
 LEVEL_EMOJIS = {
-    0: '✨',  # Cantrip
-    1: '1️⃣',
-    2: '2️⃣',
-    3: '3️⃣',
-    4: '4️⃣',
-    5: '5️⃣',
-    6: '6️⃣',
-    7: '7️⃣',
-    8: '8️⃣',
-    9: '9️⃣',
+    0: '✨',  # Cantrips
+    1: '⚡',
+    2: '🔥',
+    3: '💜',
+    4: '🧡',
+    5: '❤️',
+    6: '💀',
+    7: '👑',
+    8: '🌟',
+    9: '✔️',
 }
 
-# Emojis pour les sorts rituels (comme LIEN_MAGIQUE_EMOJIS dans boutique)
+# Emoji rituel
 RITUAL_EMOJIS = {
-    True: '🔮',  # Sort rituel
-    False: '',   # Sort normal
+    True: '🔮',
+    False: '',
 }
 
-# Messages par défaut (comme BOUTIQUE_MESSAGES dans boutique)
+# Messages parchemin
 PARCHEMIN_MESSAGES = {
-    'title': '📜 **Parchemins de sorts**',
-    'no_spells': '❌ Aucun sort trouvé avec ces critères.',
-    'invalid_level': '❌ Format de niveau invalide. Utilisez un nombre (ex: 3) ou une plage (ex: 1-3).',
-    'invalid_count': '❌ Le nombre de parchemins doit être entre {min} et {max}.',
-    'loading_error': '❌ Erreur lors du chargement des sorts. Contactez un administrateur.',
-    'sheets_error': '❌ Impossible d\'accéder aux données Google Sheets.',
-    'footer_base': 'Parchemins de Faerûn',
-    'footer_loading': 'Chargement des sorts...',
-    'footer_error': 'Échec du chargement'
+    'loading': "🔄 Préparation des Parchemins...",
+    'loading_desc': "Le mage sélectionne ses meilleurs sorts...",
+    'no_spells': "Aucun sort trouvé avec ces critères.",
+    'error': "Une erreur s'est produite lors de la génération des parchemins.",
 }
 
-# Valeurs par défaut adaptées (comme DEFAULT_VALUES dans boutique)
+# Valeurs par défaut
 DEFAULT_VALUES = {
-    'spell_name': 'Sort mystérieux',
-    'level': 0,
     'school': 'Inconnue',
     'source': 'Manuel inconnu',
-    'ritual': False,
-    'classes': []
+    'level': 0,
 }
 
-# Configuration de filtrage (comme FILTERING_CONFIG dans boutique)
+# Configuration du filtrage
 FILTERING_CONFIG = {
-    'exclude_na_values': True,
-    'critical_columns': ['Name', 'Level', 'School'],
-    'na_values': ['NA', 'N/A', 'na', 'n/a', 'null', 'NULL', 'Null', ''],
-    'require_valid_name': True,
-    'require_valid_level': True,
-    'level_range_separator': '-',
+    'na_values': ['NA', 'N/A', '', 'None', 'none', 'NONE'],
     'class_separator': ',',
-    'min_similarity': 0.4  # Pour la recherche floue
+    'require_valid_price': False,
 }
 
-# Configuration de logging (comme LOGGING_CONFIG dans boutique)
+# Configuration logging
 LOGGING_CONFIG = {
-    'level': 'INFO',
-    'format': '[%(asctime)s] [PARCHEMIN] %(levelname)s: %(message)s'
+    'level': os.getenv('LOG_LEVEL', 'INFO'),
+    'format': '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
 }
+
+# ========================================================================
+# FONCTION PRINCIPALE DE CONFIGURATION
+# ========================================================================
 
 def get_config(section: str = None) -> Dict[str, Any]:
     """
-    Récupère une section de configuration ou toute la configuration.
-    Même structure que dans boutique/config_v2.py
+    Récupère la configuration.
+    Même structure que boutique/config_v2.py
     """
     all_config = {
         'google_sheets': GOOGLE_SHEETS_CONFIG,
@@ -172,89 +175,42 @@ def validate_config() -> bool:
         print(f"Erreur de configuration: {e}")
         return False
 
-# Fonction de normalisation des écoles (comme normalize_rarity_name dans boutique)
-def normalize_school_name(school: str) -> str:
+def get_column_name(column_key: str) -> str:
     """
-    Convertit le nom d'école en format lisible avec emoji.
-    Équivalent de normalize_rarity_name pour les écoles.
-    """
-    school_lower = school.lower().strip()
-    emoji = SCHOOL_EMOJIS.get(school_lower, '🔮')
-    return f"{emoji} {school.title()}"
-
-# Fonction de normalisation des niveaux
-def normalize_level_name(level: int) -> str:
-    """
-    Convertit le niveau en format lisible avec emoji.
-    """
-    if level == 0:
-        return f"{LEVEL_EMOJIS[0]} Tours de magie"
-    else:
-        emoji = LEVEL_EMOJIS.get(level, '🔥')
-        return f"{emoji} Niveau {level}"
-
-# Fonction de vérification NA (comme is_na_value dans boutique)
-def is_na_value(value: str) -> bool:
-    """
-    Vérifie si une valeur est considérée comme NA.
-    Même logique que dans boutique/config_v2.py
-    """
-    if value is None:
-        return True
+    Récupère le nom de la colonne pour une clé donnée.
+    Utile pour avoir une source unique de vérité.
     
-    value_str = str(value).strip()
-    
-    if not value_str:  # Chaîne vide
-        return True
-    
-    # Vérifier les valeurs NA configurées
-    na_values = FILTERING_CONFIG['na_values']
-    return value_str.upper() in [na.upper() for na in na_values]
+    Args:
+        column_key: Clé de colonne (ex: 'name', 'level', 'school', etc.)
+        
+    Returns:
+        str: Nom de la colonne dans Google Sheets
+    """
+    return COLUMNS_CONFIG.get(column_key, '')
 
-def clean_na_value(value: str, default: str = "") -> str:
-    """
-    Nettoie une valeur NA en la remplaçant par une valeur par défaut.
-    Même logique que dans boutique/config_v2.py
-    """
-    if is_na_value(value):
-        return default
-    
-    return str(value).strip()
-
-def parse_classes_list(classes_str: str) -> List[str]:
-    """
-    Parse une chaîne de classes en liste.
-    Adapté de la logique de parsing des prix/colonnes dans boutique.
-    """
-    if is_na_value(classes_str):
-        return []
-    
-    separator = FILTERING_CONFIG['class_separator']
-    classes = [cls.strip() for cls in classes_str.split(separator) if cls.strip()]
-    return classes
-
-if __name__ == "__main__":
+def print_config() -> None:
+    """Affiche la configuration actuelle pour debug."""
     print("🔧 Configuration du module parchemin")
-    print("=" * 50)
+    print("=" * 60)
     
     if validate_config():
-        print("✅ Configuration valide")
-        config = get_config()
-        print(f"\n📋 Configuration actuelle:")
-        print(f"   • Sheet ID: {config['google_sheets']['sheet_id']}")
-        print(f"   • Sheet Name: {config['google_sheets']['sheet_name']}")
-        print(f"   • Min/Max parchemins: {config['spell_selection']['min_items']}-{config['spell_selection']['max_items']}")
-        print(f"   • Niveaux exclus: {', '.join(config['spell_selection']['excluded_levels'])}")
+        print("✅ Configuration valide\n")
         
-        # Test des fonctions de conversion
-        print(f"\n🔄 Test des conversions:")
-        print(f"   • 'Evocation' -> '{normalize_school_name('Evocation')}'")
-        print(f"   • Niveau 3 -> '{normalize_level_name(3)}'")
-        print(f"   • 'Wizard , Sorcerer' -> {parse_classes_list('Wizard , Sorcerer')}")
+        print("📋 Google Sheets:")
+        print(f"   • Sheet ID: {GOOGLE_SHEETS_CONFIG['sheet_id']}")
+        print(f"   • Sheet Name: {GOOGLE_SHEETS_CONFIG['sheet_name']}")
+        print(f"   • Sheet GID: {GOOGLE_SHEETS_CONFIG['sheet_gid']}\n")
+        
+        print("🎲 Sélection des parchemins:")
+        print(f"   • Min/Max: {SPELL_SELECTION_CONFIG['min_items']}-{SPELL_SELECTION_CONFIG['max_items']}")
+        print(f"   • Niveaux exclus: {SPELL_SELECTION_CONFIG['excluded_levels']}\n")
+        
+        print("📊 Mapping des colonnes:")
+        for key, col_name in COLUMNS_CONFIG.items():
+            print(f"   • {key:15} → {col_name}")
         
     else:
         print("❌ Configuration invalide")
 
-
-
-
+if __name__ == "__main__":
+    print_config()
