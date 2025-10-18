@@ -99,11 +99,12 @@ class ParcheminResponseBuilderV2:
         return embed
     
     def _build_spell_list(self, spells: List[Dict]) -> str:
-        """Construit la liste copiable des sorts avec classes."""
+        """Construit la liste copiable des sorts avec classes et nom français."""
         lines = []
         
         for spell in spells:
             name = spell.get('name', 'Inconnu')
+            name_fr = spell.get('name_fr', spell.get('name', 'Inconnu'))  # Fallback sur name si name_fr absent
             level = spell.get('level', 0)
             school = spell.get('school', 'Inconnue')
             ritual = spell.get('ritual', False)
@@ -114,9 +115,9 @@ class ParcheminResponseBuilderV2:
                 classes = [c.strip() for c in classes.split(',')]
             classes_str = ' ; '.join(classes) if classes else 'Diverses'
             
-            # Format: * Parchemin de Nom (niveau X - ECOLE) | CLASSE1 ; CLASSE2
+            # Format: * Parchemin de Nom (niveau X - ECOLE) | CLASSE1 ; CLASSE2 | Nom FR
             ritual_marker = " 🔮" if ritual else ""
-            line = f"* Parchemin de {name} (niveau {level} - {school}){ritual_marker} | {classes_str}"
+            line = f"* Parchemin de {name} (niveau {level} - {school}){ritual_marker} | {classes_str} | {name_fr}"
             lines.append(line)
         
         return "\n".join(lines)
