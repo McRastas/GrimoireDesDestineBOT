@@ -2,6 +2,7 @@
 """
 Commande principale pour la génération de parchemins de sorts.
 Structure inspirée de boutique/main_command_v2.py
+MODIFIÉE: Support du paramètre format_affichage (tableau ou classique)
 """
 
 import discord
@@ -84,7 +85,8 @@ class ParcheminCommandV2(BaseCommand):
             niveau="Niveau de sort spécifique (0-9) ou plage (ex: 1-3)",
             ecole="École de magie spécifique",
             classe="Classe de personnage spécifique",
-            rituel="Filtrer par sorts rituels"
+            rituel="Filtrer par sorts rituels",
+            format_affichage="Format d'affichage: 'tableau' (compact) ou 'classique' (détaillé) - défaut: classique"
         )
         @app_commands.choices(
             ecole=[
@@ -107,6 +109,10 @@ class ParcheminCommandV2(BaseCommand):
                 app_commands.Choice(name="Sorcerer", value="sorcerer"),
                 app_commands.Choice(name="Warlock", value="warlock"),
                 app_commands.Choice(name="Wizard", value="wizard")
+            ],
+            format_affichage=[
+                app_commands.Choice(name="📊 Tableau (compact)", value="tableau"),
+                app_commands.Choice(name="📄 Classique (détaillé)", value="classique"),
             ]
         )
         async def parchemin_v2_command(
@@ -116,14 +122,15 @@ class ParcheminCommandV2(BaseCommand):
             niveau: Optional[str] = None,
             ecole: Optional[str] = None,
             classe: Optional[str] = None,
-            rituel: Optional[bool] = None
+            rituel: Optional[bool] = None,
+            format_affichage: Optional[str] = "classique"
         ):
-            await self.callback(interaction, nombre_parchemins, public, niveau, ecole, classe, rituel)
+            await self.callback(interaction, nombre_parchemins, public, niveau, ecole, classe, rituel, format_affichage)
     
     async def callback(self, interaction: discord.Interaction, nombre_parchemins: Optional[int] = None, 
                       public: Optional[bool] = False, niveau: Optional[str] = None,
                       ecole: Optional[str] = None, classe: Optional[str] = None, 
-                      rituel: Optional[bool] = None):
+                      rituel: Optional[bool] = None, format_affichage: Optional[str] = "classique"):
         """
         Traite la commande parchemin.
         Même structure que boutique/callback mais adapté aux sorts.
@@ -136,6 +143,7 @@ class ParcheminCommandV2(BaseCommand):
             ecole: École de magie spécifique (optionnel)
             classe: Classe de personnage spécifique (optionnel)
             rituel: Filtrer par sorts rituels (optionnel)
+            format_affichage: Format d'affichage - "tableau" ou "classique" (défaut: classique)
         """
         try:
             # Déterminer si le message doit être temporaire ou public (même logique que boutique)
@@ -174,35 +182,19 @@ class ParcheminCommandV2(BaseCommand):
             if not self._spells_cache:
                 error_embed = self.response_builder.create_error_embed(
                     "Impossible de charger les données de sorts depuis Google Sheets.",
-                    "La feuille semble être inaccessible."
+                    "Vérifiez que le Google Sheets est accessible et public."
                 )
                 await interaction.edit_original_response(embed=error_embed)
                 return
             
-            # Log de l'utilisation (même logique que boutique)
-            logger.info(f"Récupération des sorts depuis la feuille '{self.sheet_name}' (public: {public}, niveau: {niveau}, école: {ecole}, classe: {classe}, rituel: {rituel})")
-            
-            # Filtrage par niveaux exclus (équivalent filtrage par rareté)
-            filtered_spells, filtered_indices = self.spell_selector.filter_spells_by_excluded_levels(self._spells_cache)
-            
-            # Appliquer les filtres spécifiques (nouveau pour parchemin)
-            if level_range:
-                filtered_spells, filtered_indices = self.spell_selector.filter_spells_by_level_range(filtered_spells, level_range)
-            
-            if ecole:
-                filtered_spells, filtered_indices = self.spell_selector.filter_spells_by_school(
-                    (filtered_spells, filtered_indices), ecole
-                )
-            
-            if classe:
-                filtered_spells, filtered_indices = self.spell_selector.filter_spells_by_class(
-                    (filtered_spells, filtered_indices), classe
-                )
-            
-            if rituel is not None:
-                filtered_spells, filtered_indices = self.spell_selector.filter_spells_by_ritual(
-                    (filtered_spells, filtered_indices), rituel
-                )
+            # Filtrer les sorts (même logique que boutique mais adapté aux sorts)
+            filtered_spells, filtered_indices = self.spell_selector.filter_spells(
+                self._spells_cache,
+                level_range=level_range,
+                school=ecole,
+                class_name=classe,
+                ritual=rituel
+            )
             
             # Vérifier qu'il reste des sorts après filtrage
             if not filtered_spells:
@@ -268,12 +260,13 @@ class ParcheminCommandV2(BaseCommand):
                 'ritual_filter': rituel
             }
             
-            # Création de la réponse finale (même logique que boutique)
+            # Création de la réponse finale avec le format spécifié
             parchemin_embed = self.response_builder.create_parchemin_embed(
                 validated_spells, 
                 stats,
                 selected_indices,
-                filters
+                filters,
+                format_type=format_affichage
             )
             
             # Ajouter une indication du mode d'affichage si public (même logique que boutique)
@@ -286,7 +279,8 @@ class ParcheminCommandV2(BaseCommand):
             
             # Log de l'utilisation réussie (même logique que boutique)
             logger.info(f"Commande parchemin exécutée par {interaction.user.name} - "
-                       f"{len(selected_spells)} sorts sélectionnés avec filtres: niveau={niveau}, école={ecole}, classe={classe}, rituel={rituel}")
+                       f"{len(selected_spells)} sorts - Format: {format_affichage} - "
+                       f"Filtres: niveau={niveau}, école={ecole}, classe={classe}, rituel={rituel}")
             
         except Exception as e:
             logger.error(f"Erreur dans la commande parchemin: {e}")
