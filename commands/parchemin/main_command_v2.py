@@ -85,8 +85,7 @@ class ParcheminCommandV2(BaseCommand):
             niveau="Niveau de sort spécifique (0-9) ou plage (ex: 1-3)",
             ecole="École de magie spécifique",
             classe="Classe de personnage spécifique",
-            rituel="Filtrer par sorts rituels",
-            format_affichage="Format d'affichage: 'cartes' (par défaut) ou 'classique' - défaut: cartes"
+            rituel="Filtrer par sorts rituels"
         )
         @app_commands.choices(
             ecole=[
@@ -109,10 +108,6 @@ class ParcheminCommandV2(BaseCommand):
                 app_commands.Choice(name="Sorcerer", value="sorcerer"),
                 app_commands.Choice(name="Warlock", value="warlock"),
                 app_commands.Choice(name="Wizard", value="wizard")
-            ],
-            format_affichage=[
-                app_commands.Choice(name="📋 Cartes (par défaut)", value="cartes"),
-                app_commands.Choice(name="📄 Classique (détaillé)", value="classique"),
             ]
         )
         async def parchemin_v2_command(
@@ -122,15 +117,14 @@ class ParcheminCommandV2(BaseCommand):
             niveau: Optional[str] = None,
             ecole: Optional[str] = None,
             classe: Optional[str] = None,
-            rituel: Optional[bool] = None,
-            format_affichage: Optional[str] = "cartes"
+            rituel: Optional[bool] = None
         ):
-            await self.callback(interaction, nombre_parchemins, public, niveau, ecole, classe, rituel, format_affichage)
+            await self.callback(interaction, nombre_parchemins, public, niveau, ecole, classe, rituel)
     
     async def callback(self, interaction: discord.Interaction, nombre_parchemins: Optional[int] = None, 
                       public: Optional[bool] = False, niveau: Optional[str] = None,
                       ecole: Optional[str] = None, classe: Optional[str] = None, 
-                      rituel: Optional[bool] = None, format_affichage: Optional[str] = "cartes"):
+                      rituel: Optional[bool] = None):
         """
         Traite la commande parchemin.
         Même structure que boutique/callback mais adapté aux sorts.
@@ -276,13 +270,12 @@ class ParcheminCommandV2(BaseCommand):
                 'ritual_filter': rituel
             }
             
-            # Création de la réponse finale avec le format spécifié
+            # Création de la réponse finale
             parchemin_embed = self.response_builder.create_parchemin_embed(
                 validated_spells, 
                 stats,
                 selected_indices,
-                filters,
-                format_type=format_affichage
+                filters
             )
             
             # Ajouter une indication du mode d'affichage si public (même logique que boutique)
@@ -295,7 +288,7 @@ class ParcheminCommandV2(BaseCommand):
             
             # Log de l'utilisation réussie
             logger.info(f"Commande parchemin exécutée par {interaction.user.name} - "
-                       f"{len(selected_spells)} sorts - Format: {format_affichage}")
+                       f"{len(selected_spells)} sorts sélectionnés")
             
         except Exception as e:
             logger.error(f"Erreur dans la commande parchemin: {e}", exc_info=True)
