@@ -104,7 +104,9 @@ class ParcheminResponseBuilderV2:
         
         for spell in spells:
             name_en = spell.get('name', 'Inconnu')
-            name_fr = spell.get('name_fr', spell.get('name', 'Inconnu'))  # Fallback sur name si name_fr absent
+            # Utiliser NameVF pour le nom français
+            name_fr = spell.get('NameVF', spell.get('name_fr', None))
+            
             level = spell.get('level', 0)
             school = spell.get('school', 'Inconnue')
             ritual = spell.get('ritual', False)
@@ -118,8 +120,8 @@ class ParcheminResponseBuilderV2:
             # Format: * Parchemin de Nom FR [Nom EN] (niveau X - ECOLE) | CLASSE1 ; CLASSE2
             ritual_marker = " 🔮" if ritual else ""
             
-            # Afficher nom FR en premier, nom EN en crochets
-            if name_fr and name_fr != name_en:
+            # Afficher nom FR en premier si disponible, sinon juste le nom EN
+            if name_fr and name_fr.strip() and name_fr != name_en:
                 spell_name = f"{name_fr} [{name_en}]"
             else:
                 spell_name = name_en
