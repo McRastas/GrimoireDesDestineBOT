@@ -58,6 +58,7 @@ class ParcheminResponseBuilderV2:
                               spell_indices: List[int] = None, filters: Dict[str, any] = None) -> discord.Embed:
         """Crée l'embed avec affichage COPIABLE."""
         
+        # Couleur de l'embed basée sur le niveau moyen
         embed_color = self._get_embed_color_by_level(spells)
         title = f"📜 Parchemins de Sorts - {len(spells)} disponible{'s' if len(spells) > 1 else ''}"
         description = self._build_description_with_filters(filters)
@@ -104,8 +105,10 @@ class ParcheminResponseBuilderV2:
         
         for spell in spells:
             name_en = spell.get('name', 'Inconnu')
-            # Utiliser NameVF pour le nom français
-            name_fr = spell.get('NameVF', spell.get('name_fr', None))
+            
+            # 🔧 FIX: Chercher 'name_vf' (avec underscore) au lieu de 'NameVF'
+            # C'est la clé utilisée par google_sheets_client.py
+            name_fr = spell.get('name_vf', spell.get('name_fr', None))
             
             level = spell.get('level', 0)
             school = spell.get('school', 'Inconnue')
@@ -202,39 +205,55 @@ class ParcheminResponseBuilderV2:
     
     def _create_footer_text(self, stats: Dict[str, any] = None) -> str:
         """Crée le texte du footer avec statistiques."""
-        footer_parts = ["🎲 Parchemins de Faerûn"]
+        if not stats:
+            return "🎲 Parchemins de Faerûn"
         
-        if stats:
-            if 'total_spells' in stats:
-                footer_parts.append(f"• {stats['total_spells']} sorts en base")
-            if 'filtered_spells' in stats:
-                footer_parts.append(f"• {stats['filtered_spells']} disponibles")
+        footer_parts = []
         
-        return " ".join(footer_parts)
+        if stats.get('total_spells'):
+            footer_parts.append(f"📚 {stats['total_spells']} sorts disponibles")
+        
+        if stats.get('level_distribution'):
+            level_dist = stats['level_distribution']
+            dist_str = ", ".join([f"Niv.{lvl}: {count}" for lvl, count in sorted(level_dist.items())])
+            footer_parts.append(f"Répartition: {dist_str}")
+        
+        return " | ".join(footer_parts) if footer_parts else "🎲 Parchemins de Faerûn"
     
-    def create_error_embed(self, error_message: str, details: str = None) -> discord.Embed:
-        """Crée un embed d'erreur."""
+    def create_error_embed(self, title: str, description: str, color: int = 0xe74c3c) -> discord.Embed:
+        """
+        Crée un embed d'erreur standard.
+        
+        Args:
+            title: Titre de l'erreur
+            description: Description de l'erreur
+            color: Couleur de l'embed (rouge par défaut)
+            
+        Returns:
+            discord.Embed: Embed d'erreur formaté
+        """
         embed = discord.Embed(
-            title="❌ Erreur - Parchemins Indisponibles",
-            description=error_message,
-            color=0xe74c3c
+            title=f"❌ {title}",
+            description=description,
+            color=color
         )
-        
-        if details:
-            embed.add_field(name="Détails", value=details, inline=False)
-        
-        embed.set_footer(text="Parchemins temporairement indisponibles")
-        
+        embed.set_footer(text="Contactez un administrateur si le problème persiste")
         return embed
     
-    def create_loading_embed(self) -> discord.Embed:
-        """Crée un embed de chargement."""
+    def create_loading_embed(self, title: str = None, description: str = None) -> discord.Embed:
+        """
+        Crée un embed de chargement.
+        
+        Args:
+            title: Titre optionnel
+            description: Description optionnelle
+            
+        Returns:
+            discord.Embed: Embed de chargement formaté
+        """
         embed = discord.Embed(
-            title="🔄 Préparation des Parchemins...",
-            description="Le mage sélectionne ses meilleurs sorts...",
-            color=0xf39c12
+            title=title or "🔄 Chargement...",
+            description=description or "Préparation des parchemins en cours...",
+            color=0x3498db
         )
-        
-        embed.set_footer(text="Veuillez patienter quelques instants")
-        
         return embed
