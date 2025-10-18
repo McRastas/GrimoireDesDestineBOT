@@ -2,7 +2,6 @@
 """
 Commande principale pour la génération de parchemins de sorts.
 Structure inspirée de boutique/main_command_v2.py
-CORRIGÉE: Support du paramètre format_affichage + méthodes SpellSelectorV2 correctes
 """
 
 import discord
@@ -179,9 +178,6 @@ class ParcheminCommandV2(BaseCommand):
                 )
                 await interaction.edit_original_response(embed=error_embed)
                 return
-            
-            # Log de l'utilisation
-            logger.info(f"Récupération des sorts depuis la feuille '{self.sheet_name}' (public: {public}, format: {format_affichage})")
             
             # Filtrage par niveaux exclus
             filtered_spells, filtered_indices = self.spell_selector.filter_spells_by_excluded_levels(self._spells_cache)
