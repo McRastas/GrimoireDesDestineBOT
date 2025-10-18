@@ -1,92 +1,120 @@
 """Module des commandes Discord pour le bot Faerûn."""
 
-# Commandes simples
+# ============================================================================
+# COMMANDES SIMPLES
+# ============================================================================
 from .test import TestCommand
 from .info import InfoCommand
 
-# Commandes calendrier Faerûn
+# ============================================================================
+# COMMANDES CALENDRIER FAERÛN
+# ============================================================================
 from .faerun_date import FaerunCommand
 from .faerun_festival import FaerunFestivalCommand
 from .faerun_complet import FaerunCompletCommand
 from .faerun_jdr import FaerunJdrCommand
 from .faerun_help import HelpCommand
 
-# Commandes mentions et statistiques
+# ============================================================================
+# COMMANDES MENTIONS ET STATISTIQUES
+# ============================================================================
 from .mention_someone import MentionSomeoneCommand
 from .mention_list import MentionListCommand
 from .recap_mj import RecapMjCommand
-from .top_mj import TopMjCommand  # ⭐ NOUVELLE COMMANDE
+from .top_mj import TopMjCommand
+from .stats_logs import StatsLogsCommand
 
-# Commandes quêtes
+# ============================================================================
+# COMMANDES QUÊTES
+# ============================================================================
 from .mes_quetes import MesQuetesCommand
 
-# Générateur PNJ
+# ============================================================================
+# GÉNÉRATEUR PNJ
+# ============================================================================
 from .pnj_generator import PnjGeneratorCommand
 
-# Configuration et administration
+# ============================================================================
+# CONFIGURATION ET ADMINISTRATION
+# ============================================================================
 from .config_channels import ConfigChannelsCommand
-from .stats_logs import StatsLogsCommand  # NOUVEAU
 
-# Import conditionnel pour les nouvelles commandes
+# ============================================================================
+# IMPORTS CONDITIONNELS
+# ============================================================================
+
+# Test Logs
 try:
     from .test_logs import TestLogsCommand
     TEST_LOGS_AVAILABLE = True
 except ImportError:
-    print("⚠️ test_logs.py non trouvé - commande /test-logs non disponible")
     TEST_LOGS_AVAILABLE = False
+    print("⚠️ test_logs.py non trouvé - commande /test-logs non disponible")
 
-# Import conditionnel pour la commande boutique (maintenant OM_PRICE par défaut)
+# Boutique (OM_PRICE)
 try:
-    from .boutique import BoutiqueCommand
+    from .boutique import BoutiqueCommand, SearchCommand
     BOUTIQUE_AVAILABLE = True
+    SEARCH_COMMAND_AVAILABLE = True
     print("✅ Module boutique OM_PRICE chargé avec succès")
 except ImportError as e:
-    print(f"⚠️ Module boutique OM_PRICE non disponible: {e}")
-    print("   • Vérifiez que le dossier commands/boutique/ existe")
-    print("   • Vérifiez que tous les fichiers _v2.py sont présents")
-    print("   • Vérifiez que aiohttp est installé: pip install aiohttp")
     BOUTIQUE_AVAILABLE = False
-
-# Import conditionnel pour la commande de recherche
-try:
-    from .boutique import SearchCommand
-    SEARCH_COMMAND_AVAILABLE = True
-    print("✅ Commande de recherche chargée avec succès")
-except ImportError:
     SEARCH_COMMAND_AVAILABLE = False
-    print("⚠️ Commande de recherche non disponible")
+    print(f"⚠️ Module boutique non disponible: {e}")
 
-# Liste de toutes les commandes disponibles
+# Parchemin (Dev3.0)
+try:
+    from .parchemin import ParcheminCommand
+    PARCHEMIN_AVAILABLE = True
+    print("✅ Module parchemin chargé avec succès (Dev3.0)")
+except ImportError as e:
+    PARCHEMIN_AVAILABLE = False
+    print(f"⚠️ Module parchemin non disponible: {e}")
+
+# ============================================================================
+# LISTE DE TOUTES LES COMMANDES
+# ============================================================================
+
 ALL_COMMANDS = [
+    # Simples
     TestCommand,
     InfoCommand,
+    # Calendrier Faerûn
     FaerunCommand,
     FaerunFestivalCommand,
     FaerunCompletCommand,
     FaerunJdrCommand,
     HelpCommand,
+    # Mentions et stats
     MentionSomeoneCommand,
     MentionListCommand,
     RecapMjCommand,
-    TopMjCommand,  # ⭐ AJOUT DE LA NOUVELLE COMMANDE
+    TopMjCommand,
+    StatsLogsCommand,
+    # Quêtes
     MesQuetesCommand,
+    # Générateur PNJ
     PnjGeneratorCommand,
+    # Administration
     ConfigChannelsCommand,
-    StatsLogsCommand,  # NOUVEAU - Commande pour les stats de logs
 ]
 
-# Ajouter les commandes optionnelles si disponibles
+# Ajouter les commandes optionnelles
 if TEST_LOGS_AVAILABLE:
     ALL_COMMANDS.append(TestLogsCommand)
-    print("✅ Commande test-logs ajoutée")
 
 if BOUTIQUE_AVAILABLE:
     ALL_COMMANDS.append(BoutiqueCommand)
-    print("✅ Commande boutique OM_PRICE ajoutée")
 
 if SEARCH_COMMAND_AVAILABLE:
     ALL_COMMANDS.append(SearchCommand)
-    print("✅ Commande de recherche ajoutée")
+
+if PARCHEMIN_AVAILABLE:
+    ALL_COMMANDS.append(ParcheminCommand)
+
+# ============================================================================
+# LOGS DE CHARGEMENT
+# ============================================================================
 
 print(f"📋 Total: {len(ALL_COMMANDS)} commandes chargées")
 
