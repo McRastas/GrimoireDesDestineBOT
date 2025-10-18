@@ -2,7 +2,7 @@
 """
 Commande principale pour la génération de parchemins de sorts.
 Structure inspirée de boutique/main_command_v2.py
-MODIFIÉE: Support du paramètre format_affichage (tableau ou classique)
+CORRIGÉE: Support du paramètre format_affichage + méthodes SpellSelectorV2 correctes
 """
 
 import discord
@@ -182,19 +182,35 @@ class ParcheminCommandV2(BaseCommand):
             if not self._spells_cache:
                 error_embed = self.response_builder.create_error_embed(
                     "Impossible de charger les données de sorts depuis Google Sheets.",
-                    "Vérifiez que le Google Sheets est accessible et public."
+                    "La feuille semble être inaccessible."
                 )
                 await interaction.edit_original_response(embed=error_embed)
                 return
             
-            # Filtrer les sorts (même logique que boutique mais adapté aux sorts)
-            filtered_spells, filtered_indices = self.spell_selector.filter_spells(
-                self._spells_cache,
-                level_range=level_range,
-                school=ecole,
-                class_name=classe,
-                ritual=rituel
-            )
+            # Log de l'utilisation
+            logger.info(f"Récupération des sorts depuis la feuille '{self.sheet_name}' (public: {public}, format: {format_affichage})")
+            
+            # Filtrage par niveaux exclus
+            filtered_spells, filtered_indices = self.spell_selector.filter_spells_by_excluded_levels(self._spells_cache)
+            
+            # Appliquer les filtres spécifiques
+            if level_range:
+                filtered_spells, filtered_indices = self.spell_selector.filter_spells_by_level_range(filtered_spells, level_range)
+            
+            if ecole:
+                filtered_spells, filtered_indices = self.spell_selector.filter_spells_by_school(
+                    (filtered_spells, filtered_indices), ecole
+                )
+            
+            if classe:
+                filtered_spells, filtered_indices = self.spell_selector.filter_spells_by_class(
+                    (filtered_spells, filtered_indices), classe
+                )
+            
+            if rituel is not None:
+                filtered_spells, filtered_indices = self.spell_selector.filter_spells_by_ritual(
+                    (filtered_spells, filtered_indices), rituel
+                )
             
             # Vérifier qu'il reste des sorts après filtrage
             if not filtered_spells:
@@ -277,13 +293,12 @@ class ParcheminCommandV2(BaseCommand):
             # Mise à jour du message avec l'embed principal
             await interaction.edit_original_response(embed=parchemin_embed)
             
-            # Log de l'utilisation réussie (même logique que boutique)
+            # Log de l'utilisation réussie
             logger.info(f"Commande parchemin exécutée par {interaction.user.name} - "
-                       f"{len(selected_spells)} sorts - Format: {format_affichage} - "
-                       f"Filtres: niveau={niveau}, école={ecole}, classe={classe}, rituel={rituel}")
+                       f"{len(selected_spells)} sorts - Format: {format_affichage}")
             
         except Exception as e:
-            logger.error(f"Erreur dans la commande parchemin: {e}")
+            logger.error(f"Erreur dans la commande parchemin: {e}", exc_info=True)
             try:
                 if not interaction.response.is_done():
                     await interaction.response.send_message(
