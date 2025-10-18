@@ -1,7 +1,7 @@
 # commands/parchemin/response_builder_v2.py
 """
 Constructeur de réponses Discord pour les parchemins de sorts.
-Affichage simplifié et copiable avec format liste à puces.
+Affichage avec embed copiable et un champ texte facilement copiable.
 """
 
 import discord
@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 class ParcheminResponseBuilderV2:
     """
     Classe pour construire les réponses Discord adaptée aux parchemins de sorts.
-    Affichage simplifié en liste à puces copiable.
+    Affichage avec embed copiable facilement.
     """
     
     def __init__(self):
@@ -41,22 +41,22 @@ class ParcheminResponseBuilderV2:
             stats: Statistiques optionnelles
             spell_indices: Indices originaux des sorts
             filters: Filtres appliqués
-            format_type: Ignoré, affichage simplifié uniquement
+            format_type: Ignoré, affichage copiable uniquement
             
         Returns:
             discord.Embed: Embed formaté
         """
         logger.info(f"Création embed parchemin - {len(spells)} sorts")
         
-        return self._create_liste_embed(spells, stats, spell_indices, filters)
+        return self._create_copyable_embed(spells, stats, spell_indices, filters)
     
     # ========================================================================
-    # FORMAT LISTE SIMPLIFIÉ
+    # FORMAT COPIABLE
     # ========================================================================
     
-    def _create_liste_embed(self, spells: List[Dict], stats: Dict[str, any] = None,
-                           spell_indices: List[int] = None, filters: Dict[str, any] = None) -> discord.Embed:
-        """Crée l'embed avec affichage LISTE simplifié et copiable."""
+    def _create_copyable_embed(self, spells: List[Dict], stats: Dict[str, any] = None,
+                              spell_indices: List[int] = None, filters: Dict[str, any] = None) -> discord.Embed:
+        """Crée l'embed avec affichage COPIABLE."""
         
         embed_color = self._get_embed_color_by_level(spells)
         title = f"📜 Parchemins de Sorts - {len(spells)} disponible{'s' if len(spells) > 1 else ''}"
@@ -71,21 +71,35 @@ class ParcheminResponseBuilderV2:
         # Construire la liste copiable
         spell_list = self._build_spell_list(spells)
         
-        # Ajouter comme field unique
-        embed.add_field(
-            name="📋 Parchemins",
-            value=spell_list,
-            inline=False
-        )
+        # Découper en chunks si trop long
+        chunks = self._split_field_value(spell_list, self.max_field_length)
         
-        # Footer avec statistiques
+        # Ajouter les chunks comme fields
+        for i, chunk in enumerate(chunks):
+            if i == 0:
+                field_name = "📋 Parchemins (Copie facile)"
+            else:
+                field_name = "📋 Suite..."
+            
+            # Ajouter les instructions pour le premier field
+            if i == 0:
+                chunk = "```\n" + chunk + "\n```"
+            
+            embed.add_field(
+                name=field_name,
+                value=chunk,
+                inline=False
+            )
+        
+        # Footer avec statistiques et instructions
         footer_text = self._create_footer_text(stats)
+        footer_text += " | 💡 Sélectionnez le texte et copiez avec Ctrl+C"
         embed.set_footer(text=footer_text)
         
         return embed
     
     def _build_spell_list(self, spells: List[Dict]) -> str:
-        """Construit la liste copiable des sorts."""
+        """Construit la liste copiable des sorts avec classes."""
         lines = []
         
         for spell in spells:
@@ -94,12 +108,46 @@ class ParcheminResponseBuilderV2:
             school = spell.get('school', 'Inconnue')
             ritual = spell.get('ritual', False)
             
-            # Format: * Nom du sort (niveau X - ECOLE) [RITUEL]
+            # Classes
+            classes = spell.get('classes', [])
+            if isinstance(classes, str):
+                classes = [c.strip() for c in classes.split(',')]
+            classes_str = ' ; '.join(classes) if classes else 'Diverses'
+            
+            # Format: * Parchemin de Nom (niveau X - ECOLE) | CLASSE1 ; CLASSE2
             ritual_marker = " 🔮" if ritual else ""
-            line = f"* Parchemin de {name} (niveau {level} - {school}){ritual_marker}"
+            line = f"* Parchemin de {name} (niveau {level} - {school}){ritual_marker} | {classes_str}"
             lines.append(line)
         
         return "\n".join(lines)
+    
+    def _split_field_value(self, text: str, max_length: int) -> List[str]:
+        """Découpe le texte en chunks pour respecter la limite Discord."""
+        if len(text) <= max_length:
+            return [text]
+        
+        chunks = []
+        current_chunk = []
+        current_length = 0
+        
+        for line in text.split('\n'):
+            line_length = len(line) + 1  # +1 pour le newline
+            
+            if current_length + line_length > max_length:
+                # Sauvegarder le chunk et commencer un nouveau
+                if current_chunk:
+                    chunks.append('\n'.join(current_chunk))
+                current_chunk = [line]
+                current_length = line_length
+            else:
+                current_chunk.append(line)
+                current_length += line_length
+        
+        # Ajouter le dernier chunk
+        if current_chunk:
+            chunks.append('\n'.join(current_chunk))
+        
+        return chunks
     
     # ========================================================================
     # FONCTIONS UTILITAIRES
