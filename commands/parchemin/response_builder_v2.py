@@ -60,6 +60,7 @@ class ParcheminResponseBuilderV2:
         Crée un ou plusieurs embeds avec affichage COPIABLE.
         
         Retourne un seul embed si tout tient, ou une liste d'embeds si besoin de pagination.
+        Un nouvel embed est créé pour chaque chunk (découpage naturel par limite de caractères).
         """
         # Couleur de l'embed basée sur le niveau moyen
         embed_color = self._get_embed_color_by_level(spells)
@@ -71,50 +72,42 @@ class ParcheminResponseBuilderV2:
         # Découper en chunks (le découpage tient compte des backticks)
         chunks = self._split_field_value(spell_list, self.max_field_length)
         
-        # Calculer le nombre d'embeds nécessaires
-        # Discord limite à 25 fields par embed, mais on va être raisonnable avec 10 chunks max par embed
-        max_fields_per_embed = 10
+        # Créer un embed par chunk
         embeds = []
         
-        for embed_index in range(0, len(chunks), max_fields_per_embed):
-            # Prendre les chunks pour cet embed
-            embed_chunks = chunks[embed_index:embed_index + max_fields_per_embed]
-            
+        for chunk_index, chunk in enumerate(chunks):
             # Créer l'embed
-            if len(chunks) <= max_fields_per_embed:
+            if len(chunks) == 1:
                 # Un seul embed nécessaire
                 title = f"📜 Parchemins de Sorts - {len(spells)} disponible{'s' if len(spells) > 1 else ''}"
             else:
-                # Plusieurs embeds nécessaires
-                current_embed_num = (embed_index // max_fields_per_embed) + 1
-                total_embeds = (len(chunks) + max_fields_per_embed - 1) // max_fields_per_embed
-                title = f"📜 Parchemins de Sorts ({current_embed_num}/{total_embeds}) - {len(spells)} sorts"
+                # Plusieurs embeds nécessaires - un par chunk
+                title = f"📜 Parchemins de Sorts ({chunk_index + 1}/{len(chunks)}) - {len(spells)} sorts"
             
             embed = discord.Embed(
                 title=title,
-                description=description if embed_index == 0 else None,  # Description seulement sur le premier
+                description=description if chunk_index == 0 else None,  # Description seulement sur le premier
                 color=embed_color
             )
             
-            # Ajouter les chunks comme fields
-            for i, chunk in enumerate(embed_chunks):
-                global_index = embed_index + i
-                
-                if global_index == 0:
-                    field_name = "📋 Parchemins (Copie facile)"
-                    # Ajouter les backticks pour le formatage code Discord
-                    chunk = "```\n" + chunk + "\n```"
-                else:
-                    field_name = f"📋 Suite... (partie {global_index + 1})"
-                
-                embed.add_field(
-                    name=field_name,
-                    value=chunk,
-                    inline=False
-                )
+            # Ajouter le chunk comme field unique
+            if chunk_index == 0:
+                field_name = "📋 Parchemins (Copie facile)"
+                # Ajouter les backticks pour le formatage code Discord
+                chunk = "```\n" + chunk + "\n```"
+            else:
+                field_name = f"📋 Parchemins (suite {chunk_index + 1})"
+                # Ajouter les backticks aussi pour les chunks suivants
+                chunk = "```\n" + chunk + "\n```"
+            
+            embed.add_field(
+                name=field_name,
+                value=chunk,
+                inline=False
+            )
             
             # Footer avec statistiques (seulement sur le dernier embed)
-            if embed_index + max_fields_per_embed >= len(chunks):
+            if chunk_index == len(chunks) - 1:
                 footer_text = self._create_footer_text(stats)
                 footer_text += " | 💡 Sélectionnez le texte et copiez avec Ctrl+C"
                 embed.set_footer(text=footer_text)
@@ -127,7 +120,7 @@ class ParcheminResponseBuilderV2:
         if len(embeds) == 1:
             return embeds[0]
         else:
-            logger.info(f"Création de {len(embeds)} embeds pour {len(spells)} sorts")
+            logger.info(f"Création de {len(embeds)} embeds pour {len(spells)} sorts ({len(chunks)} chunks)")
             return embeds
     
     def _build_spell_list(self, spells: List[Dict]) -> str:
