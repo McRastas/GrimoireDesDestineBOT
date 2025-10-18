@@ -266,7 +266,7 @@ class ParcheminCommandV2(BaseCommand):
             }
             
             # Création de la réponse finale
-                        parchemin_embeds = self.response_builder.create_parchemin_embed(
+            parchemin_embeds = self.response_builder.create_parchemin_embed(
                 validated_spells, 
                 stats,
                 selected_indices,
