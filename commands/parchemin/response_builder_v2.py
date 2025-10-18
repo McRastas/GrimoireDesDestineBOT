@@ -1,7 +1,7 @@
 # commands/parchemin/response_builder_v2.py
 """
 Constructeur de réponses Discord pour les parchemins de sorts.
-Affichage classique amélioré avec tous les détails: nom, niveau, école, rituel, classe
+Affichage simplifié et copiable avec format liste à puces.
 """
 
 import discord
@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 class ParcheminResponseBuilderV2:
     """
     Classe pour construire les réponses Discord adaptée aux parchemins de sorts.
-    Affichage classique amélioré.
+    Affichage simplifié en liste à puces copiable.
     """
     
     def __init__(self):
@@ -41,22 +41,22 @@ class ParcheminResponseBuilderV2:
             stats: Statistiques optionnelles
             spell_indices: Indices originaux des sorts
             filters: Filtres appliqués
-            format_type: Ignoré, affichage classique uniquement
+            format_type: Ignoré, affichage simplifié uniquement
             
         Returns:
             discord.Embed: Embed formaté
         """
         logger.info(f"Création embed parchemin - {len(spells)} sorts")
         
-        return self._create_classique_embed(spells, stats, spell_indices, filters)
+        return self._create_liste_embed(spells, stats, spell_indices, filters)
     
     # ========================================================================
-    # FORMAT CLASSIQUE AMÉLIORÉ
+    # FORMAT LISTE SIMPLIFIÉ
     # ========================================================================
     
-    def _create_classique_embed(self, spells: List[Dict], stats: Dict[str, any] = None,
-                                spell_indices: List[int] = None, filters: Dict[str, any] = None) -> discord.Embed:
-        """Crée l'embed avec affichage CLASSIQUE amélioré."""
+    def _create_liste_embed(self, spells: List[Dict], stats: Dict[str, any] = None,
+                           spell_indices: List[int] = None, filters: Dict[str, any] = None) -> discord.Embed:
+        """Crée l'embed avec affichage LISTE simplifié et copiable."""
         
         embed_color = self._get_embed_color_by_level(spells)
         title = f"📜 Parchemins de Sorts - {len(spells)} disponible{'s' if len(spells) > 1 else ''}"
@@ -68,45 +68,38 @@ class ParcheminResponseBuilderV2:
             color=embed_color
         )
         
-        # Affichage CLASSIQUE avec tous les détails
-        for i, spell in enumerate(spells, 1):
-            name = spell.get('name', 'Inconnu')
-            level = spell.get('level', 0)
-            school = spell.get('school', 'Inconnue')
-            ritual = spell.get('ritual', False)
-            source = spell.get('source', 'Manuel inconnu')
-            
-            # Classes
-            classes = spell.get('classes', [])
-            if isinstance(classes, str):
-                classes = [c.strip() for c in classes.split(',')]
-            classes_str = ', '.join(classes) if classes else 'Diverses'
-            
-            # Formatage des emojis
-            level_emoji = self.level_emojis.get(level, '🔥')
-            school_emoji = self.school_emojis.get(school.lower(), '🔮')
-            ritual_text = " 🔮 *Rituel*" if ritual else ""
-            
-            # Création du field avec meilleure mise en page
-            field_name = f"{i}. {name} {level_emoji}"
-            
-            field_value = (
-                f"**Niveau:** {level}\n"
-                f"{school_emoji} **École:** {school}{ritual_text}\n"
-                f"📚 **Classes:** {classes_str}\n"
-                f"📖 **Source:** {source}"
-            )
-            
-            embed.add_field(
-                name=field_name,
-                value=field_value,
-                inline=False
-            )
+        # Construire la liste copiable
+        spell_list = self._build_spell_list(spells)
         
+        # Ajouter comme field unique
+        embed.add_field(
+            name="📋 Parchemins",
+            value=spell_list,
+            inline=False
+        )
+        
+        # Footer avec statistiques
         footer_text = self._create_footer_text(stats)
         embed.set_footer(text=footer_text)
         
         return embed
+    
+    def _build_spell_list(self, spells: List[Dict]) -> str:
+        """Construit la liste copiable des sorts."""
+        lines = []
+        
+        for spell in spells:
+            name = spell.get('name', 'Inconnu')
+            level = spell.get('level', 0)
+            school = spell.get('school', 'Inconnue')
+            ritual = spell.get('ritual', False)
+            
+            # Format: * Nom du sort (niveau X - ECOLE) [RITUEL]
+            ritual_marker = " 🔮" if ritual else ""
+            line = f"* Parchemin de {name} (niveau {level} - {school}){ritual_marker}"
+            lines.append(line)
+        
+        return "\n".join(lines)
     
     # ========================================================================
     # FONCTIONS UTILITAIRES
