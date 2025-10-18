@@ -32,9 +32,9 @@ class ParcheminResponseBuilderV2:
     
     def create_parchemin_embed(self, spells: List[Dict], stats: Dict[str, any] = None, 
                                spell_indices: List[int] = None, filters: Dict[str, any] = None,
-                               format_type: str = "classique") -> discord.Embed:
+                               format_type: str = "classique"):
         """
-        Crée l'embed principal des parchemins.
+        Crée l'embed (ou les embeds) principal des parchemins.
         
         Args:
             spells: Liste des sorts sélectionnés
@@ -44,60 +44,91 @@ class ParcheminResponseBuilderV2:
             format_type: Ignoré, affichage copiable uniquement
             
         Returns:
-            discord.Embed: Embed formaté
+            discord.Embed ou List[discord.Embed]: Embed(s) formaté(s)
         """
         logger.info(f"Création embed parchemin - {len(spells)} sorts")
         
-        return self._create_copyable_embed(spells, stats, spell_indices, filters)
+        return self._create_copyable_embeds(spells, stats, spell_indices, filters)
     
     # ========================================================================
     # FORMAT COPIABLE
     # ========================================================================
     
-    def _create_copyable_embed(self, spells: List[Dict], stats: Dict[str, any] = None,
-                              spell_indices: List[int] = None, filters: Dict[str, any] = None) -> discord.Embed:
-        """Crée l'embed avec affichage COPIABLE."""
+    def _create_copyable_embeds(self, spells: List[Dict], stats: Dict[str, any] = None,
+                               spell_indices: List[int] = None, filters: Dict[str, any] = None):
+        """
+        Crée un ou plusieurs embeds avec affichage COPIABLE.
         
+        Retourne un seul embed si tout tient, ou une liste d'embeds si besoin de pagination.
+        """
         # Couleur de l'embed basée sur le niveau moyen
         embed_color = self._get_embed_color_by_level(spells)
-        title = f"📜 Parchemins de Sorts - {len(spells)} disponible{'s' if len(spells) > 1 else ''}"
         description = self._build_description_with_filters(filters)
-        
-        embed = discord.Embed(
-            title=title,
-            description=description,
-            color=embed_color
-        )
         
         # Construire la liste copiable
         spell_list = self._build_spell_list(spells)
         
-        # Découper en chunks si trop long
+        # Découper en chunks (le découpage tient compte des backticks)
         chunks = self._split_field_value(spell_list, self.max_field_length)
         
-        # Ajouter les chunks comme fields
-        for i, chunk in enumerate(chunks):
-            if i == 0:
-                field_name = "📋 Parchemins (Copie facile)"
+        # Calculer le nombre d'embeds nécessaires
+        # Discord limite à 25 fields par embed, mais on va être raisonnable avec 10 chunks max par embed
+        max_fields_per_embed = 10
+        embeds = []
+        
+        for embed_index in range(0, len(chunks), max_fields_per_embed):
+            # Prendre les chunks pour cet embed
+            embed_chunks = chunks[embed_index:embed_index + max_fields_per_embed]
+            
+            # Créer l'embed
+            if len(chunks) <= max_fields_per_embed:
+                # Un seul embed nécessaire
+                title = f"📜 Parchemins de Sorts - {len(spells)} disponible{'s' if len(spells) > 1 else ''}"
             else:
-                field_name = "📋 Suite..."
+                # Plusieurs embeds nécessaires
+                current_embed_num = (embed_index // max_fields_per_embed) + 1
+                total_embeds = (len(chunks) + max_fields_per_embed - 1) // max_fields_per_embed
+                title = f"📜 Parchemins de Sorts ({current_embed_num}/{total_embeds}) - {len(spells)} sorts"
             
-            # Ajouter les instructions pour le premier field
-            if i == 0:
-                chunk = "```\n" + chunk + "\n```"
-            
-            embed.add_field(
-                name=field_name,
-                value=chunk,
-                inline=False
+            embed = discord.Embed(
+                title=title,
+                description=description if embed_index == 0 else None,  # Description seulement sur le premier
+                color=embed_color
             )
+            
+            # Ajouter les chunks comme fields
+            for i, chunk in enumerate(embed_chunks):
+                global_index = embed_index + i
+                
+                if global_index == 0:
+                    field_name = "📋 Parchemins (Copie facile)"
+                    # Ajouter les backticks pour le formatage code Discord
+                    chunk = "```\n" + chunk + "\n```"
+                else:
+                    field_name = f"📋 Suite... (partie {global_index + 1})"
+                
+                embed.add_field(
+                    name=field_name,
+                    value=chunk,
+                    inline=False
+                )
+            
+            # Footer avec statistiques (seulement sur le dernier embed)
+            if embed_index + max_fields_per_embed >= len(chunks):
+                footer_text = self._create_footer_text(stats)
+                footer_text += " | 💡 Sélectionnez le texte et copiez avec Ctrl+C"
+                embed.set_footer(text=footer_text)
+            else:
+                embed.set_footer(text="👇 Voir l'embed suivant pour la suite")
+            
+            embeds.append(embed)
         
-        # Footer avec statistiques et instructions
-        footer_text = self._create_footer_text(stats)
-        footer_text += " | 💡 Sélectionnez le texte et copiez avec Ctrl+C"
-        embed.set_footer(text=footer_text)
-        
-        return embed
+        # Retourner un seul embed ou une liste selon le cas
+        if len(embeds) == 1:
+            return embeds[0]
+        else:
+            logger.info(f"Création de {len(embeds)} embeds pour {len(spells)} sorts")
+            return embeds
     
     def _build_spell_list(self, spells: List[Dict]) -> str:
         """Construit la liste copiable des sorts avec nom français en premier."""
@@ -136,20 +167,28 @@ class ParcheminResponseBuilderV2:
     
     def _split_field_value(self, text: str, max_length: int) -> List[str]:
         """Découpe le texte en chunks pour respecter la limite Discord."""
-        if len(text) <= max_length:
+        # Réserver de l'espace pour les backticks sur le premier chunk (8 caractères)
+        first_chunk_max = max_length - 8  # Pour "```\n" et "\n```"
+        
+        if len(text) <= first_chunk_max:
             return [text]
         
         chunks = []
         current_chunk = []
         current_length = 0
+        is_first_chunk = True
         
         for line in text.split('\n'):
             line_length = len(line) + 1  # +1 pour le newline
             
-            if current_length + line_length > max_length:
+            # Utiliser la limite appropriée selon si c'est le premier chunk ou non
+            chunk_limit = first_chunk_max if is_first_chunk else max_length
+            
+            if current_length + line_length > chunk_limit:
                 # Sauvegarder le chunk et commencer un nouveau
                 if current_chunk:
                     chunks.append('\n'.join(current_chunk))
+                    is_first_chunk = False
                 current_chunk = [line]
                 current_length = line_length
             else:
