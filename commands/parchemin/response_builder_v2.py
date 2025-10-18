@@ -7,7 +7,7 @@ Supporte deux formats : TABLEAU ou CLASSIQUE
 import discord
 import logging
 from typing import List, Dict, Optional
-from .config_v2 import get_config, normalize_school_name, normalize_level_name
+from .config_v2 import get_config
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +49,7 @@ class ParcheminResponseBuilderV2:
         logger.info(f"Création embed parchemin - {len(spells)} sorts - format: {format_type}")
         
         # Utiliser le format demandé
-        if format_type.lower() == "tableau":
+        if format_type and format_type.lower() == "tableau":
             return self._create_tableau_embed(spells, stats, spell_indices, filters)
         else:
             return self._create_classique_embed(spells, stats, spell_indices, filters)
@@ -79,7 +79,7 @@ class ParcheminResponseBuilderV2:
         for level in sorted(spells_by_level.keys()):
             level_spells = spells_by_level[level]
             field_name = self._get_level_field_name(level, len(level_spells))
-            field_value = self._format_level_spells_tableau(level_spells, spell_indices)
+            field_value = self._format_level_spells_tableau(level_spells)
             
             if len(field_value) > self.max_field_length:
                 field_value = self._truncate_field_value(field_value)
@@ -90,12 +90,12 @@ class ParcheminResponseBuilderV2:
                 inline=False
             )
         
-        footer_text = self._create_footer_text(stats) + " • Format: Tableau"
+        footer_text = self._create_footer_text(stats) + " • Format: 📊 Tableau"
         embed.set_footer(text=footer_text)
         
         return embed
     
-    def _format_level_spells_tableau(self, spells: List[Dict], spell_indices: List[int] = None) -> str:
+    def _format_level_spells_tableau(self, spells: List[Dict]) -> str:
         """Formate les sorts d'un niveau en format TABLEAU."""
         if not spells:
             return "❌ Aucun sort disponible"
@@ -217,7 +217,7 @@ class ParcheminResponseBuilderV2:
         for level in sorted(spells_by_level.keys()):
             level_spells = spells_by_level[level]
             field_name = self._get_level_field_name(level, len(level_spells))
-            field_value = self._format_level_spells_classique(level_spells, spell_indices)
+            field_value = self._format_level_spells_classique(level_spells)
             
             if len(field_value) > self.max_field_length:
                 field_value = self._truncate_field_value(field_value)
@@ -228,12 +228,12 @@ class ParcheminResponseBuilderV2:
                 inline=False
             )
         
-        footer_text = self._create_footer_text(stats) + " • Format: Classique"
+        footer_text = self._create_footer_text(stats) + " • Format: 📄 Classique"
         embed.set_footer(text=footer_text)
         
         return embed
     
-    def _format_level_spells_classique(self, spells: List[Dict], spell_indices: List[int] = None) -> str:
+    def _format_level_spells_classique(self, spells: List[Dict]) -> str:
         """Formate les sorts d'un niveau en format CLASSIQUE (listing détaillé)."""
         if not spells:
             return "❌ Aucun sort disponible"
@@ -298,7 +298,11 @@ class ParcheminResponseBuilderV2:
         desc_parts = ["🎲 Sélection aléatoire"]
         
         if filters.get('level_range'):
-            desc_parts.append(f"| Niveau: {filters['level_range']}")
+            min_lvl, max_lvl = filters['level_range']
+            if min_lvl == max_lvl:
+                desc_parts.append(f"| Niveau: {min_lvl}")
+            else:
+                desc_parts.append(f"| Niveaux: {min_lvl}-{max_lvl}")
         
         if filters.get('school_filter'):
             desc_parts.append(f"| École: {filters['school_filter']}")
