@@ -266,24 +266,47 @@ class ParcheminCommandV2(BaseCommand):
             }
             
             # Création de la réponse finale
-            parchemin_embed = self.response_builder.create_parchemin_embed(
+                        parchemin_embeds = self.response_builder.create_parchemin_embed(
                 validated_spells, 
                 stats,
                 selected_indices,
                 filters
             )
             
-            # Ajouter une indication du mode d'affichage si public (même logique que boutique)
-            if public:
-                current_footer = parchemin_embed.footer.text if parchemin_embed.footer else ""
-                parchemin_embed.set_footer(text=f"{current_footer} • Message public partagé par {interaction.user.display_name}")
-            
-            # Mise à jour du message avec l'embed principal
-            await interaction.edit_original_response(embed=parchemin_embed)
-            
-            # Log de l'utilisation réussie
-            logger.info(f"Commande parchemin exécutée par {interaction.user.name} - "
-                       f"{len(selected_spells)} sorts sélectionnés")
+            # Gérer le cas d'un seul embed ou plusieurs embeds
+            if isinstance(parchemin_embeds, list):
+                # Plusieurs embeds nécessaires - pagination automatique
+                logger.info(f"Pagination: envoi de {len(parchemin_embeds)} embeds pour {len(validated_spells)} sorts")
+                
+                # Ajouter l'indicateur public si nécessaire sur tous les embeds
+                if public:
+                    for embed in parchemin_embeds:
+                        current_footer = embed.footer.text if embed.footer else ""
+                        if current_footer:
+                            embed.set_footer(text=f"{current_footer} • Message public partagé par {interaction.user.display_name}")
+                        else:
+                            embed.set_footer(text=f"Message public partagé par {interaction.user.display_name}")
+                
+                # Envoyer le premier embed en éditant le message initial
+                await interaction.edit_original_response(embed=parchemin_embeds[0])
+                
+                # Envoyer les embeds suivants avec followup
+                for embed in parchemin_embeds[1:]:
+                    await interaction.followup.send(embed=embed, ephemeral=not public)
+                
+                logger.info(f"Parchemins générés avec succès: {len(validated_spells)} sorts sur {len(parchemin_embeds)} embeds (public: {public})")
+            else:
+                # Un seul embed (comportement classique)
+                if public:
+                    current_footer = parchemin_embeds.footer.text if parchemin_embeds.footer else ""
+                    if current_footer:
+                        parchemin_embeds.set_footer(text=f"{current_footer} • Message public partagé par {interaction.user.display_name}")
+                    else:
+                        parchemin_embeds.set_footer(text=f"Message public partagé par {interaction.user.display_name}")
+                
+                await interaction.edit_original_response(embed=parchemin_embeds)
+                
+                logger.info(f"Parchemins générés avec succès: {len(validated_spells)} sorts (public: {public})")
             
         except Exception as e:
             logger.error(f"Erreur dans la commande parchemin: {e}", exc_info=True)
