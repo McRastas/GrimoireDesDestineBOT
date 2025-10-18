@@ -2,6 +2,7 @@
 """
 Constructeur de réponses Discord pour les parchemins de sorts.
 Affichage amélioré avec tous les détails: nom, niveau, école, rituel, classe
+Deux formats: CARTES (par défaut) ou CLASSIQUE
 """
 
 import discord
@@ -14,7 +15,7 @@ logger = logging.getLogger(__name__)
 class ParcheminResponseBuilderV2:
     """
     Classe pour construire les réponses Discord adaptée aux parchemins de sorts.
-    Affichage amélioré avec support tableau et classique.
+    Affichage amélioré avec support cartes et classique.
     """
     
     def __init__(self):
@@ -32,7 +33,7 @@ class ParcheminResponseBuilderV2:
     
     def create_parchemin_embed(self, spells: List[Dict], stats: Dict[str, any] = None, 
                                spell_indices: List[int] = None, filters: Dict[str, any] = None,
-                               format_type: str = "classique") -> discord.Embed:
+                               format_type: str = "cartes") -> discord.Embed:
         """
         Crée l'embed principal des parchemins.
         
@@ -41,7 +42,7 @@ class ParcheminResponseBuilderV2:
             stats: Statistiques optionnelles
             spell_indices: Indices originaux des sorts
             filters: Filtres appliqués
-            format_type: "tableau" ou "classique" (défaut: classique)
+            format_type: "cartes" (défaut) ou "classique"
             
         Returns:
             discord.Embed: Embed formaté
@@ -49,18 +50,18 @@ class ParcheminResponseBuilderV2:
         logger.info(f"Création embed parchemin - {len(spells)} sorts - format: {format_type}")
         
         # Utiliser le format demandé
-        if format_type and format_type.lower() == "tableau":
-            return self._create_tableau_embed(spells, stats, spell_indices, filters)
-        else:
+        if format_type and format_type.lower() == "classique":
             return self._create_classique_embed(spells, stats, spell_indices, filters)
+        else:
+            return self._create_cartes_embed(spells, stats, spell_indices, filters)
     
     # ========================================================================
-    # FORMAT TABLEAU
+    # FORMAT CARTES (PAR DÉFAUT)
     # ========================================================================
     
-    def _create_tableau_embed(self, spells: List[Dict], stats: Dict[str, any] = None,
-                              spell_indices: List[int] = None, filters: Dict[str, any] = None) -> discord.Embed:
-        """Crée l'embed avec affichage TABLEAU."""
+    def _create_cartes_embed(self, spells: List[Dict], stats: Dict[str, any] = None,
+                             spell_indices: List[int] = None, filters: Dict[str, any] = None) -> discord.Embed:
+        """Crée l'embed avec affichage CARTES (style étagère magique)."""
         
         embed_color = self._get_embed_color_by_level(spells)
         title = f"📜 Parchemins de Sorts - {len(spells)} disponible{'s' if len(spells) > 1 else ''}"
@@ -72,67 +73,7 @@ class ParcheminResponseBuilderV2:
             color=embed_color
         )
         
-        # Grouper les sorts par niveau
-        spells_by_level = self._group_spells_by_level(spells)
-        
-        # Affichage TABLEAU par niveau
-        for level in sorted(spells_by_level.keys()):
-            level_spells = spells_by_level[level]
-            field_name = self._get_level_field_name(level, len(level_spells))
-            field_value = self._format_level_spells_tableau(level_spells)
-            
-            if len(field_value) > self.max_field_length:
-                field_value = self._truncate_field_value(field_value)
-            
-            embed.add_field(
-                name=field_name,
-                value=field_value,
-                inline=False
-            )
-        
-        footer_text = self._create_footer_text(stats) + " • Format: 📊 Tableau"
-        embed.set_footer(text=footer_text)
-        
-        return embed
-    
-    def _format_level_spells_tableau(self, spells: List[Dict]) -> str:
-        """Formate les sorts d'un niveau en format TABLEAU avec tous les détails."""
-        if not spells:
-            return "❌ Aucun sort disponible"
-        
-        lines = []
-        
-        # En-têtes du tableau
-        lines.append("```")
-        lines.append("┌──────────────────────┬────────────┬──────────┬─────────────┐")
-        lines.append("│ Sort                 │ École      │ Rituel   │ Classe      │")
-        lines.append("├──────────────────────┼────────────┼──────────┼─────────────┤")
-        
-        # Corps du tableau
-        for spell in spells:
-            name = spell.get('name', 'Inconnu')[:19].ljust(19)
-            school = self._format_school_short(spell.get('school', 'Inconnue'))[:10].ljust(10)
-            
-            # Rituel
-            ritual = spell.get('ritual', False)
-            ritual_text = ("Oui" if ritual else "Non")[:8].ljust(8)
-            
-            # Classes (première classe)
-            classes = spell.get('classes', [])
-            if isinstance(classes, str):
-                classes = [c.strip() for c in classes.split(',')]
-            
-            first_class = self._format_class_emoji(classes[0] if classes else "Unknown")[:11].ljust(11)
-            
-            line = f"│ {name} │ {school} │ {ritual_text} │ {first_class} │"
-            lines.append(line)
-        
-        # Fermature du tableau
-        lines.append("└──────────────────────┴────────────┴──────────┴─────────────┘")
-        lines.append("```")
-        
-        # Détails complets sous le tableau
-        lines.append("\n**Détails des sorts:**")
+        # Affichage CARTES - chaque sort est une "carte"
         for i, spell in enumerate(spells, 1):
             name = spell.get('name', 'Inconnu')
             level = spell.get('level', 0)
@@ -146,54 +87,51 @@ class ParcheminResponseBuilderV2:
                 classes = [c.strip() for c in classes.split(',')]
             classes_str = ', '.join(classes) if classes else 'Diverses'
             
-            # Formatage
+            # Formatage des emojis
             level_emoji = self.level_emojis.get(level, '🔥')
             school_emoji = self.school_emojis.get(school.lower(), '🔮')
-            ritual_emoji = self.ritual_emojis.get(ritual, '')
+            ritual_marker = "🔮 *Rituel*" if ritual else "*Sort Standard*"
             
-            detail = f"{i}. **{name}** {level_emoji}\n"
-            detail += f"   {school_emoji} {school} {ritual_emoji}\n"
-            detail += f"   📚 {classes_str}\n"
-            detail += f"   📖 {source}"
-            lines.append(detail)
+            # Construction de la "carte"
+            card_content = self._build_spell_card(
+                i, name, level, school, school_emoji, 
+                ritual, ritual_marker, classes_str, source, level_emoji
+            )
+            
+            # Ajouter comme field
+            field_name = f"📋 Parchemin {i}"
+            embed.add_field(
+                name=field_name,
+                value=card_content,
+                inline=False
+            )
         
-        return "\n".join(lines)
+        footer_text = self._create_footer_text(stats) + " • Format: 📋 Cartes"
+        embed.set_footer(text=footer_text)
+        
+        return embed
     
-    def _format_school_short(self, school: str) -> str:
-        """Formate le nom court d'école avec emoji."""
-        school_lower = school.lower().strip()
-        emoji = self.school_emojis.get(school_lower, '🔮')
+    def _build_spell_card(self, index: int, name: str, level: int, school: str, 
+                         school_emoji: str, ritual: bool, ritual_marker: str, 
+                         classes_str: str, source: str, level_emoji: str) -> str:
+        """Construit une "carte" de sort au format visuel."""
         
-        abbrev_map = {
-            'abjuration': 'Abjur.',
-            'conjuration': 'Conj.',
-            'divination': 'Div.',
-            'enchantment': 'Ench.',
-            'evocation': 'Evoc.',
-            'illusion': 'Illu.',
-            'necromancy': 'Necro.',
-            'transmutation': 'Trans.',
-        }
+        card = (
+            f"╔════════════════════════════════════╗\n"
+            f"║ {name[:32]:32} ║\n"
+            f"╠════════════════════════════════════╣\n"
+            f"║ {level_emoji} Niveau {level:26} ║\n"
+            f"║ {school_emoji} {school[:28]:28} ║\n"
+            f"║ {ritual_marker:34} ║\n"
+            f"╠════════════════════════════════════╣\n"
+            f"║ Classes:                          ║\n"
+            f"║ 📚 {classes_str[:30]:30} ║\n"
+            f"╠════════════════════════════════════╣\n"
+            f"║ Source: {source[:26]:25} ║\n"
+            f"╚════════════════════════════════════╝"
+        )
         
-        abbrev = abbrev_map.get(school_lower, school[:6])
-        return f"{emoji} {abbrev}"
-    
-    def _format_class_emoji(self, class_name: str) -> str:
-        """Formate le nom de classe avec emoji."""
-        class_map = {
-            'artificer': '⚙️ Artificer',
-            'bard': '🎵 Bard',
-            'cleric': '⛪ Cleric',
-            'druid': '🌿 Druid',
-            'paladin': '⚔️ Paladin',
-            'ranger': '🏹 Ranger',
-            'sorcerer': '✨ Sorcer.',
-            'warlock': '👁️ Warlock',
-            'wizard': '🔵 Wizard',
-        }
-        
-        class_lower = class_name.lower().strip()
-        return class_map.get(class_lower, f"• {class_name}")
+        return card
     
     # ========================================================================
     # FORMAT CLASSIQUE
@@ -201,7 +139,7 @@ class ParcheminResponseBuilderV2:
     
     def _create_classique_embed(self, spells: List[Dict], stats: Dict[str, any] = None,
                                 spell_indices: List[int] = None, filters: Dict[str, any] = None) -> discord.Embed:
-        """Crée l'embed avec affichage CLASSIQUE (détails complets)."""
+        """Crée l'embed avec affichage CLASSIQUE (détails complets en fields)."""
         
         embed_color = self._get_embed_color_by_level(spells)
         title = f"📜 Parchemins de Sorts - {len(spells)} disponible{'s' if len(spells) > 1 else ''}"
@@ -230,7 +168,6 @@ class ParcheminResponseBuilderV2:
             # Formatage des emojis
             level_emoji = self.level_emojis.get(level, '🔥')
             school_emoji = self.school_emojis.get(school.lower(), '🔮')
-            ritual_emoji = self.ritual_emojis.get(ritual, '')
             ritual_text = " 🔮 *Rituel*" if ritual else ""
             
             # Création du field
@@ -258,27 +195,6 @@ class ParcheminResponseBuilderV2:
     # FONCTIONS UTILITAIRES COMMUNES
     # ========================================================================
     
-    def _group_spells_by_level(self, spells: List[Dict]) -> Dict[int, List[Dict]]:
-        """Groupe les sorts par niveau."""
-        grouped = {}
-        
-        for spell in spells:
-            level = int(spell.get('level', 0))
-            if level not in grouped:
-                grouped[level] = []
-            grouped[level].append(spell)
-        
-        return grouped
-    
-    def _get_level_field_name(self, level: int, count: int) -> str:
-        """Crée le nom du champ pour un niveau."""
-        if level == 0:
-            emoji = self.level_emojis.get(0, '✨')
-            return f"{emoji} Tours de Magie ({count})"
-        else:
-            emoji = self.level_emojis.get(level, '🔥')
-            return f"{emoji} Niveau {level} ({count})"
-    
     def _build_description_with_filters(self, filters: Dict[str, any] = None) -> str:
         """Crée la description avec les filtres appliqués."""
         if not filters:
@@ -304,19 +220,6 @@ class ParcheminResponseBuilderV2:
             desc_parts.append(f"| {ritual_text}")
         
         return " ".join(desc_parts)
-    
-    def _truncate_field_value(self, value: str) -> str:
-        """Tronque une valeur si elle est trop longue."""
-        if len(value) <= self.max_field_length:
-            return value
-        
-        truncated = value[:self.max_field_length - 50]
-        last_newline = truncated.rfind('\n')
-        
-        if last_newline > self.max_field_length // 2:
-            truncated = truncated[:last_newline]
-        
-        return truncated + "\n\n*[Contenu tronqué]*"
     
     def _get_embed_color_by_level(self, spells: List[Dict]) -> int:
         """Détermine la couleur de l'embed basée sur le niveau moyen."""

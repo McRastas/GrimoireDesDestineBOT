@@ -86,7 +86,7 @@ class ParcheminCommandV2(BaseCommand):
             ecole="École de magie spécifique",
             classe="Classe de personnage spécifique",
             rituel="Filtrer par sorts rituels",
-            format_affichage="Format d'affichage: 'tableau' (compact) ou 'classique' (détaillé) - défaut: classique"
+            format_affichage="Format d'affichage: 'cartes' (par défaut) ou 'classique' - défaut: cartes"
         )
         @app_commands.choices(
             ecole=[
@@ -111,7 +111,7 @@ class ParcheminCommandV2(BaseCommand):
                 app_commands.Choice(name="Wizard", value="wizard")
             ],
             format_affichage=[
-                app_commands.Choice(name="📊 Tableau (compact)", value="tableau"),
+                app_commands.Choice(name="📋 Cartes (par défaut)", value="cartes"),
                 app_commands.Choice(name="📄 Classique (détaillé)", value="classique"),
             ]
         )
@@ -123,14 +123,14 @@ class ParcheminCommandV2(BaseCommand):
             ecole: Optional[str] = None,
             classe: Optional[str] = None,
             rituel: Optional[bool] = None,
-            format_affichage: Optional[str] = "classique"
+            format_affichage: Optional[str] = "cartes"
         ):
             await self.callback(interaction, nombre_parchemins, public, niveau, ecole, classe, rituel, format_affichage)
     
     async def callback(self, interaction: discord.Interaction, nombre_parchemins: Optional[int] = None, 
                       public: Optional[bool] = False, niveau: Optional[str] = None,
                       ecole: Optional[str] = None, classe: Optional[str] = None, 
-                      rituel: Optional[bool] = None, format_affichage: Optional[str] = "classique"):
+                      rituel: Optional[bool] = None, format_affichage: Optional[str] = "cartes"):
         """
         Traite la commande parchemin.
         Même structure que boutique/callback mais adapté aux sorts.
