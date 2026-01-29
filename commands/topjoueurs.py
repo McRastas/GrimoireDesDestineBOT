@@ -1,12 +1,13 @@
 """
 Commande Top Joueurs - Classe les joueurs les plus mentionnés
-Compte les mentions dans le canal récompenses
+Compte les mentions dans le canal récompenses sur les 30 derniers jours
 """
 
 import discord
 from discord import app_commands
 from collections import defaultdict
 from typing import Optional
+from datetime import datetime, timedelta
 from .base import BaseCommand
 
 
@@ -19,7 +20,7 @@ class TopJoueurs(BaseCommand):
 
     @property
     def description(self) -> str:
-        return "Affiche le classement des joueurs les plus mentionnés dans le canal récompense"
+        return "Affiche le classement des joueurs les plus mentionnés sur les 30 derniers jours"
     
     def register(self, tree: app_commands.CommandTree):
         """Enregistre la commande avec ses paramètres."""
@@ -73,13 +74,17 @@ class TopJoueurs(BaseCommand):
             # Message de progression (ephemeral)
             await interaction.followup.send(
                 f"{adjusted_warning}📊 Analyse des mentions en cours...\n"
-                f"Canal : #{recompense_channel.name}",
+                f"Canal : #{recompense_channel.name}\n"
+                f"Période : 30 derniers jours",
                 ephemeral=True
             )
 
-            # Collecter tous les messages
+            # Calculer la date limite (30 jours en arrière)
+            date_limite = datetime.now(datetime.UTC if hasattr(datetime, 'UTC') else timezone.utc) - timedelta(days=30)
+
+            # Collecter les messages des 30 derniers jours
             all_messages = []
-            async for message in recompense_channel.history(limit=None):
+            async for message in recompense_channel.history(limit=None, after=date_limite):
                 all_messages.append(message)
                 
                 # Limite de sécurité (10000 messages max)
@@ -120,14 +125,14 @@ class TopJoueurs(BaseCommand):
 
             if not sorted_players:
                 await interaction.edit_original_response(
-                    content="📊 Aucune mention trouvée dans le canal récompense."
+                    content="📊 Aucune mention trouvée dans le canal récompense sur les 30 derniers jours."
                 )
                 return
 
             # Créer l'embed (sera ephemeral automatiquement)
             embed = discord.Embed(
                 title=f"🏆 Top {len(sorted_players)} des Joueurs",
-                description=f"Classement basé sur les mentions dans #{recompense_channel.name}",
+                description=f"Classement basé sur les mentions dans #{recompense_channel.name}\n📅 Période : 30 derniers jours",
                 color=discord.Color.gold(),
                 timestamp=discord.utils.utcnow()
             )
