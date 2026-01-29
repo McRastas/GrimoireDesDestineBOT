@@ -7,7 +7,7 @@ import discord
 from discord import app_commands
 from collections import defaultdict
 from typing import Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from .base import BaseCommand
 
 
@@ -80,7 +80,7 @@ class TopJoueurs(BaseCommand):
             )
 
             # Calculer la date limite (30 jours en arrière)
-            date_limite = datetime.now(datetime.UTC if hasattr(datetime, 'UTC') else timezone.utc) - timedelta(days=30)
+            date_limite = datetime.now(timezone.utc) - timedelta(days=30)
 
             # Collecter les messages des 30 derniers jours
             all_messages = []
