@@ -23,7 +23,7 @@ from .mention_list import MentionListCommand
 from .recap_mj import RecapMjCommand
 from .top_mj import TopMjCommand
 from .stats_logs import StatsLogsCommand
-from .topjoueurs import TopJoueursCommand
+from .topjoueurs import TopJoueurs as TopJoueursCommand
 
 # ============================================================================
 # COMMANDES QUÊTES
