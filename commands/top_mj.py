@@ -7,6 +7,7 @@ import discord
 from discord import app_commands
 from collections import defaultdict
 from typing import Optional
+from datetime import datetime, timedelta, timezone
 from .base import BaseCommand
 
 
@@ -25,17 +26,23 @@ class TopMjCommand(BaseCommand):
         """Enregistre la commande avec ses paramètres."""
         @app_commands.command(name=self.name, description=self.description)
         @app_commands.describe(
-            nombre="Nombre de MJ à afficher (entre 5 et 50, défaut: 10)"
+            nombre="Nombre de MJ à afficher (entre 5 et 50, défaut: 10)",
+            periode="Filtrer sur les 30 derniers jours uniquement (défaut: Non)"
         )
-        async def top_mj_cmd(interaction: discord.Interaction, nombre: Optional[int] = 10):
-            await self.callback(interaction, nombre)
+        async def top_mj_cmd(
+            interaction: discord.Interaction, 
+            nombre: Optional[int] = 10,
+            periode: Optional[bool] = False
+        ):
+            await self.callback(interaction, nombre, periode)
         
         tree.add_command(top_mj_cmd)
 
     async def callback(
         self, 
         interaction: discord.Interaction,
-        nombre: int = 10
+        nombre: int = 10,
+        periode: bool = False
     ):
         """Analyse les posts dans le canal récompenses et affiche le classement des MJ."""
         
@@ -70,21 +77,38 @@ class TopMjCommand(BaseCommand):
                 )
                 return
 
+            # Calculer la période
+            periode_text = "30 derniers jours" if periode else "tout l'historique"
+            date_limite = None
+            if periode:
+                date_limite = datetime.now(timezone.utc) - timedelta(days=30)
+
             # Message de progression (ephemeral)
             await interaction.followup.send(
                 f"{adjusted_warning}📊 Analyse des messages en cours...\n"
-                f"Canal : #{recompense_channel.name}",
+                f"Canal : #{recompense_channel.name}\n"
+                f"Période : {periode_text}",
                 ephemeral=True
             )
 
             # Collecter tous les messages
             all_messages = []
-            async for message in recompense_channel.history(limit=None):
-                all_messages.append(message)
-                
-                # Limite de sécurité (10000 messages max)
-                if len(all_messages) >= 10000:
-                    break
+            if periode and date_limite:
+                # Filtrer sur les 30 derniers jours
+                async for message in recompense_channel.history(limit=None, after=date_limite):
+                    all_messages.append(message)
+                    
+                    # Limite de sécurité (10000 messages max)
+                    if len(all_messages) >= 10000:
+                        break
+            else:
+                # Tout l'historique
+                async for message in recompense_channel.history(limit=None):
+                    all_messages.append(message)
+                    
+                    # Limite de sécurité (10000 messages max)
+                    if len(all_messages) >= 10000:
+                        break
 
             # Compter les posts valides par auteur
             mj_stats = defaultdict(int)
@@ -103,14 +127,14 @@ class TopMjCommand(BaseCommand):
 
             if not sorted_mj:
                 await interaction.edit_original_response(
-                    content="📊 Aucun MJ trouvé avec des posts contenant au moins 2 mentions."
+                    content=f"📊 Aucun MJ trouvé avec des posts contenant au moins 2 mentions sur {periode_text}."
                 )
                 return
 
             # Créer l'embed (sera ephemeral automatiquement)
             embed = discord.Embed(
                 title=f"🏆 Top {nombre} des MJ les plus actifs",
-                description=f"Classement basé sur les posts dans #{recompense_channel.name} avec au moins 2 mentions",
+                description=f"Classement basé sur les posts dans #{recompense_channel.name} avec au moins 2 mentions\n📅 Période : {periode_text}",
                 color=discord.Color.gold(),
                 timestamp=discord.utils.utcnow()
             )
