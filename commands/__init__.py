@@ -23,6 +23,7 @@ from .mention_list import MentionListCommand
 from .recap_mj import RecapMjCommand
 from .top_mj import TopMjCommand
 from .stats_logs import StatsLogsCommand
+from .top_joueurs import TopJoueursCommand
 
 # ============================================================================
 # COMMANDES QUÊTES
@@ -91,6 +92,7 @@ ALL_COMMANDS = [
     RecapMjCommand,
     TopMjCommand,
     StatsLogsCommand,
+    TopJoueursCommand,
     # Quêtes
     MesQuetesCommand,
     # Générateur PNJ
