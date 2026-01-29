@@ -1,44 +1,97 @@
+"""
+Commande Top Joueurs - Classe les joueurs les plus mentionnés
+Compte les mentions dans le canal récompenses
+"""
+
 import discord
-from discord.ext import commands
 from discord import app_commands
-from datetime import datetime
 from collections import defaultdict
-import os
+from typing import Optional
+from .base import BaseCommand
 
-class TopJoueurs(commands.Cog):
-    def __init__(self, bot):
-        self.bot = bot
-        self.recompense_channel_id = int(os.getenv('RECOMPENSE_CHANNEL_ID'))
 
-    @app_commands.command(name="topjoueurs", description="Affiche le classement des joueurs les plus mentionnés dans le canal récompense")
-    @app_commands.describe(limite="Nombre de joueurs à afficher (défaut: 10, max: 25)")
-    async def topjoueurs(self, interaction: discord.Interaction, limite: int = 10):
-        """Affiche le top des joueurs les plus mentionnés dans le canal récompense"""
+class TopJoueurs(BaseCommand):
+    """Commande pour afficher le top des joueurs les plus mentionnés."""
+
+    @property
+    def name(self) -> str:
+        return "topjoueurs"
+
+    @property
+    def description(self) -> str:
+        return "Affiche le classement des joueurs les plus mentionnés dans le canal récompense"
+    
+    def register(self, tree: app_commands.CommandTree):
+        """Enregistre la commande avec ses paramètres."""
+        @app_commands.command(name=self.name, description=self.description)
+        @app_commands.describe(
+            limite="Nombre de joueurs à afficher (entre 5 et 25, défaut: 10)"
+        )
+        async def topjoueurs_cmd(interaction: discord.Interaction, limite: Optional[int] = 10):
+            await self.callback(interaction, limite)
         
-        # Validation de la limite
-        if limite < 1:
-            await interaction.response.send_message("❌ La limite doit être au moins 1.", ephemeral=True)
-            return
-        if limite > 25:
-            await interaction.response.send_message("❌ La limite maximale est 25 joueurs.", ephemeral=True)
-            return
+        tree.add_command(topjoueurs_cmd)
 
-        await interaction.response.defer()
-
-        # Récupérer le canal récompense
-        channel = self.bot.get_channel(self.recompense_channel_id)
-        if not channel:
-            await interaction.followup.send("❌ Canal récompense introuvable.")
-            return
-
-        # Dictionnaire pour compter les mentions par utilisateur
-        mention_counts = defaultdict(int)
-        total_messages = 0
-        messages_with_mentions = 0
+    async def callback(
+        self, 
+        interaction: discord.Interaction,
+        limite: int = 10
+    ):
+        """Analyse les mentions dans le canal récompenses et affiche le classement des joueurs."""
+        
+        # Validation du nombre (entre 5 et 25)
+        limite_original = limite
+        if limite < 5:
+            limite = 5
+        elif limite > 25:
+            limite = 25
+        
+        # Réponse discrète (ephemeral) - visible uniquement par l'utilisateur
+        await interaction.response.defer(ephemeral=True)
+        
+        # Message d'avertissement si le nombre a été ajusté
+        adjusted_warning = ""
+        if limite_original != limite:
+            adjusted_warning = f"⚠️ Nombre ajusté de {limite_original} à {limite} (limites: 5-25)\n\n"
 
         try:
-            # Parcourir TOUS les messages du canal
-            async for message in channel.history(limit=None, oldest_first=False):
+            # Chercher le canal récompenses (plusieurs variantes possibles)
+            recompense_channel = None
+            for channel in interaction.guild.text_channels:
+                if channel.name.lower() in ['recompenses', 'récompenses', 'recompense']:
+                    recompense_channel = channel
+                    break
+
+            if not recompense_channel:
+                await interaction.followup.send(
+                    "❌ Le canal **récompenses** n'a pas été trouvé sur ce serveur.\n"
+                    "Assurez-vous qu'un canal avec ce nom existe.",
+                    ephemeral=True
+                )
+                return
+
+            # Message de progression (ephemeral)
+            await interaction.followup.send(
+                f"{adjusted_warning}📊 Analyse des mentions en cours...\n"
+                f"Canal : #{recompense_channel.name}",
+                ephemeral=True
+            )
+
+            # Collecter tous les messages
+            all_messages = []
+            async for message in recompense_channel.history(limit=None):
+                all_messages.append(message)
+                
+                # Limite de sécurité (10000 messages max)
+                if len(all_messages) >= 10000:
+                    break
+
+            # Compter les mentions par utilisateur
+            mention_counts = defaultdict(int)
+            total_messages = 0
+            messages_with_mentions = 0
+
+            for message in all_messages:
                 total_messages += 1
                 
                 # Ignorer les messages de bots
@@ -59,63 +112,90 @@ class TopJoueurs(commands.Cog):
                         mention_counts[user_id] += 1
 
             # Trier par nombre de mentions (décroissant)
-            sorted_players = sorted(mention_counts.items(), key=lambda x: x[1], reverse=True)
-            
-            # Limiter au top demandé
-            top_players = sorted_players[:limite]
+            sorted_players = sorted(
+                mention_counts.items(),
+                key=lambda x: x[1],
+                reverse=True
+            )[:limite]
 
-            # Créer l'embed
+            if not sorted_players:
+                await interaction.edit_original_response(
+                    content="📊 Aucune mention trouvée dans le canal récompense."
+                )
+                return
+
+            # Créer l'embed (sera ephemeral automatiquement)
             embed = discord.Embed(
-                title=f"🏆 Top {len(top_players)} des Joueurs",
-                description=f"Classement basé sur les mentions dans <#{self.recompense_channel_id}>",
+                title=f"🏆 Top {len(sorted_players)} des Joueurs",
+                description=f"Classement basé sur les mentions dans #{recompense_channel.name}",
                 color=discord.Color.gold(),
-                timestamp=datetime.now()
+                timestamp=discord.utils.utcnow()
             )
 
-            # Emojis pour le podium
-            medals = {0: "🥇", 1: "🥈", 2: "🥉"}
+            # Médailles pour le podium
+            medals = ['🥇', '🥈', '🥉']
+            
+            # Construire le classement
+            ranking_text = ""
+            for i, (user_id, count) in enumerate(sorted_players):
+                try:
+                    user = await self.bot.fetch_user(user_id)
+                    user_name = f"{user.display_name}"
+                except:
+                    user_name = f"Utilisateur inconnu"
+                
+                # Icône pour le classement
+                if i < 3:
+                    icon = medals[i]
+                else:
+                    icon = f"**{i + 1}.**"
+                
+                mention_text = "mention" if count == 1 else "mentions"
+                ranking_text += f"{icon} {user_name} - **{count}** {mention_text}\n"
 
-            # Ajouter les joueurs au classement
-            if top_players:
-                ranking_text = ""
-                for index, (user_id, count) in enumerate(top_players):
-                    user = self.bot.get_user(user_id)
-                    username = user.mention if user else f"<@{user_id}>"
-                    
-                    # Ajouter médaille pour le top 3
-                    medal = medals.get(index, f"**{index + 1}.**")
-                    
-                    ranking_text += f"{medal} {username} — **{count}** mention{'s' if count > 1 else ''}\n"
+            embed.add_field(
+                name="📊 Classement",
+                value=ranking_text,
+                inline=False
+            )
 
-                embed.add_field(
-                    name="Classement",
-                    value=ranking_text,
-                    inline=False
-                )
+            # Statistiques supplémentaires
+            total_mentions = sum(count for _, count in mention_counts.items())
+            total_players = len(mention_counts)
+            
+            stats_text = (
+                f"**Mentions totales :** {total_mentions}\n"
+                f"**Messages analysés :** {total_messages}\n"
+                f"**Messages avec mentions :** {messages_with_mentions}\n"
+                f"**Joueurs mentionnés (total) :** {total_players}"
+            )
+            
+            embed.add_field(
+                name="📈 Statistiques",
+                value=stats_text,
+                inline=False
+            )
 
-                # Statistiques générales
-                total_mentions = sum(count for _, count in mention_counts.items())
-                embed.add_field(
-                    name="📊 Statistiques",
-                    value=f"**{total_mentions}** mentions totales\n"
-                          f"**{len(mention_counts)}** joueurs mentionnés\n"
-                          f"**{messages_with_mentions}** messages avec mentions\n"
-                          f"**{total_messages}** messages analysés",
-                    inline=False
-                )
+            embed.set_footer(
+                text=f"Demandé par {interaction.user.display_name} • Visible uniquement par vous"
+            )
 
-            else:
-                embed.description = "Aucune mention trouvée dans le canal récompense."
-
-            embed.set_footer(text=f"Demandé par {interaction.user.display_name}")
-
-            await interaction.followup.send(embed=embed)
+            # Éditer le message initial (reste ephemeral)
+            await interaction.edit_original_response(
+                content=None,
+                embed=embed
+            )
 
         except discord.Forbidden:
-            await interaction.followup.send("❌ Je n'ai pas la permission de lire l'historique du canal récompense.")
+            await interaction.followup.send(
+                "❌ Je n'ai pas la permission de lire l'historique du canal récompenses.\n"
+                "Vérifiez que le bot a bien la permission `Lire l'historique des messages`.",
+                ephemeral=True
+            )
         except Exception as e:
-            await interaction.followup.send(f"❌ Une erreur s'est produite : {str(e)}")
-            print(f"Erreur dans topjoueurs: {e}")
-
-async def setup(bot):
-    await bot.add_cog(TopJoueurs(bot))
+            print(f"❌ Erreur dans topjoueurs: {e}")
+            await interaction.followup.send(
+                f"❌ Une erreur est survenue lors de l'analyse des messages.\n"
+                f"Erreur : {str(e)}",
+                ephemeral=True
+            )
