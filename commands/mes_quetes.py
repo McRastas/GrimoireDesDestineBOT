@@ -49,20 +49,35 @@ class MesQuetesCommand(BaseCommand):
     def _determine_best_year(self, jour: int, mois: int, now: datetime) -> int:
         """
         Détermine l'année la plus logique pour une date JJ/MM sans année.
-        LOGIQUE : privilégier les dates FUTURES (année actuelle ou suivante).
+
+        LOGIQUE INTELLIGENTE :
+        - Date future cette année → année actuelle
+        - Date passée de moins de 30 jours → année actuelle (vraiment passée)
+        - Date passée de plus de 30 jours → année prochaine (probablement futur)
+
+        Exemple (si on est le 30/01/2026) :
+        - "15/02" → 15/02/2026 (futur proche)
+        - "15/01" → 15/01/2026 (passé de 15j, on garde cette année)
+        - "15/12" → 15/12/2026 (passé de 46j, donc c'est l'année prochaine... non en fait futur)
+
+        En fait : si passé de plus de 30j, c'est probablement l'année suivante
         """
         current_year = now.year
+        seuil_jours_passes = 30  # Seuil pour considérer que c'est l'année suivante
 
         try:
-            # Option 1: Année actuelle
             date_current_year = datetime(current_year, mois, jour, tzinfo=timezone.utc)
-            days_diff_current = (date_current_year - now).days
+            days_diff = (date_current_year - now).days
 
-            # Si la date cette année est future ou aujourd'hui, on la garde
-            if days_diff_current >= 0:
+            # Date future ou aujourd'hui → année actuelle
+            if days_diff >= 0:
                 return current_year
 
-            # Sinon, c'est l'année prochaine
+            # Date passée récemment (< 30 jours) → vraiment passée, année actuelle
+            if days_diff >= -seuil_jours_passes:
+                return current_year
+
+            # Date passée de longtemps (> 30 jours) → probablement année prochaine
             return current_year + 1
 
         except ValueError:
