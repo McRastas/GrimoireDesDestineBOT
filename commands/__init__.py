@@ -94,7 +94,7 @@ ALL_COMMANDS = [
     StatsLogsCommand,
     TopJoueursCommand,
     # Quêtes
-#    MesQuetesCommand,
+    MesQuetesCommand,
     # Générateur PNJ
     PnjGeneratorCommand,
     # Administration
