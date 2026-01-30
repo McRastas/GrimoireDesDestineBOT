@@ -8,7 +8,7 @@ const XP_TABLE = {
 
 // PV moyens par classe (basé sur les dés de vie)
 const HP_AVERAGES = {
-    'Magicien': 4, 'Ensorceleur': 4,  // d6 → 4
+    'Magicien': 4, 'Ensorceleur': 4, 'Sorcier': 4,  // d6 → 4
     'Artificier': 5, 'Barde': 5, 'Clerc': 5, 'Druide': 5, 'Moine': 5, 'Occultiste': 5, 'Roublard': 5,  // d8 → 5
     'Guerrier': 6, 'Paladin': 6, 'Rôdeur': 6,  // d10 → 6
     'Barbare': 7  // d12 → 7
@@ -594,49 +594,48 @@ function generateQuestesSection() {
 // ===== GESTION DES NIVEAUX ET XP =====
 
 function calculateXPProgression(xpActuels, xpObtenus, niveauActuel, niveauCible, classeGainNiveau) {
+    if (xpActuels === null) {
+        return { progressionText: '', xpInfo: '', isLevelUp: false };
+    }
+
     const nouveauTotal = xpActuels + xpObtenus;
     let progressionText = '';
     let xpInfo = '';
-    
+    let isLevelUp = false;
+
     // XP requis pour passer au niveau suivant depuis le niveau actuel
     const xpRequisActuel = XP_TABLE[niveauActuel + 1] || '?';
-    
-    // Format de base : ancien/requis + XP ==> nouveau/requis
-    progressionText = ` ==> ${nouveauTotal}/${xpRequisActuel}`;
-    
+
     // Vérifier si level up possible
     if (nouveauTotal >= xpRequisActuel && xpRequisActuel !== '?') {
-        const classeNom = getClasseForXP(classeGainNiveau);
-        progressionText += ` ==> LEVEL UP ${classeNom} ${niveauCible}`;
-        
+        isLevelUp = true;
+
         // Vérifier si c'est le niveau cible attendu
         if (niveauCible === niveauActuel + 1) {
-            xpInfo = ' ✅';
+            xpInfo = '';
         } else if (niveauCible > niveauActuel + 1) {
             // Plusieurs niveaux possibles
             let niveauPossible = niveauActuel;
             let xpRestants = nouveauTotal;
-            
+
             while (niveauPossible < 20 && XP_TABLE[niveauPossible + 1] && xpRestants >= XP_TABLE[niveauPossible + 1]) {
                 xpRestants -= XP_TABLE[niveauPossible + 1];
                 niveauPossible++;
             }
-            
-            if (niveauCible <= niveauPossible) {
-                xpInfo = ' 🚀';
-            } else {
-                xpInfo = ` 💡 Vous pourriez atteindre le niveau ${niveauPossible} !`;
+
+            if (niveauCible > niveauPossible) {
+                xpInfo = ` (attention: niveau ${niveauPossible} max possible)`;
             }
         }
     } else {
         // Pas de level up
         if (niveauCible > niveauActuel) {
             const manque = xpRequisActuel - nouveauTotal;
-            xpInfo = ` ⚠️ (Manque ${manque} XP pour niveau ${niveauActuel + 1})`;
+            xpInfo = ` (manque ${manque} XP pour niveau ${niveauActuel + 1})`;
         }
     }
-    
-    return { progressionText, xpInfo };
+
+    return { progressionText, xpInfo, isLevelUp };
 }
 
 // ===== GESTION DES PV =====
@@ -854,78 +853,115 @@ function generateTemplate() {
     const includeMarchand = includeMarchandEl ? includeMarchandEl.checked : false;
     
     // Calculs
-    const { progressionText, xpInfo } = calculateXPProgression(xpActuels, totalXPQuetes, niveauActuel, niveauCible, classeGainNiveau || classe);
+    const { progressionText, xpInfo, isLevelUp } = calculateXPProgression(xpActuels, totalXPQuetes, niveauActuel, niveauCible, classeGainNiveau || classe);
     const pvCalcul = calculatePVGain(classeGainNiveau || classe, niveauActuel, niveauCible, modConstitution, bonusPV, pvActuels);
     
     // Construction du template
     let template = `Nom du PJ : ${nom}
-Classe : ${classe}`;
-    let pjSectionOpened = false;
+Classe : ${classe}
+`;
 
-    // Section spéciale si définie
+    // Section spéciale si définie (avant le bloc PJ)
     if (typeSpecial && descriptionSpecial) {
         const sectionTitle = getSectionTitle(typeSpecial);
         template += `
-/ =======================  ${sectionTitle}  ========================= \\ 
+/ =======================  ${sectionTitle}  ========================= \\
 ${descriptionSpecial}
-\\ =======================  ${sectionTitle}  ========================= /`;
+\\ =======================  ${sectionTitle}  ========================= /
+`;
     }
 
-    // Section PJ principale
-    if (sectionQuete) {
-        pjSectionOpened = true;
-        template += `
-** / =======================  PJ  ========================= \\ **
-${sectionQuete}`;
+    // ===== BLOC PJ (toujours présent) =====
+    template += `
+ / =======================  PJ  ========================= \\ `;
+
+    // Section Quête - format adapté selon le nombre de quêtes
+    if (quetesList.length > 0) {
+        if (quetesList.length === 1) {
+            // Une seule quête : format simple sur une ligne
+            template += `
+Quête : ${quetesList[0]}`;
+        } else {
+            // Plusieurs quêtes : format avec crochets
+            template += `
+Quête : [
+${quetesList.join('\n')}
+]`;
+        }
     }
 
-    // XP seulement si renseignés
-    if (xpActuels >= 0 && totalXPQuetes > 0) {
+    // XP seulement si renseigné ET qu'il y a de l'XP à ajouter
+    const xpActuelsRaw = xpActuelsEl ? xpActuelsEl.value : '';
+    const xpActuelsVal = xpActuelsRaw !== '' ? parseInt(xpActuelsRaw) : null;
+    if (xpActuelsVal !== null && totalXPQuetes > 0) {
         const xpRequisPourNiveau = XP_TABLE[niveauActuel + 1] || '?';
-        const nouveauTotalXP = xpActuels + totalXPQuetes;
-        const affichageXP = `**Solde XP :** ${xpActuels}/${xpRequisPourNiveau} + ${totalXPQuetes}XP obtenue ==> ${nouveauTotalXP}${progressionText}${xpInfo}`;
+        const nouveauTotalXP = xpActuelsVal + totalXPQuetes;
+        let affichageXP = `Solde XP : ${xpActuelsVal}/${xpRequisPourNiveau} + ${totalXPQuetes}XP obtenue ==> ${nouveauTotalXP}/${xpRequisPourNiveau}`;
+
+        // Ajouter Level up si applicable
+        if (isLevelUp && niveauCible > niveauActuel) {
+            const classeNom = getClasseForXP(classeGainNiveau || classe);
+            affichageXP += ` Level up ${classeNom} ${niveauCible}`;
+        }
+        if (xpInfo) {
+            affichageXP += xpInfo;
+        }
+
         template += `
 ${affichageXP}`;
     }
 
-    // Gain de niveau seulement si différent
+    // Gain de niveau seulement si niveau cible > niveau actuel
     if (niveauCible > niveauActuel) {
         template += `
-**Gain de niveau :** Niveau ${niveauActuel} → **Niveau ${niveauCible}** 🎉`;
-        
-        // PV détaillés si montée de niveau
+
+Gain de niveau : `;
+
+        // PV détaillés si renseignés
         if (pvCalcul && pvActuels > 0) {
             template += `
-**PV :** ${pvCalcul}`;
+PV : ${pvCalcul}`;
         }
     }
 
+    // Capacités et sorts supplémentaires
     const hasExtras = [nouvellesCapacites, nouveauxDons, donsQuete, nouveauxSorts, sortsRemplaces].some(Boolean);
     if (hasExtras) {
-        const extras = [];
+        template += `
+
+¤ Capacités et sorts supplémentaires :`;
         if (nouvellesCapacites) {
-            extras.push(`Nouvelle(s) capacité(s) :\n${nouvellesCapacites}`);
+            template += `
+Nouvelle(s) capacité(s) :
+${nouvellesCapacites}`;
         }
         if (nouveauxDons) {
-            extras.push(`Nouveau(x) don(s) :\n${nouveauxDons}`);
+            template += `
+Nouveau(x) don(s) :
+${nouveauxDons}`;
         }
         if (donsQuete) {
-            extras.push(`Don(s) (gain de quête) :\n${donsQuete}`);
+            template += `
+Don(s) (gain de quête) :
+${donsQuete}`;
         }
         if (nouveauxSorts) {
-            extras.push(`Nouveau(x) sort(s) :\n${nouveauxSorts}`);
+            template += `
+Nouveau(x) sort(s) :
+${nouveauxSorts}`;
         }
         if (sortsRemplaces) {
-            extras.push(`Sort(s) remplacé(s) :\n${sortsRemplaces}`);
+            template += `
+Sort(s) remplacé(s) :
+${sortsRemplaces}`;
         }
-        template += `\n**¤ Capacités et sorts supplémentaires :**\n${extras.join('\n')}`;
     }
 
     // Inventaire seulement si renseigné
     const objetsLootesBase = objetsLootes || '';
     const objetsFromQuetes = objetsQuetes.length > 0 ? objetsQuetes.join(', ') : '';
     const tousObjets = [objetsLootesBase, objetsFromQuetes].filter(o => o).join(', ') || '';
-    
+
     // Calculer les totaux de monnaies (quêtes + manuel)
     const totalPC = totalMonnaies.PC;
     const totalPA = totalMonnaies.PA;
@@ -955,67 +991,103 @@ ${affichageXP}`;
     if (totalPP !== 0) monnaiesLootees.push(`${totalPP > 0 ? '+' : ''}${totalPP} PP`);
 
     const monnaiesText = monnaiesLootees.length > 0 ? monnaiesLootees.join(' ') : '';
-    
+
     if (tousObjets !== '' || monnaiesText !== '') {
         template += `
-**¤ Inventaire**`;
+
+¤ Inventaire`;
         if (tousObjets !== '') {
             template += `
-Objets lootés :
-${tousObjets}`;
+Objets lootés : ${tousObjets}`;
         }
         if (monnaiesText !== '') {
             template += `
-Monnaies lootées: ${monnaiesText}`;
+PO lootées: ${monnaiesText}`;
         }
     }
 
-    // Section Marchand si demandée
+    // Totaux d'inventaire si renseignés
+    const totauxInventaireEl = document.getElementById('totaux-inventaire');
+    const totauxInventaire = totauxInventaireEl ? totauxInventaireEl.value.trim() : '';
+    if (totauxInventaire) {
+        template += `
+
+${totauxInventaire}`;
+    }
+
+    // ===== FIN BLOC PJ =====
+    template += `
+ \\ =======================  PJ  ========================= /
+`;
+
+    // Section Marchand si demandée (APRÈS le bloc PJ)
     if (includeMarchand && transactionsText.trim() !== '') {
         template += `
-/ =======================  MARCHAND  ========================= \\
+/ ===================== Marchand ===================== \\
+¤ Inventaire
 ${transactionsText}
-\\ =======================  MARCHAND  ========================= /`;
+ \\ ==================== Marchand ====================== /
+`;
     }
 
-    // Calcul nouveau solde en convertissant toutes les monnaies des quêtes en PO
-    const changeTotal = poRecues + poLootees + questPO + netPOMarchand - artisanatCost;
-    const ancienSoldeAffiche = isNaN(ancienSoldeNum) ? ancienSolde : ancienSoldeNum.toFixed(2);
-    const nouveauSoldeCalc = isNaN(ancienSoldeNum) ? '[NOUVEAU_SOLDE]' : (ancienSoldeNum + changeTotal).toFixed(2);
+    // ===== SOLDE (toujours après les blocs PJ et Marchand) =====
+    const changeTotal = poRecues + totalLootPO + netPOMarchand - artisanatCost;
 
-    const soldeLines = [];
-    soldeLines.push(`ANCIEN SOLDE ${ancienSoldeAffiche}`);
+    // Construire la ligne de solde
+    let soldeParts = [];
+    soldeParts.push(`ANCIEN SOLDE ${ancienSolde || '[SOLDE]'}`);
 
-    const formatChange = (val) => `${val >= 0 ? '+' : '-'}${Math.abs(val).toFixed(2)}`;
-    if (poRecues !== 0) soldeLines.push(formatChange(poRecues));
-    if (poLootees !== 0) soldeLines.push(formatChange(poLootees));
-    if (questPO !== 0) soldeLines.push(formatChange(questPO));
-    if (netPOMarchand !== 0) soldeLines.push(formatChange(netPOMarchand));
-    if (artisanatCost > 0) soldeLines.push(`-${artisanatCost.toFixed(2)}`);
-    soldeLines.push(`= ${nouveauSoldeCalc}`);
+    // Ajouter les variations
+    if (totalLootPO !== 0) {
+        const sign = totalLootPO >= 0 ? '+' : '-';
+        soldeParts.push(`${sign} ${Math.abs(totalLootPO).toFixed(2).replace(/\.00$/, '')} PO`);
+    }
+    if (netPOMarchand !== 0) {
+        const sign = netPOMarchand >= 0 ? '+' : '-';
+        soldeParts.push(`${sign} ${Math.abs(netPOMarchand).toFixed(2).replace(/\.00$/, '')} PO`);
+    }
+    if (artisanatCost > 0) {
+        soldeParts.push(`- ${artisanatCost.toFixed(2).replace(/\.00$/, '')} PO`);
+    }
+
+    // Calculer le nouveau solde si l'ancien est numérique
+    let nouveauSolde;
+    if (!isNaN(ancienSoldeNum)) {
+        nouveauSolde = (ancienSoldeNum + changeTotal).toFixed(2).replace(/\.00$/, '') + ' PO';
+    } else if (ancienSolde) {
+        // Si l'ancien solde contient du texte (ex: "500 PO 5 PA"), essayer d'extraire le nombre
+        const match = ancienSolde.match(/^[\d.]+/);
+        if (match) {
+            const baseNum = parseFloat(match[0]);
+            nouveauSolde = (baseNum + changeTotal).toFixed(2).replace(/\.00$/, '') + ' PO';
+        } else {
+            nouveauSolde = '[NOUVEAU_SOLDE]';
+        }
+    } else {
+        nouveauSolde = '[NOUVEAU_SOLDE]';
+    }
+
+    soldeParts.push(`= ${nouveauSolde}`);
 
     template += `
-**¤ Solde :**
-${soldeLines.join('\n')}
-*Fiche R20 à jour.*`;
+¤ Solde :
+${soldeParts.join(' ')}
 
+Fiche R20 à jour.`;
 
-    if (pjSectionOpened) {
-        template += `
-** \ =======================  PJ  ========================= / **`;
-    }
-
+    // Artisanat si renseigné (après le solde)
     const hasArtisanat = artisanatNotes || artisanatItemsList.length > 0 || artisanatCostRaw !== '';
     if (hasArtisanat) {
         template += `
-**Artisanat :** ${artisanatNotes}`;
+
+Artisanat : ${artisanatNotes}`;
         if (artisanatItemsList.length > 0) {
             template += `
 Obtention des objets suivants :
 ${artisanatItemsList.map(i => `- ${i}`).join('\n')}`;
         }
         if (artisanatCost > 0) {
-            const artisanatCostFormatted = artisanatCost.toFixed(2);
+            const artisanatCostFormatted = artisanatCost.toFixed(2).replace(/\.00$/, '');
             template += `
 Coût : ${artisanatCostFormatted} PO`;
         }
@@ -1175,6 +1247,7 @@ document.addEventListener('DOMContentLoaded', function() {
         + ' textarea:not([id*="quete"]):not([data-listener-added]),'
         + ' textarea#don-quete:not([data-listener-added]),'
         + ' textarea#objets-lootes:not([data-listener-added]),'
+        + ' textarea#totaux-inventaire:not([data-listener-added]),'
         + ' input#po-lootees:not([data-listener-added]),'
         + ' input#po-recues:not([data-listener-added]),'
         + ' input#ancien-solde:not([data-listener-added]),'
