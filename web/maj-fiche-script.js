@@ -558,16 +558,25 @@ function generateQuestesSection() {
 
         recompensesQuetes.push(recompensesText.replace(/^,\s*/, ''));
 
+        // Construire la liste des récompenses pour la ligne de quête
+        let recompensesInline = [];
+        if (xpQuete > 0) recompensesInline.push(`+${xpQuete} XP`);
+        if (monnaieText.length > 0) recompensesInline.push(monnaieText.join(' '));
+        if (objetsText) recompensesInline.push(objetsText);
+        if (autresText) recompensesInline.push(autresText);
+
+        const recompensesSuffix = recompensesInline.length > 0 ? ', ' + recompensesInline.join(', ') : '';
+
         // Construire les différentes listes
         let questLine;
         if (isMultiple) {
             const sessionsEl = document.getElementById(`sessions-quete-${dataIndex}`);
             const sessions = sessionsEl ? sessionsEl.value || `[SESSIONS_QUETE_${index + 1}]` : `[SESSIONS_QUETE_${index + 1}]`;
-            questLine = `${titre || `[TITRE_QUETE_${index + 1}]`} + ${mj || `[MJ_${index + 1}]`} ⁠- [${sessions}]`;
+            questLine = `${titre || `[TITRE_QUETE_${index + 1}]`} - ${mj || `[MJ_${index + 1}]`} - [${sessions}]${recompensesSuffix}`;
         } else {
             const lienEl = document.getElementById(`lien-recompense-${dataIndex}`);
-            const lien = lienEl ? lienEl.value || `[LIEN_RECOMPENSE_${index + 1}]` : `[LIEN_RECOMPENSE_${index + 1}]`;
-            questLine = `${titre || `[TITRE_QUETE_${index + 1}]`} + ${mj || `[MJ_${index + 1}]`} ⁠- ${lien}`;
+            const lien = lienEl ? lienEl.value || `⁠recompenses⁠` : `⁠recompenses⁠`;
+            questLine = `${titre || `[TITRE_QUETE_${index + 1}]`} - ${mj || `[MJ_${index + 1}]`} - ${lien}${recompensesSuffix}`;
         }
         quetesList.push(questLine);
         if (objetsText) {
@@ -878,14 +887,14 @@ ${descriptionSpecial}
     // Section Quête - format adapté selon le nombre de quêtes
     if (quetesList.length > 0) {
         if (quetesList.length === 1) {
-            // Une seule quête : format simple sur une ligne
+            // Une seule quête : format simple avec tiret
             template += `
-Quête : ${quetesList[0]}`;
+Quête : - ${quetesList[0]}`;
         } else {
             // Plusieurs quêtes : format avec crochets
             template += `
 Quête : [
-${quetesList.join('\n')}
+${quetesList.map(q => q).join('\n')}
 ]`;
         }
     }
@@ -1037,7 +1046,7 @@ ${transactionsText}
     let soldeParts = [];
     soldeParts.push(`ANCIEN SOLDE ${ancienSolde || '[SOLDE]'}`);
 
-    // Ajouter les variations
+    // Ajouter les variations de PO
     if (totalLootPO !== 0) {
         const sign = totalLootPO >= 0 ? '+' : '-';
         soldeParts.push(`${sign} ${Math.abs(totalLootPO).toFixed(2).replace(/\.00$/, '')} PO`);
@@ -1050,19 +1059,31 @@ ${transactionsText}
         soldeParts.push(`- ${artisanatCost.toFixed(2).replace(/\.00$/, '')} PO`);
     }
 
-    // Calculer le nouveau solde si l'ancien est numérique
+    // Calculer le nouveau solde
+    // Essayer d'extraire la partie PO de l'ancien solde et préserver le reste (PA, PC, PP)
     let nouveauSolde;
-    if (!isNaN(ancienSoldeNum)) {
+    let autresMonnaies = '';
+
+    // Regex pour extraire les différentes monnaies de l'ancien solde
+    // Format attendu : "866 PO, 1 PA" ou "866 PO 1 PA" ou "866"
+    const poMatch = ancienSolde ? ancienSolde.match(/^([\d.]+)\s*(?:PO)?/) : null;
+    const paMatch = ancienSolde ? ancienSolde.match(/(\d+)\s*PA/) : null;
+    const pcMatch = ancienSolde ? ancienSolde.match(/(\d+)\s*PC/) : null;
+    const ppMatch = ancienSolde ? ancienSolde.match(/(\d+)\s*PP/) : null;
+
+    if (poMatch) {
+        const ancienPO = parseFloat(poMatch[1]);
+        const nouveauPO = (ancienPO + changeTotal).toFixed(2).replace(/\.00$/, '');
+
+        // Reconstruire avec les autres monnaies préservées
+        let monnaiesParts = [`${nouveauPO} PO`];
+        if (paMatch) monnaiesParts.push(`${paMatch[1]} PA`);
+        if (pcMatch) monnaiesParts.push(`${pcMatch[1]} PC`);
+        if (ppMatch) monnaiesParts.push(`${ppMatch[1]} PP`);
+
+        nouveauSolde = monnaiesParts.join(', ');
+    } else if (!isNaN(ancienSoldeNum)) {
         nouveauSolde = (ancienSoldeNum + changeTotal).toFixed(2).replace(/\.00$/, '') + ' PO';
-    } else if (ancienSolde) {
-        // Si l'ancien solde contient du texte (ex: "500 PO 5 PA"), essayer d'extraire le nombre
-        const match = ancienSolde.match(/^[\d.]+/);
-        if (match) {
-            const baseNum = parseFloat(match[0]);
-            nouveauSolde = (baseNum + changeTotal).toFixed(2).replace(/\.00$/, '') + ' PO';
-        } else {
-            nouveauSolde = '[NOUVEAU_SOLDE]';
-        }
     } else {
         nouveauSolde = '[NOUVEAU_SOLDE]';
     }
