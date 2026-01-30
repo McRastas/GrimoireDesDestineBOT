@@ -2,14 +2,13 @@
 Commande Discord : /mesquetes [membre]
 
 DESCRIPTION:
-    Liste les quêtes où un joueur est mentionné dans le canal quêtes avec dates futures
+    Liste les quêtes futures où un joueur est mentionné dans le canal quêtes
 
 FONCTIONNEMENT:
     - Paramètre optionnel : membre à rechercher (par défaut l'auteur)
-    - Recherche dans le canal quêtes configuré les mentions sur 30 jours
-    - Analyse avec MAXIMUM de formats de dates possibles (MJ ne sont pas des ordis !)
-    - LOGIQUE D'ANNÉE INTELLIGENTE pour dates sans année
-    - Classification en 3 catégories : futures, passées, sans date détectable
+    - Recherche dans le canal quêtes les messages des 30 derniers jours
+    - Filtre uniquement les quêtes avec une date FUTURE
+    - Supporte de nombreux formats de dates (flexibilité pour les MJ)
 
 UTILISATION:
     /mesquetes
@@ -50,48 +49,21 @@ class MesQuetesCommand(BaseCommand):
     def _determine_best_year(self, jour: int, mois: int, now: datetime) -> int:
         """
         Détermine l'année la plus logique pour une date JJ/MM sans année.
-        LOGIQUE SIMPLIFIÉE : privilégier les dates les plus proches.
+        LOGIQUE : privilégier les dates FUTURES (année actuelle ou suivante).
         """
         current_year = now.year
 
         try:
             # Option 1: Année actuelle
-            date_current_year = datetime(current_year,
-                                         mois,
-                                         jour,
-                                         tzinfo=timezone.utc)
+            date_current_year = datetime(current_year, mois, jour, tzinfo=timezone.utc)
             days_diff_current = (date_current_year - now).days
 
-            # Option 2: Année suivante
-            date_next_year = datetime(current_year + 1,
-                                      mois,
-                                      jour,
-                                      tzinfo=timezone.utc)
-            days_diff_next = (date_next_year - now).days
+            # Si la date cette année est future ou aujourd'hui, on la garde
+            if days_diff_current >= 0:
+                return current_year
 
-            # Option 3: Année précédente (pour les dates très récemment passées)
-            date_prev_year = datetime(current_year - 1,
-                                      mois,
-                                      jour,
-                                      tzinfo=timezone.utc)
-            days_diff_prev = (date_prev_year - now).days
-
-            # Choisir l'année qui donne la date la plus proche (en valeur absolue)
-            options = [(abs(days_diff_current), current_year,
-                        days_diff_current),
-                       (abs(days_diff_next), current_year + 1, days_diff_next),
-                       (abs(days_diff_prev), current_year - 1, days_diff_prev)]
-
-            # Trier par proximité (valeur absolue des jours)
-            options.sort(key=lambda x: x[0])
-
-            # Prendre la plus proche, mais éviter les dates trop anciennes (> 60 jours passés)
-            for abs_days, year, real_days in options:
-                if real_days >= -60:  # Pas plus de 60 jours dans le passé
-                    return year
-
-            # Si toutes sont trop anciennes, prendre l'année actuelle par défaut
-            return current_year
+            # Sinon, c'est l'année prochaine
+            return current_year + 1
 
         except ValueError:
             # Date invalide (ex: 29/02 année non bissextile)
@@ -143,56 +115,22 @@ class MesQuetesCommand(BaseCommand):
             r'(\d{1,2})[/\-\.](\d{1,2})\s+à\s+',  # "28/06 à 14h30"
         ]
 
-        # Dictionnaire pour convertir les mois textuels
+        # Dictionnaire pour convertir les mois textuels (FR + EN)
         mois_mapping = {
-            # Français
-            'janvier': 1,
-            'février': 2,
-            'mars': 3,
-            'avril': 4,
-            'mai': 5,
-            'juin': 6,
-            'juillet': 7,
-            'août': 8,
-            'septembre': 9,
-            'octobre': 10,
-            'novembre': 11,
-            'décembre': 12,
-            'jan': 1,
-            'fév': 2,
-            'mar': 3,
-            'avr': 4,
-            'jun': 6,
-            'jul': 7,
-            'aoû': 8,
-            'sep': 9,
-            'oct': 10,
-            'nov': 11,
-            'déc': 12,
-            # Anglais
-            'january': 1,
-            'february': 2,
-            'march': 3,
-            'april': 4,
-            'may': 5,
-            'june': 6,
-            'july': 7,
-            'august': 8,
-            'september': 9,
-            'october': 10,
-            'november': 11,
-            'december': 12,
-            'jan': 1,
-            'feb': 2,
-            'mar': 3,
-            'apr': 4,
-            'jun': 6,
-            'jul': 7,
-            'aug': 8,
-            'sep': 9,
-            'oct': 10,
-            'nov': 11,
-            'dec': 12
+            # Français complet
+            'janvier': 1, 'février': 2, 'mars': 3, 'avril': 4,
+            'mai': 5, 'juin': 6, 'juillet': 7, 'août': 8,
+            'septembre': 9, 'octobre': 10, 'novembre': 11, 'décembre': 12,
+            # Français abrégé
+            'jan': 1, 'fév': 2, 'mar': 3, 'avr': 4,
+            'jun': 6, 'jul': 7, 'aoû': 8,
+            'sep': 9, 'oct': 10, 'nov': 11, 'déc': 12,
+            # Anglais complet
+            'january': 1, 'february': 2, 'march': 3, 'april': 4,
+            'may': 5, 'june': 6, 'july': 7, 'august': 8,
+            'september': 9, 'october': 10, 'november': 11, 'december': 12,
+            # Anglais abrégé (uniquement ceux différents du français)
+            'feb': 2, 'apr': 4, 'aug': 8, 'dec': 12
         }
 
         for pattern in date_patterns:
@@ -285,25 +223,22 @@ class MesQuetesCommand(BaseCommand):
             if cible in message.mentions:
                 messages_avec_mention.append(message)
 
-        # Analyser ces messages pour trouver des dates
-        resultats_futures = []
-        resultats_passes = []
-        resultats_sans_date = []
+        # Analyser ces messages pour trouver des dates FUTURES uniquement
+        quetes_futures = []
 
         for message in messages_avec_mention:
             premiere_ligne = message.content.split('\n', 1)[0].strip()
             message_url = f"https://discord.com/channels/{interaction.guild.id}/{channel.id}/{message.id}"
 
-            # Extraire la date avec notre fonction ultra-complète
-            quest_date, date_found = self._extract_date_from_text(
-                message.content, now)
+            # Extraire la date
+            quest_date, date_found = self._extract_date_from_text(message.content, now)
 
             if quest_date:
                 jours_restants = (quest_date - now).days
                 date_formatee = f"{quest_date.day:02d}/{quest_date.month:02d}/{quest_date.year}"
 
-                if jours_restants >= 0 and jours_restants <= 90:
-                    # Date future (0-90 jours)
+                # Garder uniquement les dates futures (aujourd'hui inclus)
+                if jours_restants >= 0:
                     if jours_restants == 0:
                         quand = "🔴 **AUJOURD'HUI**"
                     elif jours_restants == 1:
@@ -317,98 +252,48 @@ class MesQuetesCommand(BaseCommand):
                     else:
                         quand = f"⚪ Dans {jours_restants} jours"
 
-                    resultats_futures.append({
-                        'jours':
-                        jours_restants,
-                        'texte':
-                        f"{quand} ({date_formatee})\n└─ [{premiere_ligne[:70]}{'...' if len(premiere_ligne) > 70 else ''}]({message_url})"
+                    quetes_futures.append({
+                        'jours': jours_restants,
+                        'date': date_formatee,
+                        'quand': quand,
+                        'titre': premiere_ligne[:70] + ('...' if len(premiere_ligne) > 70 else ''),
+                        'url': message_url
                     })
 
-                elif jours_restants >= -60:  # Date passée récente (moins de 60 jours)
-                    jours_passes = abs(jours_restants)
-                    if jours_passes == 1:
-                        quand = "🕰️ **Hier**"
-                    elif jours_passes <= 7:
-                        quand = f"🕰️ Il y a {jours_passes} jours"
-                    elif jours_passes <= 30:
-                        quand = f"🕰️ Il y a {jours_passes} jours"
-                    else:
-                        quand = f"🕰️ Il y a {jours_passes} jours"
+        # Trier par date (plus proche en premier)
+        quetes_futures.sort(key=lambda x: x['jours'])
 
-                    resultats_passes.append({
-                        'jours':
-                        jours_restants,
-                        'texte':
-                        f"{quand} ({date_formatee})\n└─ [{premiere_ligne[:70]}{'...' if len(premiere_ligne) > 70 else ''}]({message_url})"
-                    })
+        # Construire l'embed
+        embed = discord.Embed(
+            title=f"📅 Quêtes à venir - {cible.display_name}",
+            color=0x3498db
+        )
 
-            else:
-                # Aucune date détectable
-                resultats_sans_date.append({
-                    'texte': premiere_ligne[:100],
-                    'url': message_url
-                })
+        if quetes_futures:
+            # Afficher jusqu'à 10 quêtes futures
+            for q in quetes_futures[:10]:
+                embed.add_field(
+                    name=f"{q['quand']} ({q['date']})",
+                    value=f"[{q['titre']}]({q['url']})",
+                    inline=False
+                )
 
-        # Trier les résultats
-        resultats_futures.sort(key=lambda x: x['jours'])
-        resultats_passes.sort(key=lambda x: x['jours'],
-                              reverse=True)  # Plus récent en premier
-
-        # Construire l'embed avec les 3 catégories
-        embed = discord.Embed(title=f"📅 Quêtes - {cible.display_name}",
-                              color=0x3498db)
-
-        # 1. Quêtes futures
-        if resultats_futures:
-            desc_futures = "\n\n".join(
-                [r['texte'] for r in resultats_futures[:6]])
-            if len(resultats_futures) > 6:
-                desc_futures += f"\n\n*... et {len(resultats_futures) - 6} autres*"
-
+            if len(quetes_futures) > 10:
+                embed.add_field(
+                    name="",
+                    value=f"*... et {len(quetes_futures) - 10} autres quêtes*",
+                    inline=False
+                )
+        else:
             embed.add_field(
-                name=f"🎯 Quêtes à venir ({len(resultats_futures)})",
-                value=desc_futures,
-                inline=False)
-
-        # 2. Quêtes passées récentes
-        if resultats_passes:
-            desc_passes = "\n\n".join(
-                [r['texte'] for r in resultats_passes[:4]])
-            if len(resultats_passes) > 4:
-                desc_passes += f"\n\n*... et {len(resultats_passes) - 4} autres*"
-
-            embed.add_field(
-                name=f"🕰️ Quêtes récentes passées ({len(resultats_passes)})",
-                value=desc_passes,
-                inline=False)
-
-        # 3. Mentions sans date détectable
-        if resultats_sans_date:
-            desc_sans_date = "\n".join([
-                f"• [{item['texte'][:50]}{'...' if len(item['texte']) > 50 else ''}]({item['url']})"
-                for item in resultats_sans_date[:5]
-            ])
-            if len(resultats_sans_date) > 5:
-                desc_sans_date += f"\n*... et {len(resultats_sans_date) - 5} autres*"
-
-            embed.add_field(
-                name=
-                f"📌 Mentions sans date détectable ({len(resultats_sans_date)})",
-                value=desc_sans_date,
-                inline=False)
-
-        # Message si aucun résultat
-        if not resultats_futures and not resultats_passes and not resultats_sans_date:
-            embed.add_field(
-                name="❌ Aucune mention trouvée",
-                value=f"Aucune mention dans {channel.mention} sur 30 jours",
-                inline=False)
+                name="Aucune quête future trouvée",
+                value=f"Tu n'as pas de quête planifiée dans {channel.mention}",
+                inline=False
+            )
 
         # Footer avec statistiques
-        total_dates_detectees = len(resultats_futures) + len(resultats_passes)
         embed.set_footer(
-            text=
-            f"Analysé {messages_parcourus} messages | {len(messages_avec_mention)} mentions | {total_dates_detectees} dates détectées | Canal: #{channel.name}"
+            text=f"📊 {messages_parcourus} messages analysés | {len(messages_avec_mention)} mentions | {len(quetes_futures)} quêtes futures"
         )
 
         await interaction.followup.send(embed=embed)
