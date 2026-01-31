@@ -126,12 +126,23 @@
                                         <label for="include-monnaies-0">Inclure monnaies</label>
                                     </div>
                                     <div id="monnaie-container-0" class="hidden">
-                                        <div class="monnaie-inputs" style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 5px;">
-                                            <input type="number" id="pc-quete-0" placeholder="PC">
-                                            <input type="number" id="pa-quete-0" placeholder="PA">
-                                            <input type="number" id="po-quete-0" placeholder="PO">
-                                            <input type="number" id="pp-quete-0" placeholder="PP">
+                                        <div id="finances-lignes-0" class="finances-lignes">
+                                            <div class="finance-ligne" data-finance="0">
+                                                <input type="text" class="finance-desc" placeholder="Description (ex: Récompense session 1)">
+                                                <select class="finance-type">
+                                                    <option value="gain">+ Gain</option>
+                                                    <option value="depense">- Dépense</option>
+                                                </select>
+                                                <div class="finance-monnaies">
+                                                    <input type="number" class="finance-pc" placeholder="PC">
+                                                    <input type="number" class="finance-pa" placeholder="PA">
+                                                    <input type="number" class="finance-po" placeholder="PO">
+                                                    <input type="number" class="finance-pp" placeholder="PP">
+                                                </div>
+                                                <button type="button" class="delete-finance-ligne hidden">🗑️</button>
+                                            </div>
                                         </div>
+                                        <button type="button" class="add-finance-ligne" data-quete="0">➕ Ajouter une ligne</button>
                                         <input type="text" id="total-quete-or-0" placeholder="Total en PO" disabled style="margin-top: 5px;">
                                     </div>
 
@@ -141,6 +152,11 @@
                                     </div>
                                     <div id="objets-container-0" class="hidden">
                                         <textarea id="objets-quete-0" rows="2" placeholder="2 émeraudes d'une valeur de 200PO, un étrange engrenage en rotation perpétuelle"></textarea>
+                                        <div class="totaux-quete-section">
+                                            <label for="totaux-quete-0">Totaux d'inventaire après loot :</label>
+                                            <textarea id="totaux-quete-0" rows="2" placeholder="Total Potion de Guérison supérieure(8d4+8) ==> 2&#10;Total Rations ==> 10"></textarea>
+                                            <div class="help-text">Nouveau total d'un objet consommable après cette quête</div>
+                                        </div>
                                     </div>
 
                                     <div class="reward-type">
@@ -293,17 +309,70 @@
                     <div id="tab-special" class="tab-content">
                         <button type="button" id="toggle-artisanat-btn">Ajouter artisanat</button>
                         <div id="artisanat-section" class="hidden">
-                            <div class="form-group">
-                                <label for="artisanat-notes">Notes d'artisanat :</label>
-                                <textarea id="artisanat-notes" rows="3" placeholder="Notes sur l'artisanat..."></textarea>
+                            <h4 style="color: #9b59b6; margin-bottom: 15px;">🔨 Session d'Artisanat</h4>
+
+                            <div class="artisanat-grid">
+                                <div class="form-group">
+                                    <label for="artisanat-type">Type d'artisanat :</label>
+                                    <select id="artisanat-type">
+                                        <option value="">Sélectionnez...</option>
+                                        <option value="Alchimie">Alchimie</option>
+                                        <option value="Forge">Forge / Armurerie</option>
+                                        <option value="Couture">Couture / Travail du cuir</option>
+                                        <option value="Menuiserie">Menuiserie / Charpenterie</option>
+                                        <option value="Joaillerie">Joaillerie</option>
+                                        <option value="Calligraphie">Calligraphie / Enluminure</option>
+                                        <option value="Herboristerie">Herboristerie</option>
+                                        <option value="Cuisine">Cuisine</option>
+                                        <option value="Enchantement">Enchantement</option>
+                                        <option value="Autre">Autre</option>
+                                    </select>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="artisanat-temps">Temps passé :</label>
+                                    <input type="text" id="artisanat-temps" placeholder="Ex: 8h, 2 jours...">
+                                </div>
                             </div>
+
+                            <div class="artisanat-grid">
+                                <div class="form-group">
+                                    <label for="artisanat-dd">DD du craft :</label>
+                                    <input type="number" id="artisanat-dd" placeholder="15">
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="artisanat-jet">Résultat du jet :</label>
+                                    <input type="text" id="artisanat-jet" placeholder="Ex: 18 (succès), 12 (échec)">
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="artisanat-materiaux">Matériaux utilisés :</label>
+                                <textarea id="artisanat-materiaux" rows="2" placeholder="Ex: 2× Fiole vide (1 PO), 1× Herbe médicinale (5 PO)"></textarea>
+                                <div class="help-text">Liste des composants/matériaux avec leur coût</div>
+                            </div>
+
                             <div class="form-group">
                                 <label for="artisanat-items">Objets fabriqués (un par ligne) :</label>
-                                <textarea id="artisanat-items" rows="3" placeholder="Potion de soin\nPotion de mana"></textarea>
+                                <textarea id="artisanat-items" rows="3" placeholder="Potion de soin&#10;Potion de mana"></textarea>
                             </div>
+
+                            <div class="artisanat-grid">
+                                <div class="form-group">
+                                    <label for="artisanat-cost">Coût total des matériaux (PO) :</label>
+                                    <input type="number" id="artisanat-cost" placeholder="0" step="0.01">
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="artisanat-other-cost">Autres frais (location atelier, etc.) :</label>
+                                    <input type="number" id="artisanat-other-cost" placeholder="0" step="0.01">
+                                </div>
+                            </div>
+
                             <div class="form-group">
-                                <label for="artisanat-cost">Coût total d'artisanat :</label>
-                                <input type="number" id="artisanat-cost" placeholder="0">
+                                <label for="artisanat-notes">Notes supplémentaires :</label>
+                                <textarea id="artisanat-notes" rows="2" placeholder="Notes additionnelles sur la session d'artisanat..."></textarea>
                             </div>
                         </div>
                     </div>
