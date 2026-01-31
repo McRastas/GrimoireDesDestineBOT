@@ -297,12 +297,23 @@ function createQueteHTML(index) {
                 </label>
             </div>
             <div id="monnaie-container-${index}" class="hidden">
-                <div class="monnaie-inputs">
-                    <input type="number" id="pc-quete-${index}" placeholder="PC">
-                    <input type="number" id="pa-quete-${index}" placeholder="PA">
-                    <input type="number" id="po-quete-${index}" placeholder="PO">
-                    <input type="number" id="pp-quete-${index}" placeholder="PP">
+                <div id="finances-lignes-${index}" class="finances-lignes">
+                    <div class="finance-ligne" data-finance="0">
+                        <input type="text" class="finance-desc" placeholder="Description (ex: Récompense session 1)">
+                        <select class="finance-type">
+                            <option value="gain">+ Gain</option>
+                            <option value="depense">- Dépense</option>
+                        </select>
+                        <div class="finance-monnaies">
+                            <input type="number" class="finance-pc" placeholder="PC">
+                            <input type="number" class="finance-pa" placeholder="PA">
+                            <input type="number" class="finance-po" placeholder="PO">
+                            <input type="number" class="finance-pp" placeholder="PP">
+                        </div>
+                        <button type="button" class="delete-finance-ligne hidden">🗑️</button>
+                    </div>
                 </div>
+                <button type="button" class="add-finance-ligne" data-quete="${index}">➕ Ajouter une ligne</button>
                 <input type="text" id="total-quete-or-${index}" placeholder="Total en PO" disabled class="monnaie-total">
             </div>
 
@@ -314,6 +325,11 @@ function createQueteHTML(index) {
             </div>
             <div id="objets-container-${index}" class="hidden">
                 <textarea id="objets-quete-${index}" rows="2" placeholder="2 émeraudes d'une valeur de 200PO, un étrange engrenage en rotation perpétuelle"></textarea>
+                <div class="totaux-quete-section">
+                    <label for="totaux-quete-${index}">Totaux d'inventaire après loot :</label>
+                    <textarea id="totaux-quete-${index}" rows="2" placeholder="Total Potion de Guérison supérieure(8d4+8) ==> 2&#10;Total Rations ==> 10"></textarea>
+                    <div class="help-text">Nouveau total d'un objet consommable après cette quête</div>
+                </div>
             </div>
 
             <div class="reward-type">
@@ -330,20 +346,119 @@ function createQueteHTML(index) {
 }
 
 function updateMonnaieTotal(index) {
-    const pcEl = document.getElementById(`pc-quete-${index}`);
-    const paEl = document.getElementById(`pa-quete-${index}`);
-    const poEl = document.getElementById(`po-quete-${index}`);
-    const ppEl = document.getElementById(`pp-quete-${index}`);
+    const container = document.getElementById(`finances-lignes-${index}`);
     const totalEl = document.getElementById(`total-quete-or-${index}`);
-    if (!totalEl) return;
+    if (!totalEl || !container) return;
 
-    const pc = pcEl ? parseInt(pcEl.value) || 0 : 0;
-    const pa = paEl ? parseInt(paEl.value) || 0 : 0;
-    const po = poEl ? parseInt(poEl.value) || 0 : 0;
-    const pp = ppEl ? parseInt(ppEl.value) || 0 : 0;
+    let totalPO = 0;
+    const lignes = container.querySelectorAll('.finance-ligne');
+    lignes.forEach(ligne => {
+        const type = ligne.querySelector('.finance-type')?.value || 'gain';
+        const pc = parseInt(ligne.querySelector('.finance-pc')?.value) || 0;
+        const pa = parseInt(ligne.querySelector('.finance-pa')?.value) || 0;
+        const po = parseInt(ligne.querySelector('.finance-po')?.value) || 0;
+        const pp = parseInt(ligne.querySelector('.finance-pp')?.value) || 0;
 
-    const totalPO = po + (pa / 10) + (pc / 100) + (pp * 10);
+        const lignePO = po + (pa / 10) + (pc / 100) + (pp * 10);
+        if (type === 'gain') {
+            totalPO += lignePO;
+        } else {
+            totalPO -= lignePO;
+        }
+    });
+
     totalEl.value = totalPO === 0 ? '' : `${totalPO.toFixed(2)} PO`;
+}
+
+// Compteurs pour les lignes de finances par quête
+let financeCounters = {};
+
+function addFinanceLigne(queteIndex) {
+    const container = document.getElementById(`finances-lignes-${queteIndex}`);
+    if (!container) return;
+
+    if (financeCounters[queteIndex] === undefined) {
+        financeCounters[queteIndex] = container.querySelectorAll('.finance-ligne').length;
+    }
+
+    const financeIndex = financeCounters[queteIndex]++;
+
+    const html = `
+        <div class="finance-ligne" data-finance="${financeIndex}">
+            <input type="text" class="finance-desc" placeholder="Description (ex: Récompense session 2)">
+            <select class="finance-type">
+                <option value="gain">+ Gain</option>
+                <option value="depense">- Dépense</option>
+            </select>
+            <div class="finance-monnaies">
+                <input type="number" class="finance-pc" placeholder="PC">
+                <input type="number" class="finance-pa" placeholder="PA">
+                <input type="number" class="finance-po" placeholder="PO">
+                <input type="number" class="finance-pp" placeholder="PP">
+            </div>
+            <button type="button" class="delete-finance-ligne">🗑️</button>
+        </div>
+    `;
+
+    container.insertAdjacentHTML('beforeend', html);
+
+    // Setup listeners pour la nouvelle ligne
+    const newLigne = container.querySelector(`.finance-ligne[data-finance="${financeIndex}"]`);
+    setupFinanceLigneListeners(newLigne, queteIndex);
+
+    // Afficher les boutons de suppression s'il y a plus d'une ligne
+    updateFinanceDeleteButtons(queteIndex);
+
+    regenerateIfNeeded();
+}
+
+function deleteFinanceLigne(ligne, queteIndex) {
+    ligne.remove();
+    updateFinanceDeleteButtons(queteIndex);
+    updateMonnaieTotal(queteIndex);
+    regenerateIfNeeded();
+}
+
+function updateFinanceDeleteButtons(queteIndex) {
+    const container = document.getElementById(`finances-lignes-${queteIndex}`);
+    if (!container) return;
+
+    const lignes = container.querySelectorAll('.finance-ligne');
+    lignes.forEach(ligne => {
+        const deleteBtn = ligne.querySelector('.delete-finance-ligne');
+        if (deleteBtn) {
+            if (lignes.length > 1) {
+                deleteBtn.classList.remove('hidden');
+            } else {
+                deleteBtn.classList.add('hidden');
+            }
+        }
+    });
+}
+
+function setupFinanceLigneListeners(ligne, queteIndex) {
+    if (!ligne) return;
+
+    const inputs = ligne.querySelectorAll('input, select');
+    inputs.forEach(input => {
+        if (!input.hasAttribute('data-finance-listener')) {
+            input.addEventListener('input', () => {
+                updateMonnaieTotal(queteIndex);
+                regenerateIfNeeded();
+            });
+            input.addEventListener('change', () => {
+                updateMonnaieTotal(queteIndex);
+                regenerateIfNeeded();
+            });
+            input.setAttribute('data-finance-listener', 'true');
+        }
+    });
+
+    const deleteBtn = ligne.querySelector('.delete-finance-ligne');
+    if (deleteBtn && !deleteBtn.hasAttribute('data-finance-listener')) {
+        deleteBtn.addEventListener('click', () => deleteFinanceLigne(ligne, queteIndex));
+        deleteBtn.setAttribute('data-finance-listener', 'true');
+    }
 }
 
 function setupQueteListeners(index) {
@@ -426,18 +541,29 @@ function setupQueteListeners(index) {
         toggleXP.call(refuseXP);
     }
 
-    const pcInput = document.getElementById(`pc-quete-${index}`);
-    const paInput = document.getElementById(`pa-quete-${index}`);
-    const poInput = document.getElementById(`po-quete-${index}`);
-    const ppInput = document.getElementById(`pp-quete-${index}`);
-    [pcInput, paInput, poInput, ppInput].forEach(inp => {
-        if (inp && !inp.hasAttribute('data-total-listener')) {
-            inp.addEventListener('input', () => updateMonnaieTotal(index));
-            inp.setAttribute('data-total-listener', 'true');
+    // Setup des lignes de finances existantes
+    const financesContainer = document.getElementById(`finances-lignes-${index}`);
+    if (financesContainer) {
+        const lignes = financesContainer.querySelectorAll('.finance-ligne');
+        lignes.forEach(ligne => {
+            setupFinanceLigneListeners(ligne, index);
+        });
+
+        // Initialiser le compteur
+        if (financeCounters[index] === undefined) {
+            financeCounters[index] = lignes.length;
         }
-    });
+    }
+
+    // Bouton d'ajout de ligne de finance
+    const addFinanceBtn = document.querySelector(`[data-quete="${index}"] .add-finance-ligne, .add-finance-ligne[data-quete="${index}"]`);
+    if (addFinanceBtn && !addFinanceBtn.hasAttribute('data-listener-added')) {
+        addFinanceBtn.addEventListener('click', () => addFinanceLigne(index));
+        addFinanceBtn.setAttribute('data-listener-added', 'true');
+    }
 
     updateMonnaieTotal(index);
+    updateFinanceDeleteButtons(index);
 
     const addBtn = document.querySelector(`[data-quete="${index}"] .add-recompense`);
     const recompenseContainer = document.getElementById(`recompenses-container-${index}`);
@@ -480,6 +606,7 @@ function generateQuestesSection() {
     let quetesList = [];
     let objetsList = [];
     let poList = [];
+    let totauxInventaireQuetes = []; // Totaux d'inventaire par quête
 
     quetes.forEach((quete, index) => {
         const dataIndex = quete.getAttribute('data-quete');
@@ -497,36 +624,70 @@ function generateQuestesSection() {
         // Récupérer les récompenses
         let recompensesText = '';
 
-        // Monnaies
+        // Monnaies - traitement des lignes multiples
         const includeMonnaies = document.getElementById(`include-monnaies-${dataIndex}`);
         let questPO = 0;
         let monnaieText = [];
+        let financesDetails = []; // Détails des lignes de finances
         if (includeMonnaies && includeMonnaies.checked) {
-            const pc = parseInt(document.getElementById(`pc-quete-${dataIndex}`)?.value) || 0;
-            const pa = parseInt(document.getElementById(`pa-quete-${dataIndex}`)?.value) || 0;
-            const po = parseInt(document.getElementById(`po-quete-${dataIndex}`)?.value) || 0;
-            const pp = parseInt(document.getElementById(`pp-quete-${dataIndex}`)?.value) || 0;
+            const financesContainer = document.getElementById(`finances-lignes-${dataIndex}`);
+            if (financesContainer) {
+                const lignes = financesContainer.querySelectorAll('.finance-ligne');
+                lignes.forEach(ligne => {
+                    const desc = ligne.querySelector('.finance-desc')?.value.trim() || '';
+                    const type = ligne.querySelector('.finance-type')?.value || 'gain';
+                    const pc = parseInt(ligne.querySelector('.finance-pc')?.value) || 0;
+                    const pa = parseInt(ligne.querySelector('.finance-pa')?.value) || 0;
+                    const po = parseInt(ligne.querySelector('.finance-po')?.value) || 0;
+                    const pp = parseInt(ligne.querySelector('.finance-pp')?.value) || 0;
 
-            if (pc !== 0 || pa !== 0 || po !== 0 || pp !== 0) {
-                totalMonnaies.PC += pc;
-                totalMonnaies.PA += pa;
-                totalMonnaies.PO += po;
-                totalMonnaies.PP += pp;
+                    if (pc !== 0 || pa !== 0 || po !== 0 || pp !== 0) {
+                        const signe = type === 'gain' ? '+' : '-';
+                        const lignePO = po + pa / 10 + pc / 100 + pp * 10;
 
-                if (pc !== 0) monnaieText.push(`${pc > 0 ? '+' : ''}${pc} PC`);
-                if (pa !== 0) monnaieText.push(`${pa > 0 ? '+' : ''}${pa} PA`);
-                if (po !== 0) monnaieText.push(`${po > 0 ? '+' : ''}${po} PO`);
-                if (pp !== 0) monnaieText.push(`${pp > 0 ? '+' : ''}${pp} PP`);
+                        // Construire le texte de cette ligne
+                        let ligneMonnaies = [];
+                        if (pc !== 0) ligneMonnaies.push(`${pc} PC`);
+                        if (pa !== 0) ligneMonnaies.push(`${pa} PA`);
+                        if (po !== 0) ligneMonnaies.push(`${po} PO`);
+                        if (pp !== 0) ligneMonnaies.push(`${pp} PP`);
 
-                questPO = po + pa / 10 + pc / 100 + pp * 10;
+                        const ligneText = `${signe} ${ligneMonnaies.join(' ')}${desc ? ' (' + desc + ')' : ''}`;
+                        financesDetails.push(ligneText);
+
+                        // Ajouter aux totaux globaux
+                        if (type === 'gain') {
+                            totalMonnaies.PC += pc;
+                            totalMonnaies.PA += pa;
+                            totalMonnaies.PO += po;
+                            totalMonnaies.PP += pp;
+                            questPO += lignePO;
+                        } else {
+                            totalMonnaies.PC -= pc;
+                            totalMonnaies.PA -= pa;
+                            totalMonnaies.PO -= po;
+                            totalMonnaies.PP -= pp;
+                            questPO -= lignePO;
+                        }
+                    }
+                });
+            }
+
+            // Construire le texte résumé des monnaies
+            if (totalMonnaies.PC !== 0 || totalMonnaies.PA !== 0 || totalMonnaies.PO !== 0 || totalMonnaies.PP !== 0) {
+                if (totalMonnaies.PC !== 0) monnaieText.push(`${totalMonnaies.PC > 0 ? '+' : ''}${totalMonnaies.PC} PC`);
+                if (totalMonnaies.PA !== 0) monnaieText.push(`${totalMonnaies.PA > 0 ? '+' : ''}${totalMonnaies.PA} PA`);
+                if (totalMonnaies.PO !== 0) monnaieText.push(`${totalMonnaies.PO > 0 ? '+' : ''}${totalMonnaies.PO} PO`);
+                if (totalMonnaies.PP !== 0) monnaieText.push(`${totalMonnaies.PP > 0 ? '+' : ''}${totalMonnaies.PP} PP`);
             }
         }
-        if (monnaieText.length > 0) {
-            recompensesText += ', ' + monnaieText.join(' ');
+        if (financesDetails.length > 0) {
+            recompensesText += ', ' + financesDetails.join(', ');
         }
 
-        // Objets
+        // Objets et totaux d'inventaire
         let objetsText = '';
+        let totauxQueteText = '';
         const includeObjets = document.getElementById(`include-objets-${dataIndex}`);
         if (includeObjets && includeObjets.checked) {
             const objetsEl = document.getElementById(`objets-quete-${dataIndex}`);
@@ -534,6 +695,11 @@ function generateQuestesSection() {
                 objetsText = objetsEl.value.trim();
                 recompensesText += ', ' + objetsText;
                 objetsQuetes.push(objetsText);
+            }
+            // Totaux d'inventaire liés à cette quête
+            const totauxQueteEl = document.getElementById(`totaux-quete-${dataIndex}`);
+            if (totauxQueteEl && totauxQueteEl.value.trim()) {
+                totauxQueteText = totauxQueteEl.value.trim();
             }
         }
 
@@ -585,6 +751,13 @@ function generateQuestesSection() {
         if (monnaieText.length > 0) {
             poList.push(`${titre || `[TITRE_QUETE_${index + 1}]`}: ${questPO.toFixed(2).replace(/\.00$/, '')} PO`);
         }
+        // Ajouter les totaux d'inventaire de cette quête
+        if (totauxQueteText) {
+            totauxInventaireQuetes.push({
+                quete: titre || `Quête ${index + 1}`,
+                totaux: totauxQueteText
+            });
+        }
     });
 
     return {
@@ -596,7 +769,8 @@ function generateQuestesSection() {
         objetsQuetes,
         autresQuetes,
         xpQuetes,
-        recompensesQuetes
+        recompensesQuetes,
+        totauxInventaireQuetes
     };
 }
 
@@ -740,7 +914,7 @@ function generateTemplate() {
     }
     
     // Informations quête
-    const { quetesList, objetsList, poList, totalXPQuetes, totalMonnaies, objetsQuetes, autresQuetes, xpQuetes, recompensesQuetes } = generateQuestesSection();
+    const { quetesList, objetsList, poList, totalXPQuetes, totalMonnaies, objetsQuetes, autresQuetes, xpQuetes, recompensesQuetes, totauxInventaireQuetes } = generateQuestesSection();
     let sectionQuete = '';
 
     if (quetesList.length || objetsList.length || poList.length) {
@@ -842,15 +1016,29 @@ function generateTemplate() {
     const ancienSoldeNum = parseFloat(ancienSolde);
     const poRecues = poRecuesEl ? parseFloat(poRecuesEl.value) || 0 : 0;
 
-    // Artisanat
+    // Artisanat - champs enrichis
+    const artisanatTypeEl = document.getElementById('artisanat-type');
+    const artisanatTempsEl = document.getElementById('artisanat-temps');
+    const artisanatDDEl = document.getElementById('artisanat-dd');
+    const artisanatJetEl = document.getElementById('artisanat-jet');
+    const artisanatMateriauxEl = document.getElementById('artisanat-materiaux');
     const artisanatNotesEl = document.getElementById('artisanat-notes');
     const artisanatItemsEl = document.getElementById('artisanat-items');
     const artisanatCostEl = document.getElementById('artisanat-cost');
+    const artisanatOtherCostEl = document.getElementById('artisanat-other-cost');
 
+    const artisanatType = artisanatTypeEl ? artisanatTypeEl.value : '';
+    const artisanatTemps = artisanatTempsEl ? artisanatTempsEl.value.trim() : '';
+    const artisanatDD = artisanatDDEl ? artisanatDDEl.value.trim() : '';
+    const artisanatJet = artisanatJetEl ? artisanatJetEl.value.trim() : '';
+    const artisanatMateriaux = artisanatMateriauxEl ? artisanatMateriauxEl.value.trim() : '';
     const artisanatNotes = artisanatNotesEl ? artisanatNotesEl.value.trim() : '';
     const artisanatItemsList = artisanatItemsEl ? parseList(artisanatItemsEl) : [];
     const artisanatCostRaw = artisanatCostEl ? artisanatCostEl.value.trim() : '';
     const artisanatCost = artisanatCostRaw !== '' ? parseFloat(artisanatCostRaw) || 0 : 0;
+    const artisanatOtherCostRaw = artisanatOtherCostEl ? artisanatOtherCostEl.value.trim() : '';
+    const artisanatOtherCost = artisanatOtherCostRaw !== '' ? parseFloat(artisanatOtherCostRaw) || 0 : 0;
+    const artisanatTotalCost = artisanatCost + artisanatOtherCost;
     
     // Section spéciale
     const typeSpecialEl = document.getElementById('type-special');
@@ -866,8 +1054,8 @@ function generateTemplate() {
     const pvCalcul = calculatePVGain(classeGainNiveau || classe, niveauActuel, niveauCible, modConstitution, bonusPV, pvActuels);
     
     // Construction du template
-    let template = `Nom du PJ : ${nom}
-Classe : ${classe}
+    let template = `**Nom du PJ :** ${nom}
+**Classe :** ${classe}
 `;
 
     // Section spéciale si définie (avant le bloc PJ)
@@ -889,11 +1077,11 @@ ${descriptionSpecial}
         if (quetesList.length === 1) {
             // Une seule quête : format simple avec tiret
             template += `
-Quête : - ${quetesList[0]}`;
+**Quête :** - ${quetesList[0]}`;
         } else {
             // Plusieurs quêtes : format avec crochets
             template += `
-Quête : [
+**Quête :** [
 ${quetesList.map(q => q).join('\n')}
 ]`;
         }
@@ -905,7 +1093,7 @@ ${quetesList.map(q => q).join('\n')}
     if (xpActuelsVal !== null && totalXPQuetes > 0) {
         const xpRequisPourNiveau = XP_TABLE[niveauActuel + 1] || '?';
         const nouveauTotalXP = xpActuelsVal + totalXPQuetes;
-        let affichageXP = `Solde XP : ${xpActuelsVal}/${xpRequisPourNiveau} + ${totalXPQuetes}XP obtenue ==> ${nouveauTotalXP}/${xpRequisPourNiveau}`;
+        let affichageXP = `**Solde XP :** ${xpActuelsVal}/${xpRequisPourNiveau} + ${totalXPQuetes}XP obtenue ==> ${nouveauTotalXP}/${xpRequisPourNiveau}`;
 
         // Ajouter Level up si applicable
         if (isLevelUp && niveauCible > niveauActuel) {
@@ -924,12 +1112,12 @@ ${affichageXP}`;
     if (niveauCible > niveauActuel) {
         template += `
 
-Gain de niveau : `;
+**Gain de niveau :**`;
 
         // PV détaillés si renseignés
         if (pvCalcul && pvActuels > 0) {
             template += `
-PV : ${pvCalcul}`;
+**PV :** ${pvCalcul}`;
         }
     }
 
@@ -938,30 +1126,30 @@ PV : ${pvCalcul}`;
     if (hasExtras) {
         template += `
 
-¤ Capacités et sorts supplémentaires :`;
+**¤ Capacités et sorts supplémentaires :**`;
         if (nouvellesCapacites) {
             template += `
-Nouvelle(s) capacité(s) :
+*Nouvelle(s) capacité(s) :*
 ${nouvellesCapacites}`;
         }
         if (nouveauxDons) {
             template += `
-Nouveau(x) don(s) :
+*Nouveau(x) don(s) :*
 ${nouveauxDons}`;
         }
         if (donsQuete) {
             template += `
-Don(s) (gain de quête) :
+*Don(s) (gain de quête) :*
 ${donsQuete}`;
         }
         if (nouveauxSorts) {
             template += `
-Nouveau(x) sort(s) :
+*Nouveau(x) sort(s) :*
 ${nouveauxSorts}`;
         }
         if (sortsRemplaces) {
             template += `
-Sort(s) remplacé(s) :
+*Sort(s) remplacé(s) :*
 ${sortsRemplaces}`;
         }
     }
@@ -1001,27 +1189,43 @@ ${sortsRemplaces}`;
 
     const monnaiesText = monnaiesLootees.length > 0 ? monnaiesLootees.join(' ') : '';
 
-    if (tousObjets !== '' || monnaiesText !== '') {
+    // Totaux d'inventaire généraux (onglet Items)
+    const totauxInventaireEl = document.getElementById('totaux-inventaire');
+    const totauxInventaire = totauxInventaireEl ? totauxInventaireEl.value.trim() : '';
+
+    // Combiner totaux généraux et totaux de quêtes
+    const hasTotauxQuetes = totauxInventaireQuetes.length > 0;
+    const hasTotauxGeneraux = totauxInventaire !== '';
+    const hasInventaire = tousObjets !== '' || monnaiesText !== '' || hasTotauxQuetes || hasTotauxGeneraux;
+
+    if (hasInventaire) {
         template += `
 
-¤ Inventaire`;
+**¤ Inventaire**`;
         if (tousObjets !== '') {
             template += `
-Objets lootés : ${tousObjets}`;
+*Objets lootés :* ${tousObjets}`;
         }
         if (monnaiesText !== '') {
             template += `
-PO lootées: ${monnaiesText}`;
+*PO lootées :* ${monnaiesText}`;
         }
-    }
 
-    // Totaux d'inventaire si renseignés
-    const totauxInventaireEl = document.getElementById('totaux-inventaire');
-    const totauxInventaire = totauxInventaireEl ? totauxInventaireEl.value.trim() : '';
-    if (totauxInventaire) {
-        template += `
+        // Afficher les totaux d'inventaire des quêtes
+        if (hasTotauxQuetes) {
+            template += `
+*Totaux après récompenses :*`;
+            totauxInventaireQuetes.forEach(item => {
+                template += `
+${item.totaux}`;
+            });
+        }
 
+        // Afficher les totaux généraux si présents
+        if (hasTotauxGeneraux) {
+            template += `
 ${totauxInventaire}`;
+        }
     }
 
     // ===== FIN BLOC PJ =====
@@ -1033,14 +1237,14 @@ ${totauxInventaire}`;
     if (includeMarchand && transactionsText.trim() !== '') {
         template += `
 / ===================== Marchand ===================== \\
-¤ Inventaire
+**¤ Inventaire**
 ${transactionsText}
  \\ ==================== Marchand ====================== /
 `;
     }
 
     // ===== SOLDE (toujours après les blocs PJ et Marchand) =====
-    const changeTotal = poRecues + totalLootPO + netPOMarchand - artisanatCost;
+    const changeTotal = poRecues + totalLootPO + netPOMarchand - artisanatTotalCost;
 
     // Construire la ligne de solde
     let soldeParts = [];
@@ -1055,8 +1259,8 @@ ${transactionsText}
         const sign = netPOMarchand >= 0 ? '+' : '-';
         soldeParts.push(`${sign} ${Math.abs(netPOMarchand).toFixed(2).replace(/\.00$/, '')} PO`);
     }
-    if (artisanatCost > 0) {
-        soldeParts.push(`- ${artisanatCost.toFixed(2).replace(/\.00$/, '')} PO`);
+    if (artisanatTotalCost > 0) {
+        soldeParts.push(`- ${artisanatTotalCost.toFixed(2).replace(/\.00$/, '')} PO (artisanat)`);
     }
 
     // Calculer le nouveau solde
@@ -1091,26 +1295,66 @@ ${transactionsText}
     soldeParts.push(`= ${nouveauSolde}`);
 
     template += `
-¤ Solde :
+**¤ Solde :**
 ${soldeParts.join(' ')}
 
-Fiche R20 à jour.`;
+*Fiche R20 à jour.*`;
 
     // Artisanat si renseigné (après le solde)
-    const hasArtisanat = artisanatNotes || artisanatItemsList.length > 0 || artisanatCostRaw !== '';
+    const hasArtisanat = artisanatType || artisanatTemps || artisanatDD || artisanatJet || artisanatMateriaux || artisanatNotes || artisanatItemsList.length > 0 || artisanatTotalCost > 0;
     if (hasArtisanat) {
+        // Titre avec type d'artisanat
+        const artisanatTitre = artisanatType ? `**Artisanat (${artisanatType}) :**` : '**Artisanat :**';
         template += `
 
-Artisanat : ${artisanatNotes}`;
+${artisanatTitre}`;
+
+        // Infos de session (temps, DD, jet)
+        let sessionInfo = [];
+        if (artisanatTemps) sessionInfo.push(`Temps : ${artisanatTemps}`);
+        if (artisanatDD) sessionInfo.push(`DD ${artisanatDD}`);
+        if (artisanatJet) sessionInfo.push(`Jet : ${artisanatJet}`);
+        if (sessionInfo.length > 0) {
+            template += `
+${sessionInfo.join(' | ')}`;
+        }
+
+        // Matériaux utilisés
+        if (artisanatMateriaux) {
+            template += `
+*Matériaux :* ${artisanatMateriaux}`;
+        }
+
+        // Objets fabriqués
         if (artisanatItemsList.length > 0) {
             template += `
-Obtention des objets suivants :
+*Objets fabriqués :*
 ${artisanatItemsList.map(i => `- ${i}`).join('\n')}`;
         }
-        if (artisanatCost > 0) {
-            const artisanatCostFormatted = artisanatCost.toFixed(2).replace(/\.00$/, '');
+
+        // Coûts
+        if (artisanatTotalCost > 0) {
+            let coutDetails = [];
+            if (artisanatCost > 0) {
+                coutDetails.push(`${artisanatCost.toFixed(2).replace(/\.00$/, '')} PO (matériaux)`);
+            }
+            if (artisanatOtherCost > 0) {
+                coutDetails.push(`${artisanatOtherCost.toFixed(2).replace(/\.00$/, '')} PO (autres frais)`);
+            }
+            const totalFormatted = artisanatTotalCost.toFixed(2).replace(/\.00$/, '');
+            if (coutDetails.length > 1) {
+                template += `
+*Coût total :* ${coutDetails.join(' + ')} = ${totalFormatted} PO`;
+            } else {
+                template += `
+*Coût :* ${totalFormatted} PO`;
+            }
+        }
+
+        // Notes supplémentaires
+        if (artisanatNotes) {
             template += `
-Coût : ${artisanatCostFormatted} PO`;
+${artisanatNotes}`;
         }
     }
 
@@ -1197,17 +1441,17 @@ document.addEventListener('DOMContentLoaded', function() {
         multiclasseToggle.addEventListener('change', function() {
             const classeSimple = document.getElementById('classe-simple');
             const classeMulti = document.getElementById('classe-multi');
-            
+
             if (classeSimple && classeMulti) {
                 if (this.checked) {
-                    classeSimple.style.display = 'none';
-                    classeMulti.style.display = 'block';
+                    classeSimple.classList.add('hidden');
+                    classeMulti.classList.remove('hidden');
                 } else {
-                    classeSimple.style.display = 'block';
-                    classeMulti.style.display = 'none';
+                    classeSimple.classList.remove('hidden');
+                    classeMulti.classList.add('hidden');
                 }
             }
-            
+
             regenerateIfNeeded();
         });
     }
@@ -1272,9 +1516,15 @@ document.addEventListener('DOMContentLoaded', function() {
         + ' input#po-lootees:not([data-listener-added]),'
         + ' input#po-recues:not([data-listener-added]),'
         + ' input#ancien-solde:not([data-listener-added]),'
+        + ' select#artisanat-type:not([data-listener-added]),'
+        + ' input#artisanat-temps:not([data-listener-added]),'
+        + ' input#artisanat-dd:not([data-listener-added]),'
+        + ' input#artisanat-jet:not([data-listener-added]),'
+        + ' textarea#artisanat-materiaux:not([data-listener-added]),'
         + ' textarea#artisanat-notes:not([data-listener-added]),'
         + ' textarea#artisanat-items:not([data-listener-added]),'
         + ' input#artisanat-cost:not([data-listener-added]),'
+        + ' input#artisanat-other-cost:not([data-listener-added]),'
         + ' input#section-marchand:not([data-listener-added]),'
         + ' button#toggle-artisanat-btn:not([data-listener-added])'
     );

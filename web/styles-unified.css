@@ -640,3 +640,101 @@ textarea:hover {
 .gap-10 { gap: 10px; }
 .gap-15 { gap: 15px; }
 .gap-20 { gap: 20px; }
+
+/* ===== LIGNES DE FINANCES (QUÊTES) ===== */
+.finances-lignes {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.finance-ligne {
+    display: grid;
+    grid-template-columns: 1fr auto 2fr auto;
+    gap: 8px;
+    align-items: center;
+    padding: 10px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #e1e8ed;
+}
+
+.finance-ligne .finance-desc {
+    min-width: 150px;
+}
+
+.finance-ligne .finance-type {
+    width: auto;
+    min-width: 100px;
+}
+
+.finance-monnaies {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 5px;
+}
+
+.finance-monnaies input {
+    min-width: 50px;
+    padding: 8px;
+    text-align: center;
+}
+
+.delete-finance-ligne {
+    padding: 6px 10px !important;
+    font-size: 14px;
+    background: #e74c3c;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.delete-finance-ligne:hover {
+    background: #c0392b;
+}
+
+.add-finance-ligne {
+    background: #3498db;
+    color: white;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    width: fit-content;
+}
+
+.add-finance-ligne:hover {
+    background: #2980b9;
+}
+
+@media (max-width: 768px) {
+    .finance-ligne {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+
+    .finance-monnaies {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+/* ===== SECTION ARTISANAT AMÉLIORÉE ===== */
+.artisanat-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+}
+
+.artisanat-section .form-group {
+    margin-bottom: 15px;
+}
+
+/* ===== TOTAUX INVENTAIRE DANS QUÊTES ===== */
+.totaux-quete-section {
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px dashed #bdc3c7;
+}
