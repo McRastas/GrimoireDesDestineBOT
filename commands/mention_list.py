@@ -43,7 +43,7 @@ class MentionListCommand(BaseCommand):
 
         @tree.command(name=self.name, description=self.description)
         @app_commands.describe(
-            public="Afficher les statistiques publiquement (visible par tous) - défaut: non"
+            public="Afficher publiquement (visible par tous) - défaut: non"
         )
         async def mentionlist_command(
             interaction: discord.Interaction,
@@ -170,7 +170,61 @@ class MentionListCommand(BaseCommand):
             else:
                 description = "Aucun joueur trouvé dans ce canal."
 
-            # Créer l'embed
+                # Compter les posts MJ : posts avec 2+ mentions uniques hors auteur (logique recapmj)
+                if msg.author.id in posts_mj_count:
+                    mentions_uniques = set(
+                        u.id for u in msg.mentions if u.id != msg.author.id
+                    )
+                    if len(mentions_uniques) >= 2:
+                        posts_mj_count[msg.author.id] += 1
+
+            # --- Tri : joueurs oubliés d'abord, puis par mentions croissantes ---
+            def sort_key(item):
+                uid, mentions = item
+                mj = posts_mj_count.get(uid, 0)
+                # 0 = oublié en premier, 1 = actif après
+                return (0 if (mentions == 0 and mj == 0) else 1, mentions, mj)
+
+            sorted_users = sorted(mentions_count.items(), key=sort_key)
+
+            # --- Construction de l'affichage ---
+            lines_oublies = []
+            lines_actifs = []
+
+            for uid, mentions in sorted_users:
+                user = auteurs.get(uid)
+                if not user:
+                    continue
+
+                mj = posts_mj_count.get(uid, 0)
+
+                if mentions == 0 and mj == 0:
+                    lines_oublies.append(
+                        f"⚠️ **{user.display_name}** - aucune récompense, aucune quête MJ"
+                    )
+                else:
+                    parts = []
+                    parts.append(f"{mentions} récompense{'s' if mentions != 1 else ''}")
+                    if mj > 0:
+                        parts.append(f"{mj} quête{'s' if mj != 1 else ''} MJ")
+                    lines_actifs.append(
+                        f"✅ **{user.display_name}** - {' | '.join(parts)}"
+                    )
+
+            # Assembler la description
+            description_parts = []
+            if lines_oublies:
+                description_parts.append(
+                    f"**__Joueurs sans activité (30j) :__**\n" + "\n".join(lines_oublies)
+                )
+            if lines_actifs:
+                description_parts.append(
+                    f"**__Joueurs avec activité :__**\n" + "\n".join(lines_actifs)
+                )
+
+            description = "\n\n".join(description_parts) if description_parts else "Aucun joueur trouvé."
+
+            # Embed
             embed = discord.Embed(
                 title="📊 Suivi joueurs - récompenses & quêtes MJ (30 jours)",
                 description=description,
@@ -178,7 +232,7 @@ class MentionListCommand(BaseCommand):
 
             embed.add_field(
                 name="Canal source",
-                value=f"{interaction.channel.mention}",
+                value=interaction.channel.mention,
                 inline=True
             )
 
