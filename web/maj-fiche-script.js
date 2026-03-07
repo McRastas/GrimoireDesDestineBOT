@@ -1256,10 +1256,6 @@ function generateTemplate() {
 **Classe :** ${classe}
 `;
 
-    if (sousClasse) {
-        template += `**Sous-classe :** ${sousClasse}\n`;
-    }
-
     // Section spéciale si définie (avant le bloc PJ)
     if (typeSpecial && descriptionSpecial) {
         const sectionTitle = getSectionTitle(typeSpecial);
@@ -1273,6 +1269,11 @@ ${descriptionSpecial}
     // ===== BLOC PJ (toujours présent) =====
     template += `
  / =======================  PJ  ========================= \\ `;
+
+    if (sousClasse) {
+        template += `
+**Sous-classe :** ${sousClasse}`;
+    }
 
     // Section Quête - format adapté selon le nombre de quêtes
     if (quetesList.length > 0) {
