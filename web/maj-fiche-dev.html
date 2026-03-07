@@ -260,27 +260,10 @@
                         </div>
 
                         <div class="form-group">
-                            <label for="sorts-tier">Sorts appris via :</label>
-                            <select id="sorts-tier-provenance">
-                                <option value="">-- Provenance --</option>
-                                <option value="Don">Don</option>
-                                <option value="Parchemin">Parchemin</option>
-                                <option value="Grimoire">Grimoire</option>
-                                <option value="Récompense">Récompense</option>
-                                <option value="Autre">Autre</option>
-                            </select>
-                            <textarea id="sorts-tier" rows="3" placeholder="Un sort par ligne"></textarea>
-                            <div class="help-text">Une entrée par ligne</div>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="invocations-apprises">Invocations Occultes apprises :</label>
-                            <textarea id="invocations-apprises" rows="2" placeholder="Une par ligne"></textarea>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="invocations-remplacees">Invocations Occultes remplacées :</label>
-                            <textarea id="invocations-remplacees" rows="2" placeholder="Ancien ==> Nouveau (une par ligne)"></textarea>
+                            <label>Sorts / Invocations Occultes (extras) :</label>
+                            <div id="capacites-extras-container"></div>
+                            <button type="button" id="add-capacite-extra">+ Ajouter un bloc</button>
+                            <div class="help-text">Sorts via tier (parchemin, grimoire, récompense…), invocations occultes apprises/remplacées</div>
                         </div>
                     </div>
                     <div id="tab-items" class="tab-content">
