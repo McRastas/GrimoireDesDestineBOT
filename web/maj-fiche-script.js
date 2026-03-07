@@ -94,6 +94,52 @@ function setupTransactionLine(line) {
     }
 }
 
+// ===== GESTION DES CAPACITÉS EXTRAS =====
+
+function addCapaciteExtraLine() {
+    const container = document.getElementById('capacites-extras-container');
+    if (!container) return;
+    const line = document.createElement('div');
+    line.className = 'capacite-extra-line';
+    line.innerHTML = `
+        <select class="cap-extra-type">
+            <option value="sort-via">Sort via...</option>
+            <option value="invocation-apprise">Invocation apprise</option>
+            <option value="invocation-remplacee">Invocation remplacée</option>
+        </select>
+        <select class="cap-extra-provenance">
+            <option value="Don">Don</option>
+            <option value="Parchemin">Parchemin</option>
+            <option value="Grimoire">Grimoire</option>
+            <option value="Récompense">Récompense</option>
+            <option value="Autre">Autre</option>
+        </select>
+        <textarea class="cap-extra-contenu" rows="2" placeholder="Un sort / invocation par ligne"></textarea>
+        <button type="button" class="delete-capacite-extra">🗑️</button>
+    `;
+    container.appendChild(line);
+    setupCapaciteExtraLine(line);
+    regenerateIfNeeded();
+}
+
+function deleteCapaciteExtraLine(line) {
+    line.remove();
+    regenerateIfNeeded();
+}
+
+function setupCapaciteExtraLine(line) {
+    const typeSelect = line.querySelector('.cap-extra-type');
+    const provenanceSelect = line.querySelector('.cap-extra-provenance');
+    const toggleProvenance = () => {
+        provenanceSelect.style.display = typeSelect.value === 'sort-via' ? '' : 'none';
+    };
+    toggleProvenance();
+    typeSelect.addEventListener('change', () => { toggleProvenance(); regenerateIfNeeded(); });
+    provenanceSelect.addEventListener('change', regenerateIfNeeded);
+    line.querySelector('.cap-extra-contenu').addEventListener('input', regenerateIfNeeded);
+    line.querySelector('.delete-capacite-extra').addEventListener('click', () => deleteCapaciteExtraLine(line));
+}
+
 // ===== GESTION DES QUÊTES =====
 
 function addQuete() {
@@ -1499,6 +1545,13 @@ document.addEventListener('DOMContentLoaded', function() {
     if (addTransactionBtn) {
         addTransactionBtn.addEventListener('click', addTransactionLine);
     }
+
+    // Bouton d'ajout de bloc capacité extra
+    const addCapaciteExtraBtn = document.getElementById('add-capacite-extra');
+    if (addCapaciteExtraBtn) {
+        addCapaciteExtraBtn.addEventListener('click', addCapaciteExtraLine);
+    }
+    document.querySelectorAll('#capacites-extras-container .capacite-extra-line').forEach(setupCapaciteExtraLine);
 
     // Boutons de copie
     document.querySelectorAll('.copy-btn[data-target]').forEach(btn => {
