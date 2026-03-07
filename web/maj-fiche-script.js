@@ -1213,6 +1213,25 @@ function generateTemplate() {
     const artisanatOtherCost = artisanatOtherCostRaw !== '' ? parseFloat(artisanatOtherCostRaw) || 0 : 0;
     const artisanatTotalCost = artisanatCost + artisanatOtherCost;
     
+    // Formation
+    const formationSectionEl = document.getElementById('formation-section');
+    const formationVisible = formationSectionEl && !formationSectionEl.classList.contains('hidden');
+    const formationTypeEl = document.getElementById('formation-type');
+    const formationTempsTypeEl = document.getElementById('formation-temps-type');
+    const formationDateDebutEl = document.getElementById('formation-date-debut');
+    const formationDateFinEl = document.getElementById('formation-date-fin');
+    const formationCoutEl = document.getElementById('formation-cout');
+    const formationNoteEl = document.getElementById('formation-note');
+
+    const formationType = formationTypeEl ? formationTypeEl.value.trim() : '';
+    const formationTempsType = formationTempsTypeEl ? formationTempsTypeEl.value : 'Temps plein';
+    const formationDateDebut = formationDateDebutEl ? formationDateDebutEl.value.trim() : '';
+    const formationDateFin = formationDateFinEl ? formationDateFinEl.value.trim() : '';
+    const formationCoutRaw = formationCoutEl ? formationCoutEl.value.trim() : '';
+    const formationCout = formationCoutRaw !== '' ? parseFloat(formationCoutRaw) || 0 : 250;
+    const formationNote = formationNoteEl ? formationNoteEl.value.trim() : '';
+    const hasFormation = formationVisible && (formationType || formationDateDebut);
+
     // Section spéciale
     const typeSpecialEl = document.getElementById('type-special');
     const descriptionSpecialEl = document.getElementById('description-special');
@@ -1412,8 +1431,27 @@ ${transactionsText}
 `;
     }
 
+    // ===== FORMATION (après les blocs PJ et Marchand) =====
+    if (hasFormation) {
+        let formationLine = 'Début formation';
+        if (formationType) formationLine += ` : ${formationType}`;
+        if (formationDateDebut) formationLine += ` ${formationDateDebut}`;
+        formationLine += ` → ${formationTempsType}`;
+        if (formationDateFin) formationLine += `, fin le ${formationDateFin}`;
+        if (formationNote) formationLine += ` (${formationNote})`;
+
+        template += `
+**¤ Formation :**
+${formationLine}`;
+        if (formationCout > 0) {
+            template += `
+Dépenses : ${formationCout.toFixed(2).replace(/\.00$/, '')} PO pour la formation`;
+        }
+        template += '\n';
+    }
+
     // ===== SOLDE (toujours après les blocs PJ et Marchand) =====
-    const changeTotal = poRecues + totalLootPO + netPOMarchand - artisanatTotalCost;
+    const changeTotal = poRecues + totalLootPO + netPOMarchand - artisanatTotalCost - (hasFormation ? formationCout : 0);
 
     // Construire la ligne de solde
     let soldeParts = [];
@@ -1430,6 +1468,14 @@ ${transactionsText}
     }
     if (artisanatTotalCost > 0) {
         soldeParts.push(`- ${artisanatTotalCost.toFixed(2).replace(/\.00$/, '')} PO (artisanat)`);
+    }
+    if (hasFormation && formationCout > 0) {
+        soldeParts.push(`- ${formationCout.toFixed(2).replace(/\.00$/, '')} PO (formation)`);
+    }
+    if (poRecues !== 0) {
+        const sign = poRecues >= 0 ? '+' : '-';
+        const label = poRecues >= 0 ? ' PO reçues' : ' PO dépensées';
+        soldeParts.push(`${sign} ${Math.abs(poRecues).toFixed(2).replace(/\.00$/, '')}${label}`);
     }
 
     // Calculer le nouveau solde
@@ -1592,6 +1638,15 @@ function copyToClipboard(text) {
     });
 }
 
+function toggleFormation() {
+    const section = document.getElementById('formation-section');
+    const btn = document.getElementById('toggle-formation-btn');
+    if (!section || !btn) return;
+
+    const isHidden = section.classList.toggle('hidden');
+    btn.textContent = isHidden ? 'Ajouter formation' : 'Retirer formation';
+}
+
 function toggleArtisanat() {
     const section = document.getElementById('artisanat-section');
     const btn = document.getElementById('toggle-artisanat-btn');
@@ -1623,6 +1678,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
             regenerateIfNeeded();
         });
+    }
+
+    // Gestion du toggle formation
+    const formationBtn = document.getElementById('toggle-formation-btn');
+    if (formationBtn) {
+        formationBtn.addEventListener('click', toggleFormation);
     }
 
     // Gestion du toggle artisanat
@@ -1708,7 +1769,14 @@ document.addEventListener('DOMContentLoaded', function() {
         + ' input#artisanat-cost:not([data-listener-added]),'
         + ' input#artisanat-other-cost:not([data-listener-added]),'
         + ' input#section-marchand:not([data-listener-added]),'
-        + ' button#toggle-artisanat-btn:not([data-listener-added])'
+        + ' button#toggle-artisanat-btn:not([data-listener-added]),'
+        + ' button#toggle-formation-btn:not([data-listener-added]),'
+        + ' input#formation-type:not([data-listener-added]),'
+        + ' select#formation-temps-type:not([data-listener-added]),'
+        + ' input#formation-date-debut:not([data-listener-added]),'
+        + ' input#formation-date-fin:not([data-listener-added]),'
+        + ' input#formation-cout:not([data-listener-added]),'
+        + ' input#formation-note:not([data-listener-added])'
     );
     inputs.forEach(input => {
         if (input.tagName === 'BUTTON') {

@@ -317,6 +317,47 @@
                         </div>
                     </div>
                     <div id="tab-special" class="tab-content">
+                        <button type="button" id="toggle-formation-btn">Ajouter formation</button>
+                        <div id="formation-section" class="hidden">
+                            <h4 style="color: #27ae60; margin-bottom: 15px;">📚 Formation</h4>
+
+                            <div class="artisanat-grid">
+                                <div class="form-group">
+                                    <label for="formation-type">Type de formation :</label>
+                                    <input type="text" id="formation-type" placeholder="Ex: outils de maçon, instrument (cor de guerre)">
+                                </div>
+                                <div class="form-group">
+                                    <label for="formation-temps-type">Rythme :</label>
+                                    <select id="formation-temps-type">
+                                        <option value="Temps plein">Temps plein</option>
+                                        <option value="Temps partiel">Temps partiel</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="artisanat-grid">
+                                <div class="form-group">
+                                    <label for="formation-date-debut">Date de début :</label>
+                                    <input type="text" id="formation-date-debut" placeholder="Ex: 06.03, 25/01/2026">
+                                </div>
+                                <div class="form-group">
+                                    <label for="formation-date-fin">Date de fin :</label>
+                                    <input type="text" id="formation-date-fin" placeholder="Ex: 5.06, 09.03">
+                                </div>
+                            </div>
+
+                            <div class="artisanat-grid">
+                                <div class="form-group">
+                                    <label for="formation-cout">Coût (PO) :</label>
+                                    <input type="number" id="formation-cout" placeholder="250" value="250" step="0.01">
+                                </div>
+                                <div class="form-group">
+                                    <label for="formation-note">Note (où ajouter dans la fiche) :</label>
+                                    <input type="text" id="formation-note" placeholder="Ex: ajouté dans bio, mis dans capacités">
+                                </div>
+                            </div>
+                        </div>
+
                         <button type="button" id="toggle-artisanat-btn">Ajouter artisanat</button>
                         <div id="artisanat-section" class="hidden">
                             <h4 style="color: #9b59b6; margin-bottom: 15px;">🔨 Session d'Artisanat</h4>
