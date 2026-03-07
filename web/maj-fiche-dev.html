@@ -128,7 +128,6 @@
                                     <div id="monnaie-container-0" class="hidden">
                                         <div id="finances-lignes-0" class="finances-lignes">
                                             <div class="finance-ligne" data-finance="0">
-                                                <input type="text" class="finance-desc" placeholder="Description (ex: Récompense session 1)">
                                                 <select class="finance-type">
                                                     <option value="gain">+ Gain</option>
                                                     <option value="depense">- Dépense</option>
@@ -151,12 +150,14 @@
                                         <label for="include-objets-0">Inclure objets</label>
                                     </div>
                                     <div id="objets-container-0" class="hidden">
-                                        <textarea id="objets-quete-0" rows="2" placeholder="2 émeraudes d'une valeur de 200PO, un étrange engrenage en rotation perpétuelle"></textarea>
-                                        <div class="totaux-quete-section">
-                                            <label for="totaux-quete-0">Totaux d'inventaire après loot :</label>
-                                            <textarea id="totaux-quete-0" rows="2" placeholder="Total Potion de Guérison supérieure(8d4+8) ==> 2&#10;Total Rations ==> 10"></textarea>
-                                            <div class="help-text">Nouveau total d'un objet consommable après cette quête</div>
+                                        <div id="objets-lignes-0" class="objets-lignes">
+                                            <div class="objet-ligne" data-objet="0">
+                                                <input type="text" class="objet-desc" placeholder="Nom de l'objet">
+                                                <input type="number" class="objet-total" placeholder="Total inv." min="0">
+                                                <button type="button" class="delete-objet-ligne hidden">🗑️</button>
+                                            </div>
                                         </div>
+                                        <button type="button" class="add-objet-ligne" data-container="objets-lignes-0">➕ Objet</button>
                                     </div>
 
                                     <div class="reward-type">
@@ -268,14 +269,16 @@
                     </div>
                     <div id="tab-items" class="tab-content">
                         <div class="form-group">
-                            <label for="objets-lootes">Objets lootés (hors quêtes) :</label>
-                            <textarea id="objets-lootes" rows="3" placeholder="Une ligne par objet"></textarea>
-                            <div class="help-text">Une ligne par objet looté hors quête.</div>
-                        </div>
-                        <div class="form-group">
-                            <label for="totaux-inventaire">Totaux d'inventaire (optionnel) :</label>
-                            <textarea id="totaux-inventaire" rows="3" placeholder="Total Potion de Guérison supérieure(8d4+8) ==> 2&#10;Total Rations ==> 10"></textarea>
-                            <div class="help-text">Utile pour indiquer le nouveau total d'un objet consommable</div>
+                            <label>Objets lootés (hors quêtes) :</label>
+                            <div id="objets-lootes-lignes" class="objets-lignes">
+                                <div class="objet-ligne" data-objet="0">
+                                    <input type="text" class="objet-desc" placeholder="Nom de l'objet">
+                                    <input type="number" class="objet-total" placeholder="Total inv." min="0">
+                                    <button type="button" class="delete-objet-ligne hidden">🗑️</button>
+                                </div>
+                            </div>
+                            <button type="button" class="add-objet-ligne" data-container="objets-lootes-lignes">➕ Objet</button>
+                            <div class="help-text">Un objet par ligne. Le champ "Total inv." indique la quantité finale dans l'inventaire (optionnel).</div>
                         </div>
                         <div class="form-group">
                             <label>Achats / Ventes :</label>

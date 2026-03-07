@@ -140,6 +140,93 @@ function setupCapaciteExtraLine(line) {
     line.querySelector('.delete-capacite-extra').addEventListener('click', () => deleteCapaciteExtraLine(line));
 }
 
+// ===== GESTION DES OBJETS (lignes dynamiques) =====
+
+let objetCounters = {};
+
+function addObjetLigne(containerId) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    if (objetCounters[containerId] === undefined) {
+        objetCounters[containerId] = container.querySelectorAll('.objet-ligne').length;
+    }
+
+    const objetIndex = objetCounters[containerId]++;
+
+    const html = `
+        <div class="objet-ligne" data-objet="${objetIndex}">
+            <input type="text" class="objet-desc" placeholder="Nom de l'objet">
+            <input type="number" class="objet-total" placeholder="Total inv." min="0">
+            <button type="button" class="delete-objet-ligne">🗑️</button>
+        </div>
+    `;
+
+    container.insertAdjacentHTML('beforeend', html);
+
+    const newLigne = container.querySelector(`.objet-ligne[data-objet="${objetIndex}"]`);
+    setupObjetLigneListeners(newLigne, containerId);
+
+    updateObjetDeleteButtons(containerId);
+    regenerateIfNeeded();
+}
+
+function deleteObjetLigne(ligne, containerId) {
+    ligne.remove();
+    updateObjetDeleteButtons(containerId);
+    regenerateIfNeeded();
+}
+
+function updateObjetDeleteButtons(containerId) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    const lignes = container.querySelectorAll('.objet-ligne');
+    lignes.forEach(ligne => {
+        const deleteBtn = ligne.querySelector('.delete-objet-ligne');
+        if (deleteBtn) {
+            if (lignes.length > 1) {
+                deleteBtn.classList.remove('hidden');
+            } else {
+                deleteBtn.classList.add('hidden');
+            }
+        }
+    });
+}
+
+function setupObjetLigneListeners(ligne, containerId) {
+    if (!ligne) return;
+
+    const inputs = ligne.querySelectorAll('input');
+    inputs.forEach(input => {
+        if (!input.hasAttribute('data-objet-listener')) {
+            input.addEventListener('input', regenerateIfNeeded);
+            input.setAttribute('data-objet-listener', 'true');
+        }
+    });
+
+    const deleteBtn = ligne.querySelector('.delete-objet-ligne');
+    if (deleteBtn && !deleteBtn.hasAttribute('data-objet-listener')) {
+        deleteBtn.addEventListener('click', () => deleteObjetLigne(ligne, containerId));
+        deleteBtn.setAttribute('data-objet-listener', 'true');
+    }
+}
+
+function initObjetContainer(containerId) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    if (objetCounters[containerId] === undefined) {
+        objetCounters[containerId] = container.querySelectorAll('.objet-ligne').length;
+    }
+
+    container.querySelectorAll('.objet-ligne').forEach(ligne => {
+        setupObjetLigneListeners(ligne, containerId);
+    });
+
+    updateObjetDeleteButtons(containerId);
+}
+
 // ===== GESTION DES QUÊTES =====
 
 function addQuete() {
@@ -345,7 +432,6 @@ function createQueteHTML(index) {
             <div id="monnaie-container-${index}" class="hidden">
                 <div id="finances-lignes-${index}" class="finances-lignes">
                     <div class="finance-ligne" data-finance="0">
-                        <input type="text" class="finance-desc" placeholder="Description (ex: Récompense session 1)">
                         <select class="finance-type">
                             <option value="gain">+ Gain</option>
                             <option value="depense">- Dépense</option>
@@ -370,12 +456,14 @@ function createQueteHTML(index) {
                 </label>
             </div>
             <div id="objets-container-${index}" class="hidden">
-                <textarea id="objets-quete-${index}" rows="2" placeholder="2 émeraudes d'une valeur de 200PO, un étrange engrenage en rotation perpétuelle"></textarea>
-                <div class="totaux-quete-section">
-                    <label for="totaux-quete-${index}">Totaux d'inventaire après loot :</label>
-                    <textarea id="totaux-quete-${index}" rows="2" placeholder="Total Potion de Guérison supérieure(8d4+8) ==> 2&#10;Total Rations ==> 10"></textarea>
-                    <div class="help-text">Nouveau total d'un objet consommable après cette quête</div>
+                <div id="objets-lignes-${index}" class="objets-lignes">
+                    <div class="objet-ligne" data-objet="0">
+                        <input type="text" class="objet-desc" placeholder="Nom de l'objet">
+                        <input type="number" class="objet-total" placeholder="Total inv." min="0">
+                        <button type="button" class="delete-objet-ligne hidden">🗑️</button>
+                    </div>
                 </div>
+                <button type="button" class="add-objet-ligne" data-container="objets-lignes-${index}">➕ Objet</button>
             </div>
 
             <div class="reward-type">
@@ -431,7 +519,6 @@ function addFinanceLigne(queteIndex) {
 
     const html = `
         <div class="finance-ligne" data-finance="${financeIndex}">
-            <input type="text" class="finance-desc" placeholder="Description (ex: Récompense session 2)">
             <select class="finance-type">
                 <option value="gain">+ Gain</option>
                 <option value="depense">- Dépense</option>
@@ -611,6 +698,17 @@ function setupQueteListeners(index) {
     updateMonnaieTotal(index);
     updateFinanceDeleteButtons(index);
 
+    // Setup des lignes d'objets
+    const objetsContainerId = `objets-lignes-${index}`;
+    initObjetContainer(objetsContainerId);
+
+    // Bouton d'ajout d'objet
+    const addObjetBtn = document.querySelector(`[data-container="objets-lignes-${index}"]`);
+    if (addObjetBtn && !addObjetBtn.hasAttribute('data-objet-btn-added')) {
+        addObjetBtn.addEventListener('click', () => addObjetLigne(objetsContainerId));
+        addObjetBtn.setAttribute('data-objet-btn-added', 'true');
+    }
+
     const addBtn = document.querySelector(`[data-quete="${index}"] .add-recompense`);
     const recompenseContainer = document.getElementById(`recompenses-container-${index}`);
 
@@ -650,9 +748,8 @@ function generateQuestesSection() {
     let xpQuetes = [];
     let recompensesQuetes = [];
     let quetesList = [];
-    let objetsList = [];
-    let poList = [];
-    let totauxInventaireQuetes = []; // Totaux d'inventaire par quête
+    let objetsList = []; // tableau de {desc, total, quete}
+    let poList = []; // tableau de {titre, lines, total}
 
     quetes.forEach((quete, index) => {
         const dataIndex = quete.getAttribute('data-quete');
@@ -680,7 +777,6 @@ function generateQuestesSection() {
             if (financesContainer) {
                 const lignes = financesContainer.querySelectorAll('.finance-ligne');
                 lignes.forEach(ligne => {
-                    const desc = ligne.querySelector('.finance-desc')?.value.trim() || '';
                     const type = ligne.querySelector('.finance-type')?.value || 'gain';
                     const pc = parseInt(ligne.querySelector('.finance-pc')?.value) || 0;
                     const pa = parseInt(ligne.querySelector('.finance-pa')?.value) || 0;
@@ -698,7 +794,7 @@ function generateQuestesSection() {
                         if (po !== 0) ligneMonnaies.push(`${po} PO`);
                         if (pp !== 0) ligneMonnaies.push(`${pp} PP`);
 
-                        const ligneText = `${signe} ${ligneMonnaies.join(' ')}${desc ? ' (' + desc + ')' : ''}`;
+                        const ligneText = `${signe} ${ligneMonnaies.join(' ')}`;
                         financesDetails.push(ligneText);
 
                         // Ajouter aux totaux globaux
@@ -731,21 +827,26 @@ function generateQuestesSection() {
             recompensesText += ', ' + financesDetails.join(', ');
         }
 
-        // Objets et totaux d'inventaire
+        // Objets
         let objetsText = '';
-        let totauxQueteText = '';
+        let questObjets = []; // {desc, total}
         const includeObjets = document.getElementById(`include-objets-${dataIndex}`);
         if (includeObjets && includeObjets.checked) {
-            const objetsEl = document.getElementById(`objets-quete-${dataIndex}`);
-            if (objetsEl && objetsEl.value.trim()) {
-                objetsText = objetsEl.value.trim();
+            const objetsContainer = document.getElementById(`objets-lignes-${dataIndex}`);
+            if (objetsContainer) {
+                objetsContainer.querySelectorAll('.objet-ligne').forEach(ligne => {
+                    const desc = ligne.querySelector('.objet-desc')?.value.trim();
+                    const total = ligne.querySelector('.objet-total')?.value.trim();
+                    if (desc) {
+                        questObjets.push({ desc, total });
+                        objetsList.push({ desc, total, quete: titre || `Quête ${index + 1}` });
+                    }
+                });
+            }
+            if (questObjets.length > 0) {
+                objetsText = questObjets.map(o => o.desc).join(', ');
                 recompensesText += ', ' + objetsText;
                 objetsQuetes.push(objetsText);
-            }
-            // Totaux d'inventaire liés à cette quête
-            const totauxQueteEl = document.getElementById(`totaux-quete-${dataIndex}`);
-            if (totauxQueteEl && totauxQueteEl.value.trim()) {
-                totauxQueteText = totauxQueteEl.value.trim();
             }
         }
 
@@ -791,17 +892,11 @@ function generateQuestesSection() {
             questLine = `${titre || `[TITRE_QUETE_${index + 1}]`} - ${mj || `[MJ_${index + 1}]`} - ${lien}${recompensesSuffix}`;
         }
         quetesList.push(questLine);
-        if (objetsText) {
-            objetsList.push(`${titre || `[TITRE_QUETE_${index + 1}]`}: ${objetsText}`);
-        }
         if (monnaieText.length > 0) {
-            poList.push(`${titre || `[TITRE_QUETE_${index + 1}]`}: ${questPO.toFixed(2).replace(/\.00$/, '')} PO`);
-        }
-        // Ajouter les totaux d'inventaire de cette quête
-        if (totauxQueteText) {
-            totauxInventaireQuetes.push({
-                quete: titre || `Quête ${index + 1}`,
-                totaux: totauxQueteText
+            poList.push({
+                titre: titre || `[TITRE_QUETE_${index + 1}]`,
+                lines: financesDetails,
+                total: questPO
             });
         }
     });
@@ -815,8 +910,7 @@ function generateQuestesSection() {
         objetsQuetes,
         autresQuetes,
         xpQuetes,
-        recompensesQuetes,
-        totauxInventaireQuetes
+        recompensesQuetes
     };
 }
 
@@ -960,13 +1054,27 @@ function generateTemplate() {
     }
     
     // Informations quête
-    const { quetesList, objetsList, poList, totalXPQuetes, totalMonnaies, objetsQuetes, autresQuetes, xpQuetes, recompensesQuetes, totauxInventaireQuetes } = generateQuestesSection();
+    const { quetesList, objetsList, poList, totalXPQuetes, totalMonnaies, objetsQuetes, autresQuetes, xpQuetes, recompensesQuetes } = generateQuestesSection();
     let sectionQuete = '';
 
     if (quetesList.length || objetsList.length || poList.length) {
         const quetesLines = quetesList.map(q => `- ${q}`).join('\n');
-        const objetsLines = objetsList.map(o => `- ${o}`).join('\n');
-        const poLines = poList.map(p => `- ${p}`).join('\n');
+
+        // Objets : une entrée par objet avec quête d'origine
+        const objetsLines = objetsList.map(o => {
+            const totalPart = o.total ? ` (total inventaire : ${o.total})` : '';
+            return `- ${o.desc}${totalPart}`;
+        }).join('\n');
+
+        // PO : détail par ligne de finance, total si plusieurs lignes
+        const poLines = poList.map(p => {
+            if (p.lines.length === 1) {
+                return `- ${p.titre} : ${p.lines[0]}`;
+            }
+            const detail = p.lines.map(l => `  ${l}`).join('\n');
+            const total = p.total.toFixed(2).replace(/\.00$/, '');
+            return `- ${p.titre} :\n${detail}\n  = ${total} PO`;
+        }).join('\n');
 
         const parts = [];
         if (quetesLines) parts.push(`Quêtes:\n${quetesLines}`);
@@ -1032,14 +1140,21 @@ function generateTemplate() {
     }
     
     // Items et argent
-    const objetsLootesEl = document.getElementById('objets-lootes');
     const poLootesEl = document.getElementById('po-lootees');
     const transactionsContainer = document.getElementById('transactions-container');
     const ancienSoldeEl = document.getElementById('ancien-solde');
     const poRecuesEl = document.getElementById('po-recues');
 
-    const objetsLootesList = objetsLootesEl ? parseList(objetsLootesEl) : [];
-    const objetsLootes = objetsLootesList.length ? objetsLootesList.join(', ') : '';
+    // Lire les objets lootés hors quête depuis les lignes dynamiques
+    const objetsLootesLignes = [];
+    const objetsLootesContainer = document.getElementById('objets-lootes-lignes');
+    if (objetsLootesContainer) {
+        objetsLootesContainer.querySelectorAll('.objet-ligne').forEach(ligne => {
+            const desc = ligne.querySelector('.objet-desc')?.value.trim();
+            const total = ligne.querySelector('.objet-total')?.value.trim();
+            if (desc) objetsLootesLignes.push({ desc, total });
+        });
+    }
     const poLootees = poLootesEl ? parseFloat(poLootesEl.value) || 0 : 0;
     let transactionsText = '';
     let netPOMarchand = 0;
@@ -1228,9 +1343,8 @@ ${contenu}`;
     }
 
     // Inventaire seulement si renseigné
-    const objetsLootesBase = objetsLootes || '';
-    const objetsFromQuetes = objetsQuetes.length > 0 ? objetsQuetes.join(', ') : '';
-    const tousObjets = [objetsLootesBase, objetsFromQuetes].filter(o => o).join(', ') || '';
+    // Combiner objets des quêtes + objets hors quête en une liste unifiée {desc, total}
+    const tousObjetsLignes = [...objetsList, ...objetsLootesLignes];
 
     // Calculer les totaux de monnaies (quêtes + manuel)
     const totalPC = totalMonnaies.PC;
@@ -1262,42 +1376,24 @@ ${contenu}`;
 
     const monnaiesText = monnaiesLootees.length > 0 ? monnaiesLootees.join(' ') : '';
 
-    // Totaux d'inventaire généraux (onglet Items)
-    const totauxInventaireEl = document.getElementById('totaux-inventaire');
-    const totauxInventaire = totauxInventaireEl ? totauxInventaireEl.value.trim() : '';
-
-    // Combiner totaux généraux et totaux de quêtes
-    const hasTotauxQuetes = totauxInventaireQuetes.length > 0;
-    const hasTotauxGeneraux = totauxInventaire !== '';
-    const hasInventaire = tousObjets !== '' || monnaiesText !== '' || hasTotauxQuetes || hasTotauxGeneraux;
+    const hasInventaire = tousObjetsLignes.length > 0 || monnaiesText !== '';
 
     if (hasInventaire) {
         template += `
 
 **¤ Inventaire**`;
-        if (tousObjets !== '') {
+        if (tousObjetsLignes.length > 0) {
             template += `
-*Objets lootés :* ${tousObjets}`;
+*Objets lootés :*`;
+            tousObjetsLignes.forEach(o => {
+                const totalPart = o.total ? ` (total inventaire : ${o.total})` : '';
+                template += `
+- ${o.desc}${totalPart}`;
+            });
         }
         if (monnaiesText !== '') {
             template += `
 *PO lootées :* ${monnaiesText}`;
-        }
-
-        // Afficher les totaux d'inventaire des quêtes
-        if (hasTotauxQuetes) {
-            template += `
-*Totaux après récompenses :*`;
-            totauxInventaireQuetes.forEach(item => {
-                template += `
-${item.totaux}`;
-            });
-        }
-
-        // Afficher les totaux généraux si présents
-        if (hasTotauxGeneraux) {
-            template += `
-${totauxInventaire}`;
         }
     }
 
@@ -1538,6 +1634,14 @@ document.addEventListener('DOMContentLoaded', function() {
     // Setup des listeners pour la première quête
     setupQueteListeners(0);
 
+    // Initialiser le container d'objets hors quête (onglet Items)
+    initObjetContainer('objets-lootes-lignes');
+    const addObjetLootesBtn = document.querySelector('[data-container="objets-lootes-lignes"]');
+    if (addObjetLootesBtn && !addObjetLootesBtn.hasAttribute('data-objet-btn-added')) {
+        addObjetLootesBtn.addEventListener('click', () => addObjetLigne('objets-lootes-lignes'));
+        addObjetLootesBtn.setAttribute('data-objet-btn-added', 'true');
+    }
+
     // Bouton d'ajout de transaction
     const addTransactionBtn = document.getElementById('add-transaction');
     if (addTransactionBtn) {
@@ -1591,8 +1695,6 @@ document.addEventListener('DOMContentLoaded', function() {
         + ' select:not([data-listener-added]),'
         + ' textarea:not([id*="quete"]):not([data-listener-added]),'
         + ' textarea#don-quete:not([data-listener-added]),'
-        + ' textarea#objets-lootes:not([data-listener-added]),'
-        + ' textarea#totaux-inventaire:not([data-listener-added]),'
         + ' input#po-lootees:not([data-listener-added]),'
         + ' input#po-recues:not([data-listener-added]),'
         + ' input#ancien-solde:not([data-listener-added]),'
