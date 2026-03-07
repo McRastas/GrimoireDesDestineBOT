@@ -1620,6 +1620,8 @@ ${artisanatNotes}`;
     const outputPart2El = document.getElementById('discord-output-part2');
     const copyBtnPart2 = document.getElementById('copy-btn-part2');
     const splitWarning = document.getElementById('split-warning');
+    const outputBlock2 = document.getElementById('output-block-2');
+    const outputBlockTitle1 = document.getElementById('output-block-title-1');
     const templateLength = template.length;
     const remaining = 1800 - templateLength;
     const indicator = document.getElementById('char-indicator');
@@ -1630,9 +1632,15 @@ ${artisanatNotes}`;
     }
 
     if (templateLength > 1800) {
+        // Trouver un point de coupure propre sur un saut de ligne, le plus proche du milieu
         const mid = Math.ceil(templateLength / 2);
-        const part1 = template.slice(0, mid);
-        const part2 = template.slice(mid);
+        let splitIndex = template.lastIndexOf('\n', mid);
+        if (splitIndex <= 0) splitIndex = template.indexOf('\n', mid);
+        if (splitIndex <= 0) splitIndex = mid;
+
+        const part1 = template.slice(0, splitIndex) + '\n*(Suite dans le message suivant ↓)*';
+        const part2 = '*(Suite du message précédent ↑)*\n' + template.slice(splitIndex).replace(/^\n/, '');
+
         if (outputEl) {
             outputEl.textContent = part1;
         }
@@ -1640,11 +1648,18 @@ ${artisanatNotes}`;
             outputPart2El.textContent = part2;
             outputPart2El.style.display = 'block';
         }
-        if (copyBtnPart2) {
-            copyBtnPart2.style.display = 'inline-block';
+        if (outputBlock2) {
+            outputBlock2.classList.remove('hidden');
+        }
+        if (outputBlockTitle1) {
+            outputBlockTitle1.textContent = '📨 Message (Partie 1)';
         }
         if (splitWarning) {
-            splitWarning.textContent = '⚠️ Le message dépasse 1 800 caractères ; il a été divisé en deux parties';
+            splitWarning.innerHTML =
+                '⚠️ Le message dépasse 1 800 caractères ; il a été divisé en deux parties.<br>' +
+                '<strong>Procédure :</strong> ' +
+                '1 ) Copiez la <strong>Partie 1</strong> et envoyez-la dans le salon Discord. ' +
+                '2 ) Copiez ensuite la <strong>Partie 2</strong> et envoyez-la dans le <em>même</em> salon, juste en dessous.';
             splitWarning.style.display = 'block';
         }
     } else {
@@ -1655,8 +1670,11 @@ ${artisanatNotes}`;
             outputPart2El.textContent = '';
             outputPart2El.style.display = 'none';
         }
-        if (copyBtnPart2) {
-            copyBtnPart2.style.display = 'none';
+        if (outputBlock2) {
+            outputBlock2.classList.add('hidden');
+        }
+        if (outputBlockTitle1) {
+            outputBlockTitle1.textContent = '📨 Message';
         }
         if (splitWarning) {
             splitWarning.textContent = '';

@@ -438,14 +438,22 @@
                 <h3 class="preview-title">📝 Aperçu Discord</h3>
                 <div id="char-indicator" class="char-indicator"></div>
                 <div id="split-warning" class="split-warning hidden"></div>
-                <div class="discord-output" id="discord-output"></div>
-                <button class="copy-btn" data-target="discord-output">
-                    📋 Copier le Message
-                </button>
-                <div id="discord-output-part2" class="discord-output hidden"></div>
-                <button class="copy-btn hidden" id="copy-btn-part2" data-target="discord-output-part2">
-                    📋 Copier la Partie 2
-                </button>
+
+                <div class="output-block">
+                    <h4 class="output-block-title" id="output-block-title-1">📨 Message</h4>
+                    <div class="discord-output" id="discord-output"></div>
+                    <button class="copy-btn" data-target="discord-output">
+                        📋 Copier le Message
+                    </button>
+                </div>
+
+                <div class="output-block hidden" id="output-block-2">
+                    <h4 class="output-block-title">📨 Message (Partie 2)</h4>
+                    <div id="discord-output-part2" class="discord-output"></div>
+                    <button class="copy-btn" id="copy-btn-part2" data-target="discord-output-part2">
+                        📋 Copier la Partie 2
+                    </button>
+                </div>
             </div>
         </div>
     </div>
