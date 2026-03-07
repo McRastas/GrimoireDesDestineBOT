@@ -1480,15 +1480,34 @@ Dépenses : ${formationCout.toFixed(2).replace(/\.00$/, '')} PO pour la formatio
     poList.forEach(p => {
         if (p.rawLines.length === 0) return;
         const useParens = needsParens || p.rawLines.length > 1;
-        const innerParts = p.rawLines.map((rl, idx) => {
-            const poVal = rl.po + rl.pa * 0.1 + rl.pc * 0.01 + rl.pp * 10;
-            const amountStr = poVal.toFixed(2).replace(/\.00$/, '').replace(/(\.\d)0$/, '$1');
-            return rl.sign === 1 ? (idx === 0 ? amountStr : `+${amountStr}`) : `-${amountStr}`;
+
+        // Décomposer chaque rawLine en valeurs PO individuelles par devise
+        const innerParts = [];
+        p.rawLines.forEach(rl => {
+            if (rl.pc !== 0) innerParts.push(rl.pc * 0.01 * rl.sign);
+            if (rl.pa !== 0) innerParts.push(rl.pa * 0.1 * rl.sign);
+            if (rl.po !== 0) innerParts.push(rl.po * rl.sign);
+            if (rl.pp !== 0) innerParts.push(rl.pp * 10 * rl.sign);
         });
-        if (useParens) {
-            soldeParts.push(`+ (${innerParts.join('')})`);
+
+        if (innerParts.length === 0) return;
+
+        const formatAmt = val => Math.abs(val).toFixed(2).replace(/\.00$/, '').replace(/(\.\d)0$/, '$1');
+        const useParensActual = useParens || innerParts.length > 1;
+
+        if (useParensActual) {
+            const allNegative = innerParts.every(v => v < 0);
+            const displayParts = allNegative ? innerParts.map(v => -v) : innerParts;
+            const outerSign = allNegative ? '-' : '+';
+            const formattedParts = displayParts.map((val, idx) => {
+                const amountStr = formatAmt(val);
+                if (idx === 0) return val >= 0 ? amountStr : `- ${amountStr}`;
+                return val >= 0 ? `+ ${amountStr}` : `- ${amountStr}`;
+            });
+            soldeParts.push(`${outerSign} ( ${formattedParts.join(' ')} )`);
         } else {
-            soldeParts.push(`${p.rawLines[0].sign === 1 ? '+' : '-'} ${innerParts[0]}`);
+            const val = innerParts[0];
+            soldeParts.push(`${val >= 0 ? '+' : '-'} ${formatAmt(val)}`);
         }
     });
     if (poLootees !== 0) {
