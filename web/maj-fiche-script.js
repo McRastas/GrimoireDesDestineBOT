@@ -1055,7 +1055,10 @@ function generateTemplate() {
         const classeEl = document.getElementById('classe');
         classe = classeEl ? classeEl.value || '[CLASSE]' : '[CLASSE]';
     }
-    
+
+    const sousClasseEl = document.getElementById('sous-classe');
+    const sousClasse = sousClasseEl ? sousClasseEl.value.trim() : '';
+
     // Informations quête
     const { quetesList, objetsList, poList, totalXPQuetes, totalMonnaies, objetsQuetes, autresQuetes, xpQuetes, recompensesQuetes } = generateQuestesSection();
     let sectionQuete = '';
@@ -1252,6 +1255,10 @@ function generateTemplate() {
     let template = `**Nom du PJ :** ${nom}
 **Classe :** ${classe}
 `;
+
+    if (sousClasse) {
+        template += `**Sous-classe :** ${sousClasse}\n`;
+    }
 
     // Section spéciale si définie (avant le bloc PJ)
     if (typeSpecial && descriptionSpecial) {
