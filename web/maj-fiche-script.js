@@ -963,6 +963,11 @@ function generateTemplate() {
         return el.value.split(/[\n,]+/).map(s => s.trim()).filter(Boolean);
     };
 
+    const sortsTierProvenanceEl = document.getElementById('sorts-tier-provenance');
+    const sortsTierEl = document.getElementById('sorts-tier');
+    const invocationsAprisesEl = document.getElementById('invocations-apprises');
+    const invocationsRemplaceesEl = document.getElementById('invocations-remplacees');
+
     const nouvellesCapacites = (nouvellesCapacitesEl?.value || '').trim();
     const nouveauDonList = parseList(nouveauDonEl);
     const donQueteList = parseList(donQueteEl);
@@ -972,6 +977,12 @@ function generateTemplate() {
     const donsQuete = donQueteList.join(', ').trim();
     const nouveauxSorts = nouveauxSortsList.join(', ').trim();
     const sortsRemplaces = sortsRemplacesList.join(', ').trim();
+
+    const sortsTierProvenance = sortsTierProvenanceEl?.value || '';
+    const sortsTierList = parseList(sortsTierEl);
+    const sortsTier = sortsTierList.join(', ').trim();
+    const invocationsAprises = (invocationsAprisesEl?.value || '').trim();
+    const invocationsRemplacees = (invocationsRemplaceesEl?.value || '').trim();
     
     // Items et argent
     const objetsLootesEl = document.getElementById('objets-lootes');
@@ -1122,7 +1133,7 @@ ${affichageXP}`;
     }
 
     // Capacités et sorts supplémentaires
-    const hasExtras = [nouvellesCapacites, nouveauxDons, donsQuete, nouveauxSorts, sortsRemplaces].some(Boolean);
+    const hasExtras = [nouvellesCapacites, nouveauxDons, donsQuete, nouveauxSorts, sortsRemplaces, sortsTier, invocationsAprises, invocationsRemplacees].some(Boolean);
     if (hasExtras) {
         template += `
 
@@ -1151,6 +1162,24 @@ ${nouveauxSorts}`;
             template += `
 *Sort(s) remplacé(s) :*
 ${sortsRemplaces}`;
+        }
+        if (sortsTier && sortsTierProvenance) {
+            const labelTier = sortsTierProvenance === 'Don'
+                ? `Nouveau(x) sort(s) lié au don :`
+                : `Nouveau(x) sort(s) appris via ${sortsTierProvenance} :`;
+            template += `
+*${labelTier}*
+${sortsTier}`;
+        }
+        if (invocationsAprises) {
+            template += `
+*Invocation(s) Occulte(s) apprise(s) :*
+${invocationsAprises}`;
+        }
+        if (invocationsRemplacees) {
+            template += `
+*Invocation(s) Occulte(s) remplacée(s) :*
+${invocationsRemplacees}`;
         }
     }
 
