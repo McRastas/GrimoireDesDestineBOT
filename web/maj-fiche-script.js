@@ -930,7 +930,7 @@ function calculateXPProgression(xpActuels, xpObtenus, niveauActuel, niveauCible,
     let isLevelUp = false;
 
     // XP requis pour passer au niveau suivant depuis le niveau actuel
-    const xpRequisActuel = XP_TABLE[niveauActuel + 1] || '?';
+    const xpRequisActuel = XP_TABLE[niveauActuel] || '?';
 
     // Vérifier si level up possible
     if (nouveauTotal >= xpRequisActuel && xpRequisActuel !== '?') {
@@ -944,8 +944,8 @@ function calculateXPProgression(xpActuels, xpObtenus, niveauActuel, niveauCible,
             let niveauPossible = niveauActuel;
             let xpRestants = nouveauTotal;
 
-            while (niveauPossible < 20 && XP_TABLE[niveauPossible + 1] && xpRestants >= XP_TABLE[niveauPossible + 1]) {
-                xpRestants -= XP_TABLE[niveauPossible + 1];
+            while (niveauPossible < 20 && XP_TABLE[niveauPossible] && xpRestants >= XP_TABLE[niveauPossible]) {
+                xpRestants -= XP_TABLE[niveauPossible];
                 niveauPossible++;
             }
 
@@ -1294,7 +1294,7 @@ ${quetesList.map(q => q).join('\n')}
     const xpActuelsRaw = xpActuelsEl ? xpActuelsEl.value : '';
     const xpActuelsVal = xpActuelsRaw !== '' ? parseInt(xpActuelsRaw) : null;
     if (xpActuelsVal !== null && totalXPQuetes > 0) {
-        const xpRequisPourNiveau = XP_TABLE[niveauActuel + 1] || '?';
+        const xpRequisPourNiveau = XP_TABLE[niveauActuel] || '?';
         const nouveauTotalXP = xpActuelsVal + totalXPQuetes;
         let affichageXP = `**Solde XP :** ${xpActuelsVal}/${xpRequisPourNiveau} + ${totalXPQuetes}XP obtenue ==> ${nouveauTotalXP}/${xpRequisPourNiveau}`;
 
@@ -1419,7 +1419,7 @@ ${contenu}`;
         monnaiesPartsDisplay.push(`${sign}${Math.abs(poLootees).toFixed(2).replace(/\.00$/, '')} PO`);
     }
 
-    const monnaiesText = monnaiesPartsDisplay.length > 0 ? monnaiesPartsDisplay.join('') : '';
+    const monnaiesText = monnaiesPartsDisplay.length > 0 ? monnaiesPartsDisplay.join(' ') : '';
 
     const hasInventaire = tousObjetsLignes.length > 0 || monnaiesText !== '';
 
