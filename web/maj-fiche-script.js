@@ -1274,6 +1274,11 @@ ${descriptionSpecial}
     template += `
  / =======================  PJ  ========================= \\ `;
 
+    if (sousClasse) {
+        template += `
+**Sous-classe :** ${sousClasse}`;
+    }
+
     // Section Quête - format adapté selon le nombre de quêtes
     if (quetesList.length > 0) {
         if (quetesList.length === 1) {
