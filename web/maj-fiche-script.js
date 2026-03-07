@@ -94,6 +94,52 @@ function setupTransactionLine(line) {
     }
 }
 
+// ===== GESTION DES CAPACITÉS EXTRAS =====
+
+function addCapaciteExtraLine() {
+    const container = document.getElementById('capacites-extras-container');
+    if (!container) return;
+    const line = document.createElement('div');
+    line.className = 'capacite-extra-line';
+    line.innerHTML = `
+        <select class="cap-extra-type">
+            <option value="sort-via">Sort via...</option>
+            <option value="invocation-apprise">Invocation apprise</option>
+            <option value="invocation-remplacee">Invocation remplacée</option>
+        </select>
+        <select class="cap-extra-provenance">
+            <option value="Don">Don</option>
+            <option value="Parchemin">Parchemin</option>
+            <option value="Grimoire">Grimoire</option>
+            <option value="Récompense">Récompense</option>
+            <option value="Autre">Autre</option>
+        </select>
+        <textarea class="cap-extra-contenu" rows="2" placeholder="Un sort / invocation par ligne"></textarea>
+        <button type="button" class="delete-capacite-extra">🗑️</button>
+    `;
+    container.appendChild(line);
+    setupCapaciteExtraLine(line);
+    regenerateIfNeeded();
+}
+
+function deleteCapaciteExtraLine(line) {
+    line.remove();
+    regenerateIfNeeded();
+}
+
+function setupCapaciteExtraLine(line) {
+    const typeSelect = line.querySelector('.cap-extra-type');
+    const provenanceSelect = line.querySelector('.cap-extra-provenance');
+    const toggleProvenance = () => {
+        provenanceSelect.style.display = typeSelect.value === 'sort-via' ? '' : 'none';
+    };
+    toggleProvenance();
+    typeSelect.addEventListener('change', () => { toggleProvenance(); regenerateIfNeeded(); });
+    provenanceSelect.addEventListener('change', regenerateIfNeeded);
+    line.querySelector('.cap-extra-contenu').addEventListener('input', regenerateIfNeeded);
+    line.querySelector('.delete-capacite-extra').addEventListener('click', () => deleteCapaciteExtraLine(line));
+}
+
 // ===== GESTION DES QUÊTES =====
 
 function addQuete() {
@@ -963,11 +1009,6 @@ function generateTemplate() {
         return el.value.split(/[\n,]+/).map(s => s.trim()).filter(Boolean);
     };
 
-    const sortsTierProvenanceEl = document.getElementById('sorts-tier-provenance');
-    const sortsTierEl = document.getElementById('sorts-tier');
-    const invocationsAprisesEl = document.getElementById('invocations-apprises');
-    const invocationsRemplaceesEl = document.getElementById('invocations-remplacees');
-
     const nouvellesCapacites = (nouvellesCapacitesEl?.value || '').trim();
     const nouveauDonList = parseList(nouveauDonEl);
     const donQueteList = parseList(donQueteEl);
@@ -978,11 +1019,17 @@ function generateTemplate() {
     const nouveauxSorts = nouveauxSortsList.join(', ').trim();
     const sortsRemplaces = sortsRemplacesList.join(', ').trim();
 
-    const sortsTierProvenance = sortsTierProvenanceEl?.value || '';
-    const sortsTierList = parseList(sortsTierEl);
-    const sortsTier = sortsTierList.join(', ').trim();
-    const invocationsAprises = (invocationsAprisesEl?.value || '').trim();
-    const invocationsRemplacees = (invocationsRemplaceesEl?.value || '').trim();
+    // Blocs dynamiques capacités extras (sorts via tier, invocations)
+    const capacitesExtrasContainer = document.getElementById('capacites-extras-container');
+    const capacitesExtras = [];
+    if (capacitesExtrasContainer) {
+        capacitesExtrasContainer.querySelectorAll('.capacite-extra-line').forEach(line => {
+            const type = line.querySelector('.cap-extra-type')?.value;
+            const provenance = line.querySelector('.cap-extra-provenance')?.value;
+            const contenu = line.querySelector('.cap-extra-contenu')?.value.trim();
+            if (contenu) capacitesExtras.push({ type, provenance, contenu });
+        });
+    }
     
     // Items et argent
     const objetsLootesEl = document.getElementById('objets-lootes');
@@ -1133,7 +1180,7 @@ ${affichageXP}`;
     }
 
     // Capacités et sorts supplémentaires
-    const hasExtras = [nouvellesCapacites, nouveauxDons, donsQuete, nouveauxSorts, sortsRemplaces, sortsTier, invocationsAprises, invocationsRemplacees].some(Boolean);
+    const hasExtras = [nouvellesCapacites, nouveauxDons, donsQuete, nouveauxSorts, sortsRemplaces].some(Boolean) || capacitesExtras.length > 0;
     if (hasExtras) {
         template += `
 
@@ -1163,24 +1210,21 @@ ${nouveauxSorts}`;
 *Sort(s) remplacé(s) :*
 ${sortsRemplaces}`;
         }
-        if (sortsTier && sortsTierProvenance) {
-            const labelTier = sortsTierProvenance === 'Don'
-                ? `Nouveau(x) sort(s) lié au don :`
-                : `Nouveau(x) sort(s) appris via ${sortsTierProvenance} :`;
+        capacitesExtras.forEach(({ type, provenance, contenu }) => {
+            let label;
+            if (type === 'sort-via') {
+                label = provenance === 'Don'
+                    ? 'Nouveau(x) sort(s) lié au don :'
+                    : `Nouveau(x) sort(s) appris via ${provenance} :`;
+            } else if (type === 'invocation-apprise') {
+                label = 'Invocation(s) Occulte(s) apprise(s) :';
+            } else {
+                label = 'Invocation(s) Occulte(s) remplacée(s) :';
+            }
             template += `
-*${labelTier}*
-${sortsTier}`;
-        }
-        if (invocationsAprises) {
-            template += `
-*Invocation(s) Occulte(s) apprise(s) :*
-${invocationsAprises}`;
-        }
-        if (invocationsRemplacees) {
-            template += `
-*Invocation(s) Occulte(s) remplacée(s) :*
-${invocationsRemplacees}`;
-        }
+*${label}*
+${contenu}`;
+        });
     }
 
     // Inventaire seulement si renseigné
@@ -1499,6 +1543,13 @@ document.addEventListener('DOMContentLoaded', function() {
     if (addTransactionBtn) {
         addTransactionBtn.addEventListener('click', addTransactionLine);
     }
+
+    // Bouton d'ajout de bloc capacité extra
+    const addCapaciteExtraBtn = document.getElementById('add-capacite-extra');
+    if (addCapaciteExtraBtn) {
+        addCapaciteExtraBtn.addEventListener('click', addCapaciteExtraLine);
+    }
+    document.querySelectorAll('#capacites-extras-container .capacite-extra-line').forEach(setupCapaciteExtraLine);
 
     // Boutons de copie
     document.querySelectorAll('.copy-btn[data-target]').forEach(btn => {
