@@ -1256,10 +1256,6 @@ function generateTemplate() {
 **Classe :** ${classe}
 `;
 
-    if (sousClasse) {
-        template += `**Sous-classe :** ${sousClasse}\n`;
-    }
-
     // Section spéciale si définie (avant le bloc PJ)
     if (typeSpecial && descriptionSpecial) {
         const sectionTitle = getSectionTitle(typeSpecial);
