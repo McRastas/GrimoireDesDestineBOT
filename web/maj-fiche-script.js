@@ -772,6 +772,7 @@ function generateQuestesSection() {
         let questPO = 0;
         let monnaieText = [];
         let financesDetails = []; // Détails des lignes de finances
+        let rawLines = []; // Données brutes par ligne : {po, pa, pc, pp, sign}
         if (includeMonnaies && includeMonnaies.checked) {
             const financesContainer = document.getElementById(`finances-lignes-${dataIndex}`);
             if (financesContainer) {
@@ -796,6 +797,7 @@ function generateQuestesSection() {
 
                         const ligneText = `${signe} ${ligneMonnaies.join(' ')}`;
                         financesDetails.push(ligneText);
+                        rawLines.push({ po, pa, pc, pp, sign: type === 'gain' ? 1 : -1 });
 
                         // Ajouter aux totaux globaux
                         if (type === 'gain') {
@@ -896,6 +898,7 @@ function generateQuestesSection() {
             poList.push({
                 titre: titre || `[TITRE_QUETE_${index + 1}]`,
                 lines: financesDetails,
+                rawLines,
                 total: questPO
             });
         }
@@ -1386,14 +1389,29 @@ ${contenu}`;
         totalOrEl.value = `${totalLootPORounded.toFixed(2)} PO`;
     }
 
-    // Construire le texte des monnaies lootées
-    let monnaiesLootees = [];
-    if (totalPC !== 0) monnaiesLootees.push(`${totalPC > 0 ? '+' : ''}${totalPC} PC`);
-    if (totalPA !== 0) monnaiesLootees.push(`${totalPA > 0 ? '+' : ''}${totalPA} PA`);
-    if (totalPO !== 0) monnaiesLootees.push(`${totalPO > 0 ? '+' : ''}${totalPO} PO`);
-    if (totalPP !== 0) monnaiesLootees.push(`${totalPP > 0 ? '+' : ''}${totalPP} PP`);
+    // Construire le texte des monnaies lootées (détail ligne par ligne)
+    let monnaiesPartsDisplay = [];
+    poList.forEach(p => {
+        p.rawLines.forEach((rl, idx) => {
+            let parts = [];
+            if (rl.pc !== 0) parts.push(`${rl.pc} PC`);
+            if (rl.pa !== 0) parts.push(`${rl.pa} PA`);
+            if (rl.po !== 0) parts.push(`${rl.po} PO`);
+            if (rl.pp !== 0) parts.push(`${rl.pp} PP`);
+            const amountStr = parts.join(' ');
+            if (idx === 0 && monnaiesPartsDisplay.length === 0) {
+                monnaiesPartsDisplay.push(rl.sign === 1 ? `+${amountStr}` : `-${amountStr}`);
+            } else {
+                monnaiesPartsDisplay.push(rl.sign === 1 ? `+${amountStr}` : `-${amountStr}`);
+            }
+        });
+    });
+    if (poLootees !== 0) {
+        const sign = poLootees > 0 ? '+' : '-';
+        monnaiesPartsDisplay.push(`${sign}${Math.abs(poLootees).toFixed(2).replace(/\.00$/, '')} PO`);
+    }
 
-    const monnaiesText = monnaiesLootees.length > 0 ? monnaiesLootees.join(' ') : '';
+    const monnaiesText = monnaiesPartsDisplay.length > 0 ? monnaiesPartsDisplay.join('') : '';
 
     const hasInventaire = tousObjetsLignes.length > 0 || monnaiesText !== '';
 
@@ -1457,10 +1475,35 @@ Dépenses : ${formationCout.toFixed(2).replace(/\.00$/, '')} PO pour la formatio
     let soldeParts = [];
     soldeParts.push(`ANCIEN SOLDE ${ancienSolde || '[SOLDE]'}`);
 
-    // Ajouter les variations de PO
-    if (totalLootPO !== 0) {
-        const sign = totalLootPO >= 0 ? '+' : '-';
-        soldeParts.push(`${sign} ${Math.abs(totalLootPO).toFixed(2).replace(/\.00$/, '')} PO`);
+    // Ajouter les variations de PO (détail par quête, parenthèses si multiple)
+    const needsParens = poList.length > 1;
+    poList.forEach(p => {
+        if (p.rawLines.length === 0) return;
+        const useParens = needsParens || p.rawLines.length > 1;
+        const innerParts = p.rawLines.map((rl, idx) => {
+            let parts = [];
+            if (rl.pc !== 0) parts.push(`${rl.pc} PC`);
+            if (rl.pa !== 0) parts.push(`${rl.pa} PA`);
+            if (rl.po !== 0) parts.push(`${rl.po} PO`);
+            if (rl.pp !== 0) parts.push(`${rl.pp} PP`);
+            const amountStr = parts.join(' ');
+            return rl.sign === 1 ? (idx === 0 ? amountStr : `+${amountStr}`) : `-${amountStr}`;
+        });
+        if (useParens) {
+            soldeParts.push(`+ (${innerParts.join('')})`);
+        } else {
+            const rl = p.rawLines[0];
+            let parts = [];
+            if (rl.pc !== 0) parts.push(`${rl.pc} PC`);
+            if (rl.pa !== 0) parts.push(`${rl.pa} PA`);
+            if (rl.po !== 0) parts.push(`${rl.po} PO`);
+            if (rl.pp !== 0) parts.push(`${rl.pp} PP`);
+            soldeParts.push(`${rl.sign === 1 ? '+' : '-'} ${parts.join(' ')}`);
+        }
+    });
+    if (poLootees !== 0) {
+        const sign = poLootees >= 0 ? '+' : '-';
+        soldeParts.push(`${sign} ${Math.abs(poLootees).toFixed(2).replace(/\.00$/, '')} PO`);
     }
     if (netPOMarchand !== 0) {
         const sign = netPOMarchand >= 0 ? '+' : '-';
