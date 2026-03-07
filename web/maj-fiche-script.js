@@ -772,6 +772,7 @@ function generateQuestesSection() {
         let questPO = 0;
         let monnaieText = [];
         let financesDetails = []; // Détails des lignes de finances
+        let rawLines = []; // Données brutes par ligne : {po, pa, pc, pp, sign}
         if (includeMonnaies && includeMonnaies.checked) {
             const financesContainer = document.getElementById(`finances-lignes-${dataIndex}`);
             if (financesContainer) {
@@ -796,6 +797,7 @@ function generateQuestesSection() {
 
                         const ligneText = `${signe} ${ligneMonnaies.join(' ')}`;
                         financesDetails.push(ligneText);
+                        rawLines.push({ po, pa, pc, pp, sign: type === 'gain' ? 1 : -1 });
 
                         // Ajouter aux totaux globaux
                         if (type === 'gain') {
@@ -896,6 +898,7 @@ function generateQuestesSection() {
             poList.push({
                 titre: titre || `[TITRE_QUETE_${index + 1}]`,
                 lines: financesDetails,
+                rawLines,
                 total: questPO
             });
         }
@@ -1213,6 +1216,25 @@ function generateTemplate() {
     const artisanatOtherCost = artisanatOtherCostRaw !== '' ? parseFloat(artisanatOtherCostRaw) || 0 : 0;
     const artisanatTotalCost = artisanatCost + artisanatOtherCost;
     
+    // Formation
+    const formationSectionEl = document.getElementById('formation-section');
+    const formationVisible = formationSectionEl && !formationSectionEl.classList.contains('hidden');
+    const formationTypeEl = document.getElementById('formation-type');
+    const formationTempsTypeEl = document.getElementById('formation-temps-type');
+    const formationDateDebutEl = document.getElementById('formation-date-debut');
+    const formationDateFinEl = document.getElementById('formation-date-fin');
+    const formationCoutEl = document.getElementById('formation-cout');
+    const formationNoteEl = document.getElementById('formation-note');
+
+    const formationType = formationTypeEl ? formationTypeEl.value.trim() : '';
+    const formationTempsType = formationTempsTypeEl ? formationTempsTypeEl.value : 'Temps plein';
+    const formationDateDebut = formationDateDebutEl ? formationDateDebutEl.value.trim() : '';
+    const formationDateFin = formationDateFinEl ? formationDateFinEl.value.trim() : '';
+    const formationCoutRaw = formationCoutEl ? formationCoutEl.value.trim() : '';
+    const formationCout = formationCoutRaw !== '' ? parseFloat(formationCoutRaw) || 0 : 250;
+    const formationNote = formationNoteEl ? formationNoteEl.value.trim() : '';
+    const hasFormation = formationVisible && (formationType || formationDateDebut);
+
     // Section spéciale
     const typeSpecialEl = document.getElementById('type-special');
     const descriptionSpecialEl = document.getElementById('description-special');
@@ -1367,14 +1389,29 @@ ${contenu}`;
         totalOrEl.value = `${totalLootPORounded.toFixed(2)} PO`;
     }
 
-    // Construire le texte des monnaies lootées
-    let monnaiesLootees = [];
-    if (totalPC !== 0) monnaiesLootees.push(`${totalPC > 0 ? '+' : ''}${totalPC} PC`);
-    if (totalPA !== 0) monnaiesLootees.push(`${totalPA > 0 ? '+' : ''}${totalPA} PA`);
-    if (totalPO !== 0) monnaiesLootees.push(`${totalPO > 0 ? '+' : ''}${totalPO} PO`);
-    if (totalPP !== 0) monnaiesLootees.push(`${totalPP > 0 ? '+' : ''}${totalPP} PP`);
+    // Construire le texte des monnaies lootées (détail ligne par ligne)
+    let monnaiesPartsDisplay = [];
+    poList.forEach(p => {
+        p.rawLines.forEach((rl, idx) => {
+            let parts = [];
+            if (rl.pc !== 0) parts.push(`${rl.pc} PC`);
+            if (rl.pa !== 0) parts.push(`${rl.pa} PA`);
+            if (rl.po !== 0) parts.push(`${rl.po} PO`);
+            if (rl.pp !== 0) parts.push(`${rl.pp} PP`);
+            const amountStr = parts.join(' ');
+            if (idx === 0 && monnaiesPartsDisplay.length === 0) {
+                monnaiesPartsDisplay.push(rl.sign === 1 ? `+${amountStr}` : `-${amountStr}`);
+            } else {
+                monnaiesPartsDisplay.push(rl.sign === 1 ? `+${amountStr}` : `-${amountStr}`);
+            }
+        });
+    });
+    if (poLootees !== 0) {
+        const sign = poLootees > 0 ? '+' : '-';
+        monnaiesPartsDisplay.push(`${sign}${Math.abs(poLootees).toFixed(2).replace(/\.00$/, '')} PO`);
+    }
 
-    const monnaiesText = monnaiesLootees.length > 0 ? monnaiesLootees.join(' ') : '';
+    const monnaiesText = monnaiesPartsDisplay.length > 0 ? monnaiesPartsDisplay.join('') : '';
 
     const hasInventaire = tousObjetsLignes.length > 0 || monnaiesText !== '';
 
@@ -1412,17 +1449,61 @@ ${transactionsText}
 `;
     }
 
+    // ===== FORMATION (après les blocs PJ et Marchand) =====
+    if (hasFormation) {
+        let formationLine = 'Début formation';
+        if (formationType) formationLine += ` : ${formationType}`;
+        if (formationDateDebut) formationLine += ` ${formationDateDebut}`;
+        formationLine += ` → ${formationTempsType}`;
+        if (formationDateFin) formationLine += `, fin le ${formationDateFin}`;
+        if (formationNote) formationLine += ` (${formationNote})`;
+
+        template += `
+**¤ Formation :**
+${formationLine}`;
+        if (formationCout > 0) {
+            template += `
+Dépenses : ${formationCout.toFixed(2).replace(/\.00$/, '')} PO pour la formation`;
+        }
+        template += '\n';
+    }
+
     // ===== SOLDE (toujours après les blocs PJ et Marchand) =====
-    const changeTotal = poRecues + totalLootPO + netPOMarchand - artisanatTotalCost;
+    const changeTotal = poRecues + totalLootPO + netPOMarchand - artisanatTotalCost - (hasFormation ? formationCout : 0);
 
     // Construire la ligne de solde
     let soldeParts = [];
     soldeParts.push(`ANCIEN SOLDE ${ancienSolde || '[SOLDE]'}`);
 
-    // Ajouter les variations de PO
-    if (totalLootPO !== 0) {
-        const sign = totalLootPO >= 0 ? '+' : '-';
-        soldeParts.push(`${sign} ${Math.abs(totalLootPO).toFixed(2).replace(/\.00$/, '')} PO`);
+    // Ajouter les variations de PO (détail par quête, parenthèses si multiple)
+    const needsParens = poList.length > 1;
+    poList.forEach(p => {
+        if (p.rawLines.length === 0) return;
+        const useParens = needsParens || p.rawLines.length > 1;
+        const innerParts = p.rawLines.map((rl, idx) => {
+            let parts = [];
+            if (rl.pc !== 0) parts.push(`${rl.pc} PC`);
+            if (rl.pa !== 0) parts.push(`${rl.pa} PA`);
+            if (rl.po !== 0) parts.push(`${rl.po} PO`);
+            if (rl.pp !== 0) parts.push(`${rl.pp} PP`);
+            const amountStr = parts.join(' ');
+            return rl.sign === 1 ? (idx === 0 ? amountStr : `+${amountStr}`) : `-${amountStr}`;
+        });
+        if (useParens) {
+            soldeParts.push(`+ (${innerParts.join('')})`);
+        } else {
+            const rl = p.rawLines[0];
+            let parts = [];
+            if (rl.pc !== 0) parts.push(`${rl.pc} PC`);
+            if (rl.pa !== 0) parts.push(`${rl.pa} PA`);
+            if (rl.po !== 0) parts.push(`${rl.po} PO`);
+            if (rl.pp !== 0) parts.push(`${rl.pp} PP`);
+            soldeParts.push(`${rl.sign === 1 ? '+' : '-'} ${parts.join(' ')}`);
+        }
+    });
+    if (poLootees !== 0) {
+        const sign = poLootees >= 0 ? '+' : '-';
+        soldeParts.push(`${sign} ${Math.abs(poLootees).toFixed(2).replace(/\.00$/, '')} PO`);
     }
     if (netPOMarchand !== 0) {
         const sign = netPOMarchand >= 0 ? '+' : '-';
@@ -1430,6 +1511,14 @@ ${transactionsText}
     }
     if (artisanatTotalCost > 0) {
         soldeParts.push(`- ${artisanatTotalCost.toFixed(2).replace(/\.00$/, '')} PO (artisanat)`);
+    }
+    if (hasFormation && formationCout > 0) {
+        soldeParts.push(`- ${formationCout.toFixed(2).replace(/\.00$/, '')} PO (formation)`);
+    }
+    if (poRecues !== 0) {
+        const sign = poRecues >= 0 ? '+' : '-';
+        const label = poRecues >= 0 ? ' PO reçues' : ' PO dépensées';
+        soldeParts.push(`${sign} ${Math.abs(poRecues).toFixed(2).replace(/\.00$/, '')}${label}`);
     }
 
     // Calculer le nouveau solde
@@ -1592,6 +1681,15 @@ function copyToClipboard(text) {
     });
 }
 
+function toggleFormation() {
+    const section = document.getElementById('formation-section');
+    const btn = document.getElementById('toggle-formation-btn');
+    if (!section || !btn) return;
+
+    const isHidden = section.classList.toggle('hidden');
+    btn.textContent = isHidden ? 'Ajouter formation' : 'Retirer formation';
+}
+
 function toggleArtisanat() {
     const section = document.getElementById('artisanat-section');
     const btn = document.getElementById('toggle-artisanat-btn');
@@ -1623,6 +1721,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
             regenerateIfNeeded();
         });
+    }
+
+    // Gestion du toggle formation
+    const formationBtn = document.getElementById('toggle-formation-btn');
+    if (formationBtn) {
+        formationBtn.addEventListener('click', toggleFormation);
     }
 
     // Gestion du toggle artisanat
@@ -1708,7 +1812,14 @@ document.addEventListener('DOMContentLoaded', function() {
         + ' input#artisanat-cost:not([data-listener-added]),'
         + ' input#artisanat-other-cost:not([data-listener-added]),'
         + ' input#section-marchand:not([data-listener-added]),'
-        + ' button#toggle-artisanat-btn:not([data-listener-added])'
+        + ' button#toggle-artisanat-btn:not([data-listener-added]),'
+        + ' button#toggle-formation-btn:not([data-listener-added]),'
+        + ' input#formation-type:not([data-listener-added]),'
+        + ' select#formation-temps-type:not([data-listener-added]),'
+        + ' input#formation-date-debut:not([data-listener-added]),'
+        + ' input#formation-date-fin:not([data-listener-added]),'
+        + ' input#formation-cout:not([data-listener-added]),'
+        + ' input#formation-note:not([data-listener-added])'
     );
     inputs.forEach(input => {
         if (input.tagName === 'BUTTON') {
