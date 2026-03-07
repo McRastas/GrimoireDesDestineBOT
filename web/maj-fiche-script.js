@@ -1088,7 +1088,7 @@ function generateTemplate() {
         if (poLines) parts.push(`PO:\n${poLines}`);
         parts.push(`+${totalXPQuetes} XP`);
 
-        sectionQuete = `**Quête :**\n${parts.join('\n\n')}`;
+        sectionQuete = `**Quête** :\n${parts.join('\n\n')}`;
     }
     
     // Informations XP/Niveau
@@ -1252,8 +1252,8 @@ function generateTemplate() {
     const pvCalcul = calculatePVGain(classeGainNiveau || classe, niveauActuel, niveauCible, modConstitution, bonusPV, pvActuels);
     
     // Construction du template
-    let template = `**Nom du PJ :** ${nom}
-**Classe :** ${classe}
+    let template = `**Nom du PJ** : ${nom}
+**Classe** : ${classe}
 `;
 
     // Section spéciale si définie (avant le bloc PJ)
@@ -1272,7 +1272,7 @@ ${descriptionSpecial}
 
     if (sousClasse) {
         template += `
-**Sous-classe :** ${sousClasse}`;
+**Sous-classe** : ${sousClasse}`;
     }
 
     // Section Quête - format adapté selon le nombre de quêtes
@@ -1280,11 +1280,11 @@ ${descriptionSpecial}
         if (quetesList.length === 1) {
             // Une seule quête : format simple avec tiret
             template += `
-**Quête :** - ${quetesList[0]}`;
+**Quête** : - ${quetesList[0]}`;
         } else {
             // Plusieurs quêtes : format avec crochets
             template += `
-**Quête :** [
+**Quête** : [
 ${quetesList.map(q => q).join('\n')}
 ]`;
         }
@@ -1296,7 +1296,7 @@ ${quetesList.map(q => q).join('\n')}
     if (xpActuelsVal !== null && totalXPQuetes > 0) {
         const xpRequisPourNiveau = XP_TABLE[niveauActuel] || '?';
         const nouveauTotalXP = xpActuelsVal + totalXPQuetes;
-        let affichageXP = `**Solde XP :** ${xpActuelsVal}/${xpRequisPourNiveau} + ${totalXPQuetes}XP obtenue ==> ${nouveauTotalXP}/${xpRequisPourNiveau}`;
+        let affichageXP = `**Solde XP** : ${xpActuelsVal}/${xpRequisPourNiveau} + ${totalXPQuetes}XP obtenue ==> ${nouveauTotalXP}/${xpRequisPourNiveau}`;
 
         // Ajouter Level up si applicable
         if (isLevelUp && niveauCible > niveauActuel) {
@@ -1315,12 +1315,12 @@ ${affichageXP}`;
     if (niveauCible > niveauActuel) {
         template += `
 
-**Gain de niveau :**`;
+**Gain de niveau** :`;
 
         // PV détaillés si renseignés
         if (pvCalcul && pvActuels > 0) {
             template += `
-**PV :** ${pvCalcul}`;
+**PV** : ${pvCalcul}`;
         }
     }
 
@@ -1329,30 +1329,30 @@ ${affichageXP}`;
     if (hasExtras) {
         template += `
 
-**¤ Capacités et sorts supplémentaires :**`;
+**¤ Capacités et sorts supplémentaires** :`;
         if (nouvellesCapacites) {
             template += `
-*Nouvelle(s) capacité(s) :*
+*Nouvelle(s) capacité(s)* :
 ${nouvellesCapacites}`;
         }
         if (nouveauxDons) {
             template += `
-*Nouveau(x) don(s) :*
+*Nouveau(x) don(s)* :
 ${nouveauxDons}`;
         }
         if (donsQuete) {
             template += `
-*Don(s) (gain de quête) :*
+*Don(s) (gain de quête)* :
 ${donsQuete}`;
         }
         if (nouveauxSorts) {
             template += `
-*Nouveau(x) sort(s) :*
+*Nouveau(x) sort(s)* :
 ${nouveauxSorts}`;
         }
         if (sortsRemplaces) {
             template += `
-*Sort(s) remplacé(s) :*
+*Sort(s) remplacé(s)* :
 ${sortsRemplaces}`;
         }
         capacitesExtras.forEach(({ type, provenance, contenu }) => {
@@ -1429,7 +1429,7 @@ ${contenu}`;
 **¤ Inventaire**`;
         if (tousObjetsLignes.length > 0) {
             template += `
-*Objets lootés :*`;
+*Objets lootés* :`;
             tousObjetsLignes.forEach(o => {
                 const totalPart = o.total ? ` (total inventaire : ${o.total})` : '';
                 template += `
@@ -1438,7 +1438,7 @@ ${contenu}`;
         }
         if (monnaiesText !== '') {
             template += `
-*PO lootées :* ${monnaiesText}`;
+*PO lootées* : ${monnaiesText}`;
         }
     }
 
@@ -1467,7 +1467,7 @@ ${transactionsText}
         if (formationNote) formationLine += ` (${formationNote})`;
 
         template += `
-**¤ Formation :**
+**¤ Formation** :
 ${formationLine}`;
         if (formationCout > 0) {
             template += `
@@ -1561,7 +1561,7 @@ Dépenses : ${formationCout.toFixed(2).replace(/\.00$/, '')} PO pour la formatio
     soldeParts.push(`= ${nouveauSolde}`);
 
     template += `
-**¤ Solde :**
+**¤ Solde** :
 ${soldeParts.join(' ')}
 
 *Fiche R20 à jour.*`;
@@ -1570,7 +1570,7 @@ ${soldeParts.join(' ')}
     const hasArtisanat = artisanatType || artisanatTemps || artisanatDD || artisanatJet || artisanatMateriaux || artisanatNotes || artisanatItemsList.length > 0 || artisanatTotalCost > 0;
     if (hasArtisanat) {
         // Titre avec type d'artisanat
-        const artisanatTitre = artisanatType ? `**Artisanat (${artisanatType}) :**` : '**Artisanat :**';
+        const artisanatTitre = artisanatType ? `**Artisanat (${artisanatType})** :` : '**Artisanat** :';
         template += `
 
 ${artisanatTitre}`;
@@ -1588,13 +1588,13 @@ ${sessionInfo.join(' | ')}`;
         // Matériaux utilisés
         if (artisanatMateriaux) {
             template += `
-*Matériaux :* ${artisanatMateriaux}`;
+*Matériaux* : ${artisanatMateriaux}`;
         }
 
         // Objets fabriqués
         if (artisanatItemsList.length > 0) {
             template += `
-*Objets fabriqués :*
+*Objets fabriqués* :
 ${artisanatItemsList.map(i => `- ${i}`).join('\n')}`;
         }
 
@@ -1610,10 +1610,10 @@ ${artisanatItemsList.map(i => `- ${i}`).join('\n')}`;
             const totalFormatted = artisanatTotalCost.toFixed(2).replace(/\.00$/, '');
             if (coutDetails.length > 1) {
                 template += `
-*Coût total :* ${coutDetails.join(' + ')} = ${totalFormatted} PO`;
+*Coût total* : ${coutDetails.join(' + ')} = ${totalFormatted} PO`;
             } else {
                 template += `
-*Coût :* ${totalFormatted} PO`;
+*Coût* : ${totalFormatted} PO`;
             }
         }
 
