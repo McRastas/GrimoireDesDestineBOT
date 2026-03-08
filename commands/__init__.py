@@ -36,6 +36,11 @@ from .mes_quetes import MesQuetesCommand
 from .pnj_generator import PnjGeneratorCommand
 
 # ============================================================================
+# SUIVI DES PERSONNAGES
+# ============================================================================
+from .pj_dispo import PjDispoCommand
+
+# ============================================================================
 # CONFIGURATION ET ADMINISTRATION
 # ============================================================================
 from .config_channels import ConfigChannelsCommand
@@ -97,6 +102,8 @@ ALL_COMMANDS = [
 #    MesQuetesCommand,
     # Générateur PNJ
     PnjGeneratorCommand,
+    # Suivi des personnages
+    PjDispoCommand,
     # Administration
     ConfigChannelsCommand,
 ]
