@@ -229,10 +229,20 @@ FLASK_PORT=8080
 CHANNELS_CONFIG={"recompenses":{"name":"recompenses"},"quetes":{"name":"départ-à-l-aventure"},"logs":{"name":"bot-logs"},"admin":{"name":"bot-admin"}}
 
 # OU Canaux - Variables individuelles (ALTERNATIVE)
-# CHANNEL_RECOMPENSES_NAME=recompenses  
+# CHANNEL_RECOMPENSES_NAME=recompenses
 # CHANNEL_QUETES_NAME=départ-à-l-aventure
 # CHANNEL_LOGS_NAME=bot-logs
 # CHANNEL_ADMIN_NAME=bot-admin
+
+# Suivi des personnages — /pj_dispo (OPTIONNEL)
+# PJ_DISPO_SHEET_ID=1QPLhU1I594hKQdvg4LhrL6Tui6pko01hiRO0DUnvk2U
+# PJ_DISPO_SHEET_GID=0
+# PJ_DISPO_SHEET_NAME=        # Nom de l'onglet (prioritaire sur GID si défini)
+# Colonnes (index 0-based, A=0, B=1, C=2…)
+# PJ_DISPO_COL_NOM_PJ=1       # B — Nom du PJ
+# PJ_DISPO_COL_JOUEUR=2       # C — Joueur
+# PJ_DISPO_COL_NIVEAU=14      # O — Niv. PJ
+# PJ_DISPO_COL_DERNIERE_MAJ=17  # R — Dernière MAJ
 """
 
     @classmethod
