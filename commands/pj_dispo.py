@@ -7,14 +7,21 @@ import logging
 import aiohttp
 import csv
 import io
+import os
 from datetime import datetime, timedelta
+from urllib.parse import quote
 
 from .base import BaseCommand
 
 logger = logging.getLogger(__name__)
 
-SHEET_ID = "1QPLhU1I594hKQdvg4LhrL6Tui6pko01hiRO0DUnvk2U"
-SHEET_GID = "0"
+# Configurable via .env :
+#   PJ_DISPO_SHEET_ID   — ID du Google Sheet (dans l'URL)
+#   PJ_DISPO_SHEET_GID  — GID de l'onglet (défaut: 0)
+#   PJ_DISPO_SHEET_NAME — Nom de l'onglet (prioritaire sur GID si défini)
+SHEET_ID = os.getenv('PJ_DISPO_SHEET_ID', '1QPLhU1I594hKQdvg4LhrL6Tui6pko01hiRO0DUnvk2U')
+SHEET_GID = os.getenv('PJ_DISPO_SHEET_GID', '0')
+SHEET_NAME = os.getenv('PJ_DISPO_SHEET_NAME', '')
 
 # Indices des colonnes (0-based)
 COL_NOM_PJ = 1       # B
@@ -72,10 +79,11 @@ class PjDispoCommand(BaseCommand):
             return
 
         # --- Récupération du Google Sheet ---
-        url = (
-            f"https://docs.google.com/spreadsheets/d/{SHEET_ID}"
-            f"/gviz/tq?tqx=out:csv&gid={SHEET_GID}"
-        )
+        base = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv"
+        if SHEET_NAME:
+            url = f"{base}&sheet={quote(SHEET_NAME)}"
+        else:
+            url = f"{base}&gid={SHEET_GID}"
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.get(url) as resp:
