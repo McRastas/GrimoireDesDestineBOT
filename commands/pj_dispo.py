@@ -24,10 +24,15 @@ SHEET_GID = os.getenv('PJ_DISPO_SHEET_GID', '0')
 SHEET_NAME = os.getenv('PJ_DISPO_SHEET_NAME', '')
 
 # Indices des colonnes (0-based)
-COL_NOM_PJ = 1       # B
-COL_JOUEUR = 2       # C
-COL_NIVEAU = 14      # O
-COL_DERNIERE_MAJ = 17  # R
+# Configurable via .env :
+#   PJ_DISPO_COL_NOM_PJ       — colonne "Nom du PJ"      (défaut: 1 = B)
+#   PJ_DISPO_COL_JOUEUR       — colonne "Joueur"          (défaut: 2 = C)
+#   PJ_DISPO_COL_NIVEAU       — colonne "Niv. PJ"         (défaut: 14 = O)
+#   PJ_DISPO_COL_DERNIERE_MAJ — colonne "Dernière MAJ"    (défaut: 17 = R)
+COL_NOM_PJ = int(os.getenv('PJ_DISPO_COL_NOM_PJ', '1'))
+COL_JOUEUR = int(os.getenv('PJ_DISPO_COL_JOUEUR', '2'))
+COL_NIVEAU = int(os.getenv('PJ_DISPO_COL_NIVEAU', '14'))
+COL_DERNIERE_MAJ = int(os.getenv('PJ_DISPO_COL_DERNIERE_MAJ', '17'))
 
 
 class PjDispoCommand(BaseCommand):
