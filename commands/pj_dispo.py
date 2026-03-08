@@ -51,22 +51,25 @@ class PjDispoCommand(BaseCommand):
         @tree.command(name=self.name, description=self.description)
         @app_commands.describe(
             niveaux="Range de niveau (ex: 3-8, min 1 max 20)",
-            jours="Filtrer les PJ n'ayant pas joué depuis X jours (optionnel)"
+            jours="Filtrer les PJ n'ayant pas joué depuis X jours (optionnel)",
+            afficher="Afficher la liste des PJ (défaut: non, affiche seulement le nombre)"
         )
         async def pj_dispo_command(
             interaction: discord.Interaction,
             niveaux: str,
-            jours: Optional[int] = None
+            jours: Optional[int] = None,
+            afficher: bool = False
         ):
-            await self.callback(interaction, niveaux, jours)
+            await self.callback(interaction, niveaux, jours, afficher)
 
     async def callback(
         self,
         interaction: discord.Interaction,
         niveaux: str,
-        jours: Optional[int] = None
+        jours: Optional[int] = None,
+        afficher: bool = False
     ):
-        await interaction.response.defer()
+        await interaction.response.defer(ephemeral=True)
 
         # --- Validation de la range de niveau ---
         try:
@@ -152,35 +155,34 @@ class PjDispoCommand(BaseCommand):
             })
 
         # --- Construction de la réponse ---
+        titre = f"PJ disponibles — Niveaux {lvl_min} à {lvl_max}"
+        if jours:
+            titre += f" — Inactifs depuis {jours}j+"
+
         if not results:
-            titre = f"Aucun PJ trouvé — Niveaux {lvl_min} à {lvl_max}"
-            desc = ""
             if jours:
                 desc = f"Aucun PJ de niveau {lvl_min}-{lvl_max} inactif depuis plus de {jours} jour(s)."
             else:
                 desc = f"Aucun PJ de niveau {lvl_min} à {lvl_max} dans le sheet."
             embed = discord.Embed(title=titre, description=desc, color=discord.Color.orange())
-            await interaction.followup.send(embed=embed)
+            await interaction.followup.send(embed=embed, ephemeral=True)
             return
 
         # Trier par niveau puis par nom
         results.sort(key=lambda x: (x["niveau"], x["nom"]))
 
-        titre = f"PJ disponibles — Niveaux {lvl_min} à {lvl_max}"
-        if jours:
-            titre += f" — Inactifs depuis {jours}j+"
-
-        lines = []
-        for pj in results:
-            lines.append(
-                f"**{pj['nom']}** (_{pj['joueur']}_) — Niv. **{pj['niveau']}** | Dernière MAJ : {pj['date']}"
-            )
-
-        description = "\n".join(lines)
-
-        # Discord limite les embeds à 4096 chars
-        if len(description) > 4000:
-            description = description[:3990] + "\n…*(liste tronquée)*"
+        if afficher:
+            lines = []
+            for pj in results:
+                lines.append(
+                    f"**{pj['nom']}** (_{pj['joueur']}_) — Niv. **{pj['niveau']}** | Dernière MAJ : {pj['date']}"
+                )
+            description = "\n".join(lines)
+            # Discord limite les embeds à 4096 chars
+            if len(description) > 4000:
+                description = description[:3990] + "\n…*(liste tronquée)*"
+        else:
+            description = f"**{len(results)}** PJ disponible(s) dans cette plage de niveaux."
 
         embed = discord.Embed(
             title=titre,
@@ -196,4 +198,4 @@ class PjDispoCommand(BaseCommand):
                 inline=False
             )
 
-        await interaction.followup.send(embed=embed)
+        await interaction.followup.send(embed=embed, ephemeral=True)
