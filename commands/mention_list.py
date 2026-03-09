@@ -188,12 +188,8 @@ class MentionListCommand(BaseCommand):
                     parts = []
                     if mention_count > 0:
                         parts.append(f"{mention_count} récompense{'s' if mention_count > 1 else ''}")
-                    else:
-                        parts.append("0 récompense")
                     if quetes > 0:
                         parts.append(f"{quetes} quête{'s' if quetes > 1 else ''} MJ")
-                    if posts_mj > 0:
-                        parts.append(f"{posts_mj} post{'s' if posts_mj > 1 else ''} MJ")
 
                     line = f"✅ **{user.display_name}** - {' | '.join(parts)}"
                     lines_actifs.append(line)
