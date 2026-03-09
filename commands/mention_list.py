@@ -2,18 +2,20 @@
 Commande Discord : /mentionlist
 
 DESCRIPTION:
-    Liste les joueurs du canal et leur activité récompenses/quêtes MJ sur 30 jours.
+    Liste les joueurs du canal et leur activité récompenses/quêtes MJ.
     Met en avant les joueurs oubliés (ni récompense ni quête MJ).
 
 FONCTIONNEMENT:
     - Récupère les auteurs actifs du canal actuel (1000 derniers messages)
-    - Parcourt le canal #recompenses sur 30 jours pour compter les mentions
-    - Parcourt le canal #quêtes sur 30 jours pour trouver les quêtes MJ futures
+    - Parcourt le canal #recompenses depuis la date choisie pour compter les mentions
+    - Parcourt le canal #quêtes depuis la date choisie pour trouver les quêtes MJ
     - Affiche TOUS les joueurs, en mettant en avant ceux sans activité
 
 UTILISATION:
     /mentionlist
     /mentionlist public:True
+    /mentionlist periode:30j
+    /mentionlist public:True periode:30j
 """
 
 import discord
@@ -36,28 +38,35 @@ class MentionListCommand(BaseCommand):
 
     @property
     def description(self) -> str:
-        return "Liste les joueurs du canal avec leurs récompenses et quêtes MJ (30 jours)"
+        return "Liste les joueurs du canal avec leurs récompenses et quêtes MJ"
 
     def register(self, tree: app_commands.CommandTree):
         """Enregistre la commande dans l'arbre des commandes Discord."""
 
         @tree.command(name=self.name, description=self.description)
+        @app_commands.choices(periode=[
+            app_commands.Choice(name="📅 Depuis la création du canal", value="creation"),
+            app_commands.Choice(name="🕐 30 derniers jours", value="30j"),
+        ])
         @app_commands.describe(
-            public="Afficher publiquement (visible par tous) - défaut: non"
+            public="Afficher publiquement (visible par tous) - défaut: non",
+            periode="Période d'analyse - défaut: depuis la création du canal"
         )
         async def mentionlist_command(
             interaction: discord.Interaction,
-            public: Optional[bool] = False
+            public: Optional[bool] = False,
+            periode: str = "creation"
         ):
-            await self.callback(interaction, public)
+            await self.callback(interaction, public, periode)
 
-    async def callback(self, interaction: discord.Interaction, public: Optional[bool] = False):
+    async def callback(self, interaction: discord.Interaction, public: Optional[bool] = False, periode: str = "creation"):
         """
         Exécute la commande mentionlist.
 
         Args:
             interaction: Interaction Discord
             public: Si True, le message sera visible par tous, sinon temporaire (défaut: False)
+            periode: Période d'analyse - 'creation' (depuis création du canal) ou '30j' (30 derniers jours)
         """
         try:
             is_ephemeral = not public
@@ -74,7 +83,14 @@ class MentionListCommand(BaseCommand):
             quetes_channel = ChannelHelper.get_quetes_channel(interaction.guild)
 
             now = datetime.now(timezone.utc)
-            thirty_days_ago = now - timedelta(days=30)
+
+            # Calculer la date de début selon la période choisie
+            if periode == "creation":
+                start_date = interaction.channel.created_at
+                periode_label = "depuis la création du canal"
+            else:
+                start_date = now - timedelta(days=30)
+                periode_label = "30 derniers jours"
 
             # Récupérer les auteurs du canal actuel
             auteurs = {}
@@ -96,19 +112,23 @@ class MentionListCommand(BaseCommand):
             mentions_count = {user_id: 0 for user_id in auteurs.keys()}
             posts_mj_count = {user_id: 0 for user_id in auteurs.keys()}
 
-            async for msg in recompenses_channel.history(limit=1000, after=thirty_days_ago):
+            async for msg in recompenses_channel.history(limit=1000, after=start_date):
                 for mentioned in msg.mentions:
                     if mentioned.id in mentions_count:
                         mentions_count[mentioned.id] += 1
 
-                if len(msg.mentions) >= 2 and msg.author.id in posts_mj_count:
-                    posts_mj_count[msg.author.id] += 1
+                if msg.author.id in posts_mj_count:
+                    mentions_uniques = set(
+                        u.id for u in msg.mentions if u.id != msg.author.id
+                    )
+                    if len(mentions_uniques) >= 2:
+                        posts_mj_count[msg.author.id] += 1
 
             # --- Compter quêtes MJ dans #quêtes ---
             quetes_count = {user_id: 0 for user_id in auteurs.keys()}
 
             if quetes_channel:
-                async for msg in quetes_channel.history(limit=1000, after=thirty_days_ago):
+                async for msg in quetes_channel.history(limit=1000, after=start_date):
                     if msg.author.bot:
                         continue
                     for mentioned in msg.mentions:
@@ -120,7 +140,6 @@ class MentionListCommand(BaseCommand):
                 user_id, mention_count = item
                 quetes = quetes_count.get(user_id, 0)
                 has_nothing = (mention_count == 0 and quetes == 0)
-                # Priorité : oubliés d'abord (has_nothing=True → 0), puis par mentions croissantes
                 return (0 if has_nothing else 1, mention_count, quetes)
 
             sorted_users = sorted(mentions_count.items(), key=sort_key)
@@ -160,73 +179,20 @@ class MentionListCommand(BaseCommand):
             description_parts = []
 
             if lines_oublies:
-                description_parts.append(f"**__Joueurs sans activité (30j) :__**\n" + "\n".join(lines_oublies))
-
-            if lines_actifs:
-                description_parts.append(f"**__Joueurs avec activité :__**\n" + "\n".join(lines_actifs))
-
-            if description_parts:
-                description = "\n\n".join(description_parts)
-            else:
-                description = "Aucun joueur trouvé dans ce canal."
-
-                # Compter les posts MJ : posts avec 2+ mentions uniques hors auteur (logique recapmj)
-                if msg.author.id in posts_mj_count:
-                    mentions_uniques = set(
-                        u.id for u in msg.mentions if u.id != msg.author.id
-                    )
-                    if len(mentions_uniques) >= 2:
-                        posts_mj_count[msg.author.id] += 1
-
-            # --- Tri : joueurs oubliés d'abord, puis par mentions croissantes ---
-            def sort_key(item):
-                uid, mentions = item
-                mj = posts_mj_count.get(uid, 0)
-                # 0 = oublié en premier, 1 = actif après
-                return (0 if (mentions == 0 and mj == 0) else 1, mentions, mj)
-
-            sorted_users = sorted(mentions_count.items(), key=sort_key)
-
-            # --- Construction de l'affichage ---
-            lines_oublies = []
-            lines_actifs = []
-
-            for uid, mentions in sorted_users:
-                user = auteurs.get(uid)
-                if not user:
-                    continue
-
-                mj = posts_mj_count.get(uid, 0)
-
-                if mentions == 0 and mj == 0:
-                    lines_oublies.append(
-                        f"⚠️ **{user.display_name}** - aucune récompense, aucune quête MJ"
-                    )
-                else:
-                    parts = []
-                    parts.append(f"{mentions} récompense{'s' if mentions != 1 else ''}")
-                    if mj > 0:
-                        parts.append(f"{mj} quête{'s' if mj != 1 else ''} MJ")
-                    lines_actifs.append(
-                        f"✅ **{user.display_name}** - {' | '.join(parts)}"
-                    )
-
-            # Assembler la description
-            description_parts = []
-            if lines_oublies:
                 description_parts.append(
-                    f"**__Joueurs sans activité (30j) :__**\n" + "\n".join(lines_oublies)
+                    f"**__Joueurs sans activité ({periode_label}) :__**\n" + "\n".join(lines_oublies)
                 )
+
             if lines_actifs:
                 description_parts.append(
                     f"**__Joueurs avec activité :__**\n" + "\n".join(lines_actifs)
                 )
 
-            description = "\n\n".join(description_parts) if description_parts else "Aucun joueur trouvé."
+            description = "\n\n".join(description_parts) if description_parts else "Aucun joueur trouvé dans ce canal."
 
             # Embed
             embed = discord.Embed(
-                title="📊 Suivi joueurs - récompenses & quêtes MJ (30 jours)",
+                title=f"📊 Suivi joueurs - récompenses & quêtes MJ ({periode_label})",
                 description=description,
                 color=0xff9900 if lines_oublies else 0x00b0f4)
 
