@@ -84,8 +84,6 @@ class MentionListCommand(BaseCommand):
                 await interaction.followup.send(error_msg)
                 return
 
-            quetes_channel = ChannelHelper.get_quetes_channel(interaction.guild)
-
             now = datetime.now(timezone.utc)
 
             # Calculer la date de début
@@ -147,24 +145,12 @@ class MentionListCommand(BaseCommand):
                     if len(mentions_uniques) >= 2:
                         posts_mj_count[msg.author.id] += 1
 
-            # --- Compter quêtes MJ dans #quêtes ---
-            quetes_count = {user_id: 0 for user_id in auteurs.keys()}
-
-            if quetes_channel:
-                async for msg in quetes_channel.history(limit=1000, after=start_date):
-                    if msg.author.bot:
-                        continue
-                    for mentioned in msg.mentions:
-                        if mentioned.id in quetes_count:
-                            quetes_count[mentioned.id] += 1
-
             # --- Tri : joueurs oubliés d'abord, puis par mentions croissantes ---
             def sort_key(item):
                 user_id, mention_count = item
-                quetes = quetes_count.get(user_id, 0)
                 posts_mj = posts_mj_count.get(user_id, 0)
-                has_nothing = (mention_count == 0 and quetes == 0 and posts_mj == 0)
-                return (0 if has_nothing else 1, mention_count, quetes, posts_mj)
+                has_nothing = (mention_count == 0 and posts_mj == 0)
+                return (0 if has_nothing else 1, mention_count, posts_mj)
 
             sorted_users = sorted(mentions_count.items(), key=sort_key)
 
@@ -178,9 +164,8 @@ class MentionListCommand(BaseCommand):
                     continue
 
                 posts_mj = posts_mj_count.get(user_id, 0)
-                quetes = quetes_count.get(user_id, 0)
 
-                is_oublie = (mention_count == 0 and quetes == 0 and posts_mj == 0)
+                is_oublie = (mention_count == 0 and posts_mj == 0)
 
                 if is_oublie:
                     line = f"⚠️ **{user.display_name}** - aucune récompense, aucune quête MJ"
@@ -189,10 +174,8 @@ class MentionListCommand(BaseCommand):
                     parts = []
                     if mention_count > 0:
                         parts.append(f"{mention_count} récompense{'s' if mention_count > 1 else ''}")
-                    if quetes > 0:
-                        parts.append(f"{quetes} quête{'s' if quetes > 1 else ''} MJ")
                     if posts_mj > 0:
-                        parts.append(f"{posts_mj} session{'s' if posts_mj > 1 else ''} MJ")
+                        parts.append(f"{posts_mj} quête{'s' if posts_mj > 1 else ''} MJ")
 
                     line = f"✅ **{user.display_name}** - {' | '.join(parts)}"
                     lines_actifs.append(line)
@@ -232,9 +215,7 @@ class MentionListCommand(BaseCommand):
             )
 
             # Footer
-            footer_text = "Récompenses = mentions dans #recompenses | Quêtes MJ = mentions dans #quêtes"
-            if not quetes_channel:
-                footer_text = "⚠️ Canal quêtes non configuré - seules les récompenses sont vérifiées | " + footer_text
+            footer_text = "Récompenses = mentions dans #recompenses | Quêtes MJ = posts avec 2+ mentions dans #recompenses"
             if public:
                 footer_text += f" • Partagé par {interaction.user.display_name}"
 
