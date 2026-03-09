@@ -16,6 +16,8 @@ UTILISATION:
     /mentionlist public:True
     /mentionlist periode:30j
     /mentionlist public:True periode:30j
+    /mentionlist date_debut:15/04/2024
+    /mentionlist public:True date_debut:2024-04-15
 """
 
 import discord
@@ -50,16 +52,18 @@ class MentionListCommand(BaseCommand):
         ])
         @app_commands.describe(
             public="Afficher publiquement (visible par tous) - défaut: non",
-            periode="Période d'analyse - défaut: depuis la création du canal"
+            periode="Période d'analyse prédéfinie - ignorée si date_debut est fournie",
+            date_debut="Date de début personnalisée (ex: 15/04/2024 ou 2024-04-15) - priorité sur période"
         )
         async def mentionlist_command(
             interaction: discord.Interaction,
             public: Optional[bool] = False,
-            periode: str = "creation"
+            periode: str = "creation",
+            date_debut: Optional[str] = None
         ):
-            await self.callback(interaction, public, periode)
+            await self.callback(interaction, public, periode, date_debut)
 
-    async def callback(self, interaction: discord.Interaction, public: Optional[bool] = False, periode: str = "creation"):
+    async def callback(self, interaction: discord.Interaction, public: Optional[bool] = False, periode: str = "creation", date_debut: Optional[str] = None):
         """
         Exécute la commande mentionlist.
 
@@ -84,8 +88,27 @@ class MentionListCommand(BaseCommand):
 
             now = datetime.now(timezone.utc)
 
-            # Calculer la date de début selon la période choisie
-            if periode == "creation":
+            # Calculer la date de début
+            if date_debut:
+                # Date libre saisie par l'utilisateur - formats acceptés
+                formats = ["%d/%m/%Y", "%Y-%m-%d", "%d-%m-%Y", "%d/%m/%y"]
+                parsed = None
+                for fmt in formats:
+                    try:
+                        parsed = datetime.strptime(date_debut.strip(), fmt)
+                        break
+                    except ValueError:
+                        continue
+                if not parsed:
+                    await interaction.followup.send(
+                        f"❌ Format de date invalide : `{date_debut}`\n"
+                        "Formats acceptés : `JJ/MM/AAAA` (ex: `15/04/2024`) ou `AAAA-MM-JJ` (ex: `2024-04-15`)",
+                        ephemeral=True
+                    )
+                    return
+                start_date = parsed.replace(tzinfo=timezone.utc)
+                periode_label = f"depuis le {parsed.strftime('%d/%m/%Y')}"
+            elif periode == "creation":
                 start_date = interaction.channel.created_at
                 periode_label = "depuis la création du canal"
             else:
