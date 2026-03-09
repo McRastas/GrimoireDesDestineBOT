@@ -117,7 +117,7 @@ class MentionListCommand(BaseCommand):
 
             # Récupérer les auteurs du canal actuel
             auteurs = {}
-            async for msg in interaction.channel.history(limit=1000, oldest_first=True):
+            async for msg in interaction.channel.history(limit=1000):
                 if msg.author.bot:
                     continue
                 auteurs[msg.author.id] = msg.author
@@ -162,8 +162,9 @@ class MentionListCommand(BaseCommand):
             def sort_key(item):
                 user_id, mention_count = item
                 quetes = quetes_count.get(user_id, 0)
-                has_nothing = (mention_count == 0 and quetes == 0)
-                return (0 if has_nothing else 1, mention_count, quetes)
+                posts_mj = posts_mj_count.get(user_id, 0)
+                has_nothing = (mention_count == 0 and quetes == 0 and posts_mj == 0)
+                return (0 if has_nothing else 1, mention_count, quetes, posts_mj)
 
             sorted_users = sorted(mentions_count.items(), key=sort_key)
 
@@ -179,7 +180,7 @@ class MentionListCommand(BaseCommand):
                 posts_mj = posts_mj_count.get(user_id, 0)
                 quetes = quetes_count.get(user_id, 0)
 
-                is_oublie = (mention_count == 0 and quetes == 0)
+                is_oublie = (mention_count == 0 and quetes == 0 and posts_mj == 0)
 
                 if is_oublie:
                     line = f"⚠️ **{user.display_name}** - aucune récompense, aucune quête MJ"
@@ -190,6 +191,8 @@ class MentionListCommand(BaseCommand):
                         parts.append(f"{mention_count} récompense{'s' if mention_count > 1 else ''}")
                     if quetes > 0:
                         parts.append(f"{quetes} quête{'s' if quetes > 1 else ''} MJ")
+                    if posts_mj > 0:
+                        parts.append(f"{posts_mj} session{'s' if posts_mj > 1 else ''} MJ")
 
                     line = f"✅ **{user.display_name}** - {' | '.join(parts)}"
                     lines_actifs.append(line)
