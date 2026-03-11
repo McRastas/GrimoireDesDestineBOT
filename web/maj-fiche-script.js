@@ -1252,8 +1252,9 @@ function generateTemplate() {
     const pvCalcul = calculatePVGain(classeGainNiveau || classe, niveauActuel, niveauCible, modConstitution, bonusPV, pvActuels);
     
     // Construction du template
+    const classeComplete = [classe, sousClasse, niveauCible].filter(Boolean).join(' ');
     let template = `**Nom du PJ** : ${nom}
-**Classe** : ${classe}
+**Classe** : ${classeComplete}
 `;
 
     // Section spéciale si définie (avant le bloc PJ)
@@ -1269,11 +1270,6 @@ ${descriptionSpecial}
     // ===== BLOC PJ (toujours présent) =====
     template += `
  / =======================  PJ  ========================= \\ `;
-
-    if (sousClasse) {
-        template += `
-**Sous-classe** : ${sousClasse}`;
-    }
 
     // Section Quête - format adapté selon le nombre de quêtes
     if (quetesList.length > 0) {
