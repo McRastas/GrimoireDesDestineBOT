@@ -44,7 +44,8 @@ COLUMNS_CONFIG = {
     'price_costf': os.getenv('BOUTIQUE_COL_PRICE_COSTF', 'Prix Achat'),
     'price_magic_items': os.getenv('BOUTIQUE_COL_PRICE_MAGIC', 'Prix Achat'),
     'price_dungeonsport': os.getenv('BOUTIQUE_COL_PRICE_DUNGEON', 'Prix Achat'),
-    'grimoire_name': os.getenv('BOUTIQUE_COL_GRIMOIRE', 'Nom de l\'objet')
+    'grimoire_name': os.getenv('BOUTIQUE_COL_GRIMOIRE', 'Nom de l\'objet'),
+    'validate': os.getenv('BOUTIQUE_COL_VALIDATE', 'VALIDATE')
 }
 
 # Configuration Discord (identique)
@@ -113,7 +114,10 @@ FILTERING_CONFIG = {
     # ASSUREZ-VOUS QUE C'EST TRUE :
     'require_valid_price': True,  # Pour exclure les objets sans prix
     # CORRIGEZ LE NOM DE LA COLONNE :
-    'price_column': 'OM_PRICE'  # Au lieu de 'Prix Achat'
+    'price_column': 'OM_PRICE',  # Au lieu de 'Prix Achat'
+    # Filtre VALIDATE : raretés pour lesquelles les entrées NOK sont exclues
+    'validate_column': os.getenv('BOUTIQUE_COL_VALIDATE', 'VALIDATE'),
+    'rarities_requiring_validation': ['Rare', 'Très rare']
 }
 LOGGING_CONFIG = {
     'level': os.getenv('BOUTIQUE_LOG_LEVEL', 'INFO'),

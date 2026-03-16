@@ -163,6 +163,17 @@ class BoutiqueCommandV2(BaseCommand):
                 
                 logger.info(f"Filtrage prix terminé: {len(filtered_items)} objets avec prix valide")
 
+            # Filtrage VALIDATE : exclut les objets NOK pour les raretés Rare et Très rare
+            validate_column = config['filtering'].get('validate_column', 'VALIDATE')
+            rarities_requiring_validation = config['filtering'].get('rarities_requiring_validation', ['Rare', 'Très rare'])
+            filtered_items, filtered_indices = self.item_selector.filter_items_by_validate(
+                (filtered_items, filtered_indices),
+                rarity_column,
+                validate_column,
+                rarities_requiring_validation
+            )
+            logger.info(f"Filtrage VALIDATE terminé: {len(filtered_items)} objets disponibles")
+
             if len(filtered_items) < target_count:
                 # Ajuster le nombre cible si pas assez d'objets disponibles
                 logger.warning(f"Seulement {len(filtered_items)} objets disponibles, ajustement du nombre cible")

@@ -66,6 +66,29 @@ class ItemSelectorV2:
         logger.debug(f"Rareté '{rarity}' AUTORISÉE")
         return False
     
+    def filter_items_by_rarity(self, items: List[Dict[str, str]], rarity_column: str) -> Tuple[List[Dict[str, str]], List[int]]:
+        """
+        Filtre les objets en excluant les raretés configurées dans self.excluded_rarities.
+
+        Args:
+            items: Liste des objets à filtrer
+            rarity_column: Nom de la colonne contenant la rareté
+
+        Returns:
+            Tuple[List[Dict[str, str]], List[int]]: (Liste des objets filtrés, Liste des indices originaux)
+        """
+        filtered_items = []
+        original_indices = []
+
+        for i, item in enumerate(items):
+            rarity = item.get(rarity_column, "").strip()
+            if not self._is_rarity_excluded(rarity):
+                filtered_items.append(item)
+                original_indices.append(i)
+
+        logger.info(f"Filtrage par raretés exclues terminé: {len(filtered_items)}/{len(items)} objets retenus")
+        return filtered_items, original_indices
+
     def filter_items_by_specific_rarity(self, items: List[Dict[str, str]], rarity_column: str, target_rarity: str) -> Tuple[List[Dict[str, str]], List[int]]:
         """
         Filtre les objets pour ne garder que ceux d'une rareté spécifique.
@@ -157,6 +180,58 @@ class ItemSelectorV2:
         
         return filtered_items, preserved_original_indices
     
+    def filter_items_by_validate(
+        self,
+        items_with_indices: Tuple[List[Dict[str, str]], List[int]],
+        rarity_column: str,
+        validate_column: str = "VALIDATE",
+        rarities_requiring_validation: List[str] = None
+    ) -> Tuple[List[Dict[str, str]], List[int]]:
+        """
+        Pour les raretés Rare et Très rare, exclut les objets dont la colonne VALIDATE vaut 'NOK'.
+        Les objets d'autres raretés ne sont pas affectés par ce filtre.
+
+        Args:
+            items_with_indices: Tuple (liste des objets, liste des indices originaux)
+            rarity_column: Nom de la colonne de rareté
+            validate_column: Nom de la colonne VALIDATE
+            rarities_requiring_validation: Raretés concernées par le filtre (défaut: Rare, Très rare)
+
+        Returns:
+            Tuple: (Liste des objets filtrés, Liste des indices originaux préservés)
+        """
+        if rarities_requiring_validation is None:
+            rarities_requiring_validation = ['Rare', 'Très rare']
+
+        rarities_lower = [r.lower().strip() for r in rarities_requiring_validation]
+
+        items, original_indices = items_with_indices
+        filtered_items = []
+        preserved_indices = []
+        excluded_count = 0
+
+        for i, item in enumerate(items):
+            rarity = item.get(rarity_column, "").strip()
+            original_index = original_indices[i]
+
+            # Appliquer le filtre VALIDATE seulement pour les raretés concernées
+            if rarity.lower().strip() in rarities_lower:
+                validate_value = item.get(validate_column, "").strip().upper()
+                if validate_value == "NOK":
+                    nom = item.get("Nom de l'objet") or item.get("Nom en VO", "inconnu")
+                    logger.debug(f"Objet exclu (VALIDATE=NOK): {nom} [rareté: {rarity}] (ligne {original_index + 2})")
+                    excluded_count += 1
+                    continue
+
+            filtered_items.append(item)
+            preserved_indices.append(original_index)
+
+        logger.info(
+            f"Filtrage VALIDATE terminé: {len(filtered_items)} objets gardés, "
+            f"{excluded_count} objets NOK exclus (raretés: {', '.join(rarities_requiring_validation)})"
+        )
+        return filtered_items, preserved_indices
+
     def select_random_items(self, items_with_indices: Tuple[List[Dict[str, str]], List[int]], min_count: int = 3, max_count: int = 8) -> Tuple[List[Dict[str, str]], List[int]]:
         """
         Sélectionne un nombre aléatoire d'objets avec leurs indices originaux.
