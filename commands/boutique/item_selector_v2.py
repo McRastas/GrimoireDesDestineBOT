@@ -86,11 +86,9 @@ class ItemSelectorV2:
         for i, item in enumerate(items):
             rarity = item.get(rarity_column, "").lower().strip()
             
-            # Comparaison flexible pour différents formats de rareté
-            if (rarity == target_rarity_lower or 
-                rarity.replace(' ', '') == target_rarity_lower.replace(' ', '') or
-                rarity in target_rarity_lower or 
-                target_rarity_lower in rarity):
+            # Comparaison exacte pour éviter que "rare" matche "très rare"
+            if (rarity == target_rarity_lower or
+                rarity.replace(' ', '') == target_rarity_lower.replace(' ', '')):
                 
                 filtered_items.append(item)
                 original_indices.append(i)
