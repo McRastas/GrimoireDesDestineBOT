@@ -71,7 +71,7 @@ class BoutiqueCommandV2(BaseCommand):
             public="Afficher la boutique publiquement (visible par tous) - défaut: non",
             format_copiable="Inclure une version markdown copiable - défaut: non",
             rarete="Rareté spécifique à afficher (commun, peu commun, rare, très rare, légendaire)",
-            luskan="Afficher aussi les objets non validés (VALIDATE=NOK) - défaut: non"
+            luskan="Activer le filtre NOK (exclut les objets non validés) - défaut: non"
         )
         @app_commands.choices(rarete=[
             app_commands.Choice(name="Commun", value="commun"),
@@ -101,7 +101,7 @@ class BoutiqueCommandV2(BaseCommand):
             public: Si True, le message sera visible par tous, sinon temporaire (défaut: False)
             format_copiable: Si True, inclut une version markdown copiable (défaut: False)
             rarete: Rareté spécifique à afficher (optionnel)
-            luskan: Si True, désactive le filtre NOK (affiche aussi les objets non validés) (défaut: False)
+            luskan: Si True, active le filtre NOK (exclut les objets VALIDATE=NOK) (défaut: False)
         """
         try:
             # Déterminer si le message doit être temporaire ou public
@@ -168,7 +168,7 @@ class BoutiqueCommandV2(BaseCommand):
 
             # Filtrage VALIDATE : exclut les objets NOK pour les raretés Rare et Très rare
             # Le flag luskan=True désactive ce filtre (affiche aussi les objets non validés)
-            if not luskan:
+            if luskan:
                 validate_column = config['filtering'].get('validate_column', 'VALIDATE')
                 rarities_requiring_validation = config['filtering'].get('rarities_requiring_validation', ['Rare', 'Très rare'])
                 filtered_items, filtered_indices = self.item_selector.filter_items_by_validate(
@@ -179,7 +179,7 @@ class BoutiqueCommandV2(BaseCommand):
                 )
                 logger.info(f"Filtrage VALIDATE terminé: {len(filtered_items)} objets disponibles")
             else:
-                logger.info(f"Filtrage VALIDATE ignoré (flag luskan activé): {len(filtered_items)} objets disponibles")
+                logger.info(f"Filtrage VALIDATE ignoré (flag luskan désactivé): {len(filtered_items)} objets disponibles")
 
             if len(filtered_items) < target_count:
                 # Ajuster le nombre cible si pas assez d'objets disponibles
