@@ -70,7 +70,8 @@ class BoutiqueCommandV2(BaseCommand):
             nombre_objets="Nombre d'objets à afficher (entre 3 et 8, aléatoire par défaut)",
             public="Afficher la boutique publiquement (visible par tous) - défaut: non",
             format_copiable="Inclure une version markdown copiable - défaut: non",
-            rarete="Rareté spécifique à afficher (commun, peu commun, rare, très rare, légendaire)"
+            rarete="Rareté spécifique à afficher (commun, peu commun, rare, très rare, légendaire)",
+            luskan="Afficher aussi les objets non validés (VALIDATE=NOK) - défaut: non"
         )
         @app_commands.choices(rarete=[
             app_commands.Choice(name="Commun", value="commun"),
@@ -85,20 +86,22 @@ class BoutiqueCommandV2(BaseCommand):
             nombre_objets: Optional[int] = None,
             public: Optional[bool] = False,
             format_copiable: Optional[bool] = False,
-            rarete: Optional[str] = None
+            rarete: Optional[str] = None,
+            luskan: Optional[bool] = False
         ):
-            await self.callback(interaction, nombre_objets, public, format_copiable, rarete)
+            await self.callback(interaction, nombre_objets, public, format_copiable, rarete, luskan)
     
-    async def callback(self, interaction: discord.Interaction, nombre_objets: Optional[int] = None, public: Optional[bool] = False, format_copiable: Optional[bool] = False, rarete: Optional[str] = None):
+    async def callback(self, interaction: discord.Interaction, nombre_objets: Optional[int] = None, public: Optional[bool] = False, format_copiable: Optional[bool] = False, rarete: Optional[str] = None, luskan: Optional[bool] = False):
         """
         Traite la commande boutique OM_PRICE.
-        
+
         Args:
             interaction: Interaction Discord
             nombre_objets: Nombre d'objets à afficher (optionnel)
             public: Si True, le message sera visible par tous, sinon temporaire (défaut: False)
             format_copiable: Si True, inclut une version markdown copiable (défaut: False)
             rarete: Rareté spécifique à afficher (optionnel)
+            luskan: Si True, désactive le filtre NOK (affiche aussi les objets non validés) (défaut: False)
         """
         try:
             # Déterminer si le message doit être temporaire ou public
@@ -121,7 +124,7 @@ class BoutiqueCommandV2(BaseCommand):
             await interaction.response.send_message(embed=loading_embed, ephemeral=is_ephemeral)
             
             # Récupération des données depuis Google Sheets
-            logger.info(f"Récupération des objets OM_PRICE depuis la feuille '{self.sheet_name}' (public: {public}, copiable: {format_copiable}, rareté: {rarete})")
+            logger.info(f"Récupération des objets OM_PRICE depuis la feuille '{self.sheet_name}' (public: {public}, copiable: {format_copiable}, rareté: {rarete}, luskan: {luskan})")
             raw_items = await self.sheets_client.fetch_sheet_data(self.sheet_name)
             
             if not raw_items:
@@ -164,15 +167,19 @@ class BoutiqueCommandV2(BaseCommand):
                 logger.info(f"Filtrage prix terminé: {len(filtered_items)} objets avec prix valide")
 
             # Filtrage VALIDATE : exclut les objets NOK pour les raretés Rare et Très rare
-            validate_column = config['filtering'].get('validate_column', 'VALIDATE')
-            rarities_requiring_validation = config['filtering'].get('rarities_requiring_validation', ['Rare', 'Très rare'])
-            filtered_items, filtered_indices = self.item_selector.filter_items_by_validate(
-                (filtered_items, filtered_indices),
-                rarity_column,
-                validate_column,
-                rarities_requiring_validation
-            )
-            logger.info(f"Filtrage VALIDATE terminé: {len(filtered_items)} objets disponibles")
+            # Le flag luskan=True désactive ce filtre (affiche aussi les objets non validés)
+            if not luskan:
+                validate_column = config['filtering'].get('validate_column', 'VALIDATE')
+                rarities_requiring_validation = config['filtering'].get('rarities_requiring_validation', ['Rare', 'Très rare'])
+                filtered_items, filtered_indices = self.item_selector.filter_items_by_validate(
+                    (filtered_items, filtered_indices),
+                    rarity_column,
+                    validate_column,
+                    rarities_requiring_validation
+                )
+                logger.info(f"Filtrage VALIDATE terminé: {len(filtered_items)} objets disponibles")
+            else:
+                logger.info(f"Filtrage VALIDATE ignoré (flag luskan activé): {len(filtered_items)} objets disponibles")
 
             if len(filtered_items) < target_count:
                 # Ajuster le nombre cible si pas assez d'objets disponibles
