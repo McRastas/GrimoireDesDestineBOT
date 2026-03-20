@@ -8,7 +8,7 @@ DESCRIPTION:
 FONCTIONNEMENT:
     - Vérifie si 2h se sont écoulées depuis le dernier bump
     - Si cooldown actif : message éphémère avec le temps restant
-    - Si disponible : enregistre le timestamp et envoie un rappel public
+    - Si disponible : enregistre le timestamp et envoie un rappel éphémère (whisper)
       pour que quelqu'un utilise la commande /bump de Disboard
 
 UTILISATION:
@@ -157,4 +157,4 @@ class DisboardBumpCommand(BaseCommand):
             inline=False)
         embed.set_footer(text=f"Bumped par {interaction.user.display_name} • Prochain bump dans 2h")
 
-        await interaction.response.send_message(embed=embed)
+        await interaction.response.send_message(embed=embed, ephemeral=True)
