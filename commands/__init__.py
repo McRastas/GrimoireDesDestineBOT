@@ -46,6 +46,11 @@ from .pj_dispo import PjDispoCommand
 from .config_channels import ConfigChannelsCommand
 
 # ============================================================================
+# DISBOARD BUMP
+# ============================================================================
+from .disboard_bump import DisboardBumpCommand
+
+# ============================================================================
 # IMPORTS CONDITIONNELS
 # ============================================================================
 
@@ -106,6 +111,8 @@ ALL_COMMANDS = [
     PjDispoCommand,
     # Administration
     ConfigChannelsCommand,
+    # Disboard Bump
+    DisboardBumpCommand,
 ]
 
 # Ajouter les commandes optionnelles
