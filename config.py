@@ -45,7 +45,8 @@ class Config:
         'recompenses': 'recompenses',
         'quetes': 'départ-à-l-aventure',
         'logs': 'bot-logs',
-        'admin': 'bot-admin'
+        'admin': 'bot-admin',
+        'bump': 'bump'
     }
 
     @classmethod
@@ -233,6 +234,7 @@ CHANNELS_CONFIG={"recompenses":{"name":"recompenses"},"quetes":{"name":"départ-
 # CHANNEL_QUETES_NAME=départ-à-l-aventure
 # CHANNEL_LOGS_NAME=bot-logs
 # CHANNEL_ADMIN_NAME=bot-admin
+# CHANNEL_BUMP_NAME=bump
 
 # Suivi des personnages — /pj_dispo (OPTIONNEL)
 # PJ_DISPO_SHEET_ID=1QPLhU1I594hKQdvg4LhrL6Tui6pko01hiRO0DUnvk2U
