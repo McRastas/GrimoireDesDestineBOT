@@ -1,6 +1,6 @@
 """
 Commande Top MJ - Répertorie les MJ les plus actifs
-Compte les posts dans le canal récompenses avec au moins 2 mentions
+Compte les posts dans le canal départ-à-l'aventure avec au moins 2 mentions
 """
 
 import discord
@@ -9,6 +9,7 @@ from collections import defaultdict
 from typing import Optional
 from datetime import datetime, timedelta, timezone
 from .base import BaseCommand
+from utils.channels import ChannelHelper
 
 
 class TopMjCommand(BaseCommand):
@@ -39,40 +40,34 @@ class TopMjCommand(BaseCommand):
         tree.add_command(top_mj_cmd)
 
     async def callback(
-        self, 
+        self,
         interaction: discord.Interaction,
         nombre: int = 10,
         periode: bool = False
     ):
-        """Analyse les posts dans le canal récompenses et affiche le classement des MJ."""
-        
+        """Analyse les posts dans le canal départ-à-l'aventure et affiche le classement des MJ."""
+
         # Validation du nombre (entre 5 et 50)
         nombre_original = nombre
         if nombre < 5:
             nombre = 5
         elif nombre > 50:
             nombre = 50
-        
+
         # Réponse discrète (ephemeral) - visible uniquement par l'utilisateur
         await interaction.response.defer(ephemeral=True)
-        
+
         # Message d'avertissement si le nombre a été ajusté
         adjusted_warning = ""
         if nombre_original != nombre:
             adjusted_warning = f"⚠️ Nombre ajusté de {nombre_original} à {nombre} (limites: 5-50)\n\n"
 
         try:
-            # Chercher le canal récompenses (plusieurs variantes possibles)
-            recompense_channel = None
-            for channel in interaction.guild.text_channels:
-                if channel.name.lower() in ['recompenses', 'récompenses', 'recompense']:
-                    recompense_channel = channel
-                    break
+            recompense_channel = ChannelHelper.get_quetes_channel(interaction.guild)
 
             if not recompense_channel:
                 await interaction.followup.send(
-                    "❌ Le canal **récompenses** n'a pas été trouvé sur ce serveur.\n"
-                    "Assurez-vous qu'un canal avec ce nom existe.",
+                    ChannelHelper.get_channel_error_message(ChannelHelper.QUETES),
                     ephemeral=True
                 )
                 return
@@ -194,7 +189,7 @@ class TopMjCommand(BaseCommand):
 
         except discord.Forbidden:
             await interaction.followup.send(
-                "❌ Je n'ai pas la permission de lire l'historique du canal récompenses.\n"
+                "❌ Je n'ai pas la permission de lire l'historique du canal départ-à-l'aventure.\n"
                 "Vérifiez que le bot a bien la permission `Lire l'historique des messages`.",
                 ephemeral=True
             )
