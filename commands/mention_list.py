@@ -58,12 +58,12 @@ class MentionListCommand(BaseCommand):
         async def mentionlist_command(
             interaction: discord.Interaction,
             public: Optional[bool] = False,
-            periode: str = "creation",
+            periode: str = "30j",
             date_debut: Optional[str] = None
         ):
             await self.callback(interaction, public, periode, date_debut)
 
-    async def callback(self, interaction: discord.Interaction, public: Optional[bool] = False, periode: str = "creation", date_debut: Optional[str] = None):
+    async def callback(self, interaction: discord.Interaction, public: Optional[bool] = False, periode: str = "30j", date_debut: Optional[str] = None):
         """
         Exécute la commande mentionlist.
 
