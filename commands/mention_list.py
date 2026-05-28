@@ -61,6 +61,7 @@ class MentionListCommand(BaseCommand):
             periode: str = "30j",
             date_debut: Optional[str] = None
         ):
+            await interaction.response.defer(ephemeral=not public)
             await self.callback(interaction, public, periode, date_debut)
 
     async def callback(self, interaction: discord.Interaction, public: Optional[bool] = False, periode: str = "30j", date_debut: Optional[str] = None):
@@ -73,9 +74,6 @@ class MentionListCommand(BaseCommand):
             periode: Période d'analyse - 'creation' (depuis création du canal) ou '30j' (30 derniers jours)
         """
         try:
-            is_ephemeral = not public
-            await interaction.response.defer(ephemeral=is_ephemeral)
-
             # Récupérer les canaux configurables
             recompenses_channel = ChannelHelper.get_recompenses_channel(interaction.guild)
             if not recompenses_channel:

@@ -42,14 +42,12 @@ class RecapMjCommand(BaseCommand):
         )
         async def recap_mj_command(interaction: discord.Interaction,
                                    membre: discord.Member = None):
+            await interaction.response.defer(ephemeral=True)
             await self.callback(interaction, membre)
 
     async def callback(self,
                        interaction: discord.Interaction,
                        membre: discord.Member = None):
-        # Defer pour éviter timeout
-        await interaction.response.defer(ephemeral=True)
-
         cible = membre or interaction.user
 
         # Utiliser le système de canaux configurables

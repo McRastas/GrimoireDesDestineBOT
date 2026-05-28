@@ -43,14 +43,12 @@ class MentionSomeoneCommand(BaseCommand):
         @app_commands.describe(membre="Le membre dont on veut les mentions")
         async def mentions_command(interaction: discord.Interaction,
                                    membre: discord.Member = None):
+            await interaction.response.defer(ephemeral=True)
             await self.callback(interaction, membre)
 
     async def callback(self,
                        interaction: discord.Interaction,
                        membre: discord.Member = None):
-        # Defer pour éviter timeout sur les gros historiques
-        await interaction.response.defer(ephemeral=True)
-
         cible = membre or interaction.user
         channel = ChannelHelper.get_recompenses_channel(interaction.guild)
 
