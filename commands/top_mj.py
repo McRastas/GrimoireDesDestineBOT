@@ -31,10 +31,11 @@ class TopMjCommand(BaseCommand):
             periode="Filtrer sur les 30 derniers jours uniquement (défaut: Non)"
         )
         async def top_mj_cmd(
-            interaction: discord.Interaction, 
+            interaction: discord.Interaction,
             nombre: Optional[int] = 10,
             periode: Optional[bool] = False
         ):
+            await interaction.response.defer(ephemeral=True)
             await self.callback(interaction, nombre, periode)
         
         tree.add_command(top_mj_cmd)
@@ -53,9 +54,6 @@ class TopMjCommand(BaseCommand):
             nombre = 5
         elif nombre > 50:
             nombre = 50
-
-        # Réponse discrète (ephemeral) - visible uniquement par l'utilisateur
-        await interaction.response.defer(ephemeral=True)
 
         # Message d'avertissement si le nombre a été ajusté
         adjusted_warning = ""
